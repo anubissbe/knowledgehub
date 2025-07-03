@@ -32,24 +32,24 @@ class ScrapingJob(Base):
     
     __tablename__ = "scraping_jobs"
     
-    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
-    job_type: JobType = Column(
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
+    job_type = Column(
         SQLEnum(JobType, name="job_type", values_callable=lambda x: [e.value for e in x]),
         default=JobType.SCRAPING,
         nullable=False
     )
-    status: JobStatus = Column(
+    status = Column(
         SQLEnum(JobStatus, name="job_status", values_callable=lambda x: [e.value for e in x]),
         default=JobStatus.PENDING,
         nullable=False
     )
-    config: Dict[str, Any] = Column(JSON, default={})
-    started_at: Optional[datetime] = Column(DateTime(timezone=True))
-    completed_at: Optional[datetime] = Column(DateTime(timezone=True))
-    error: Optional[str] = Column(Text)
-    stats: Dict[str, Any] = Column(JSON, default={})
-    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
+    config = Column(JSON, default={})
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    error = Column(Text)
+    stats = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     # Relationships
     source = relationship("KnowledgeSource", back_populates="jobs")
@@ -77,5 +77,8 @@ class ScrapingJob(Base):
         """Calculate job duration in seconds"""
         if self.started_at and self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
-        return None# Add Job alias
+        return None
+
+
+# Add Job alias
 Job = ScrapingJob  # Alias for compatibility

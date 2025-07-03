@@ -14,16 +14,16 @@ class MemoryItem(Base):
     
     __tablename__ = "memory_items"
     
-    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    content: str = Column(Text, nullable=False)
-    content_hash: Optional[str] = Column(String(64), unique=True)
-    tags: List[str] = Column(ARRAY(Text), default=[])
-    meta_data: Dict[str, Any] = Column('metadata', JSON, default={})
-    embedding_id: Optional[str] = Column(String(255))
-    access_count: int = Column(Integer, default=0)
-    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
-    accessed_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String(64), unique=True)
+    tags = Column(ARRAY(Text), default=[])
+    meta_data = Column('metadata', JSON, default={})
+    embedding_id = Column(String(255))
+    access_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    accessed_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     def __repr__(self):
         return f"<MemoryItem(id={self.id}, tags={self.tags}, access_count={self.access_count})>"

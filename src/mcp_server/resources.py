@@ -107,7 +107,8 @@ class KnowledgeResources:
                     for source in sources:
                         status = source.get("status", "unknown")
                         by_status = stats["sources"]["by_status"]
-                        by_status[status] = by_status.get(status, 0) + 1
+                        if isinstance(by_status, dict):
+                            by_status[status] = by_status.get(status, 0) + 1
                     
                     # Calculate totals
                     total_docs = sum(s.get("stats", {}).get("documents", 0) for s in sources)

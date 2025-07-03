@@ -26,19 +26,19 @@ class KnowledgeSource(Base):
     
     __tablename__ = "knowledge_sources"
     
-    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name: str = Column(String(255), nullable=False)
-    url: str = Column(Text, nullable=False, unique=True)
-    status: SourceStatus = Column(
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    url = Column(Text, nullable=False, unique=True)
+    status = Column(
         SQLEnum(SourceStatus, name="source_status", values_callable=lambda obj: [e.value for e in obj]),
         default=SourceStatus.PENDING,
         nullable=False
     )
-    config: Dict[str, Any] = Column(JSON, default={})
-    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_scraped_at: Optional[datetime] = Column(DateTime(timezone=True), nullable=True)
-    stats: Dict[str, Any] = Column(JSON, default={"documents": 0, "chunks": 0, "errors": 0})
+    config = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_scraped_at = Column(DateTime(timezone=True), nullable=True)
+    stats = Column(JSON, default={"documents": 0, "chunks": 0, "errors": 0})
     
     # Relationships
     documents = relationship("Document", back_populates="source", cascade="all, delete-orphan")

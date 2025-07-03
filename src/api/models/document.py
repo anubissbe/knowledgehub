@@ -25,17 +25,17 @@ class Document(Base):
     
     __tablename__ = "documents"
     
-    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
-    url: str = Column(Text, nullable=False)
-    title: Optional[str] = Column(Text)
-    content: Optional[str] = Column(Text)
-    content_hash: Optional[str] = Column(String(64))
-    document_metadata: Dict[str, Any] = Column("metadata", JSON, default={})
-    status: str = Column(String(50), default="pending")
-    indexed_at: Optional[datetime] = Column(DateTime(timezone=True))
-    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
+    url = Column(Text, nullable=False)
+    title = Column(Text)
+    content = Column(Text)
+    content_hash = Column(String(64))
+    document_metadata = Column("metadata", JSON, default={})
+    status = Column(String(50), default="pending")
+    indexed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     source = relationship("KnowledgeSource", back_populates="documents")
@@ -65,18 +65,18 @@ class DocumentChunk(Base):
     
     __tablename__ = "document_chunks"
     
-    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
-    chunk_index: int = Column(Integer, nullable=False)
-    chunk_type: ChunkType = Column(
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    chunk_type = Column(
         SQLEnum(ChunkType, name="chunk_type", values_callable=lambda x: [e.value for e in x]),
         nullable=False
     )
-    content: str = Column(Text, nullable=False)
-    embedding_id: Optional[str] = Column(String(255))  # ID in vector database
-    parent_heading: Optional[str] = Column(Text)
-    chunk_metadata: Dict[str, Any] = Column("metadata", JSON, default={})
-    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
+    content = Column(Text, nullable=False)
+    embedding_id = Column(String(255))  # ID in vector database
+    parent_heading = Column(Text)
+    chunk_metadata = Column("metadata", JSON, default={})
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     # Relationships
     document = relationship("Document", back_populates="chunks")
