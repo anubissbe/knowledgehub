@@ -33,6 +33,12 @@ def get_memory_service():
     return MemoryService()
 
 
+def get_current_user():
+    """Get current user (placeholder for authentication)"""
+    # TODO: Implement proper authentication
+    return {"id": "system", "username": "system"}
+
+
 # Re-export commonly used dependencies
 __all__ = [
     "get_db",
@@ -42,5 +48,6 @@ __all__ = [
     "get_source_service",
     "get_job_service",
     "get_search_service",
-    "get_memory_service"
+    "get_memory_service",
+    "get_current_user"
 ]
