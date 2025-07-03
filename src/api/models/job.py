@@ -34,12 +34,12 @@ class ScrapingJob(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     source_id = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
-    job_type = Column(
+    job_type: JobType = Column(
         SQLEnum(JobType, name="job_type", values_callable=lambda x: [e.value for e in x]),
         default=JobType.SCRAPING,
         nullable=False
     )
-    status = Column(
+    status: JobStatus = Column(
         SQLEnum(JobStatus, name="job_status", values_callable=lambda x: [e.value for e in x]),
         default=JobStatus.PENDING,
         nullable=False

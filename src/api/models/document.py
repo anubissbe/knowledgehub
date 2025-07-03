@@ -68,7 +68,7 @@ class DocumentChunk(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
-    chunk_type = Column(
+    chunk_type: ChunkType = Column(
         SQLEnum(ChunkType, name="chunk_type", values_callable=lambda x: [e.value for e in x]),
         nullable=False
     )

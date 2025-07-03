@@ -23,7 +23,7 @@ class MessageQueue:
         self.consumer_name = f"worker-{uuid.uuid4().hex[:8]}"
         self.handlers: Dict[str, List[Callable]] = {}
         self._running = False
-        self._tasks = []
+        self._tasks: List[asyncio.Task] = []
     
     async def initialize(self):
         """Initialize Redis connection and consumer groups"""

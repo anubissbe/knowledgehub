@@ -38,6 +38,7 @@ class TextChunkingStrategy(ChunkingStrategy):
         self.min_chunk_size = min_chunk_size
         
         # Token counter
+        self.encoding: Optional[tiktoken.Encoding] = None
         try:
             self.encoding = tiktoken.get_encoding("cl100k_base")
         except:

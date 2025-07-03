@@ -64,7 +64,7 @@ def setup_logging(
         use_json = config.is_production
     
     if use_json:
-        formatter = JSONFormatter()
+        formatter: logging.Formatter = JSONFormatter()
     else:
         formatter = logging.Formatter(config.LOG_FORMAT)
     

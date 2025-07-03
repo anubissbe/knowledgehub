@@ -235,7 +235,7 @@ class VectorStore:
             logger.error(f"Search failed: {e}")
             return []
     
-    def _build_where_filter(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_where_filter(self, filters: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Build Weaviate where filter from filters dict"""
         where_conditions = []
         

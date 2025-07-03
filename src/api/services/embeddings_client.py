@@ -93,7 +93,9 @@ class EmbeddingsClient:
     async def generate_embedding(self, text: str, normalize: bool = True) -> List[float]:
         """Generate embedding for single text"""
         embeddings = await self.generate_embeddings([text], normalize)
-        return embeddings[0] if embeddings else []
+        if embeddings and len(embeddings) > 0:
+            return embeddings[0]
+        return []
     
     
     async def close(self):

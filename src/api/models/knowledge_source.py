@@ -29,7 +29,7 @@ class KnowledgeSource(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     url = Column(Text, nullable=False, unique=True)
-    status = Column(
+    status: SourceStatus = Column(
         SQLEnum(SourceStatus, name="source_status", values_callable=lambda obj: [e.value for e in obj]),
         default=SourceStatus.PENDING,
         nullable=False
