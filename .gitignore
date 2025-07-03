@@ -53,9 +53,16 @@ dist/
 *.db
 *.sqlite
 
+# Persistent data volumes
+data/
+
+# Model files (download separately)
+embeddings-service/models/
+
 # Keep essential documentation
 !README.md
 !CHANGELOG.md
 !CONTRIBUTING.md
 !LICENSE
 !docs/
+!.env.example
