@@ -1,0 +1,251 @@
+"""Document chunks router"""
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from uuid import UUID
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+import logging
+
+from ..dependencies import get_db
+from ..models.document import DocumentChunk, ChunkType
+from ..models.source import KnowledgeSource
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+@router.post("/", status_code=201)
+async def create_chunk(
+    chunk_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """Create a new document chunk"""
+    try:
+        # Extract data
+        source_id = chunk_data.get("source_id")
+        content = chunk_data.get("content")
+        chunk_type = chunk_data.get("chunk_type", "TEXT")
+        metadata = chunk_data.get("metadata", {})
+        embedding_id = chunk_data.get("embedding_id")
+        url = metadata.get("url", "")
+        
+        # Validate source exists
+        source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+        if not source:
+            raise HTTPException(status_code=404, detail=f"Source {source_id} not found")
+        
+        # Convert chunk_type string to enum
+        try:
+            chunk_type_enum = ChunkType[chunk_type.upper()]
+        except KeyError:
+            chunk_type_enum = ChunkType.TEXT
+        
+        # Create chunk
+        chunk = DocumentChunk(
+            source_id=source_id,
+            content=content,
+            chunk_type=chunk_type_enum,
+            meta_data=metadata,
+            embedding_id=embedding_id,
+            created_at=datetime.utcnow()
+        )
+        
+        db.add(chunk)
+        db.commit()
+        db.refresh(chunk)
+        
+        # Update source stats
+        update_source_stats(db, source_id)
+        
+        return {
+            "id": str(chunk.id),
+            "source_id": str(chunk.source_id),
+            "chunk_type": chunk.chunk_type.value,
+            "content_preview": chunk.content[:100] + "..." if len(chunk.content) > 100 else chunk.content,
+            "created_at": chunk.created_at.isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating chunk: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/batch", status_code=201)
+async def create_chunks_batch(
+    chunks: List[Dict[str, Any]],
+    db: Session = Depends(get_db)
+):
+    """Create multiple chunks in a batch"""
+    created_chunks = []
+    source_ids = set()
+    
+    try:
+        for chunk_data in chunks:
+            # Extract data
+            source_id = chunk_data.get("source_id")
+            content = chunk_data.get("content")
+            chunk_type = chunk_data.get("chunk_type", "TEXT")
+            metadata = chunk_data.get("metadata", {})
+            embedding_id = chunk_data.get("embedding_id")
+            
+            # Track source IDs for stats update
+            source_ids.add(source_id)
+            
+            # Convert chunk_type string to enum
+            try:
+                chunk_type_enum = ChunkType[chunk_type.upper()]
+            except KeyError:
+                chunk_type_enum = ChunkType.TEXT
+            
+            # Create chunk
+            chunk = DocumentChunk(
+                source_id=source_id,
+                content=content,
+                chunk_type=chunk_type_enum,
+                meta_data=metadata,
+                embedding_id=embedding_id,
+                created_at=datetime.utcnow()
+            )
+            
+            db.add(chunk)
+            created_chunks.append(chunk)
+        
+        # Commit all chunks
+        db.commit()
+        
+        # Update stats for all affected sources
+        for source_id in source_ids:
+            update_source_stats(db, source_id)
+        
+        return {
+            "created": len(created_chunks),
+            "chunks": [
+                {
+                    "id": str(chunk.id),
+                    "source_id": str(chunk.source_id),
+                    "chunk_type": chunk.chunk_type.value
+                }
+                for chunk in created_chunks
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating chunks batch: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating chunks: {str(e)}")
+
+
+@router.get("/")
+async def list_chunks(
+    source_id: Optional[UUID] = Query(None),
+    chunk_type: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+):
+    """List chunks with optional filtering"""
+    try:
+        query = db.query(DocumentChunk)
+        
+        if source_id:
+            query = query.filter(DocumentChunk.source_id == source_id)
+        
+        if chunk_type:
+            try:
+                chunk_type_enum = ChunkType[chunk_type.upper()]
+                query = query.filter(DocumentChunk.chunk_type == chunk_type_enum)
+            except KeyError:
+                pass
+        
+        total = query.count()
+        chunks = query.offset(skip).limit(limit).all()
+        
+        return {
+            "chunks": [
+                {
+                    "id": str(chunk.id),
+                    "source_id": str(chunk.source_id),
+                    "chunk_type": chunk.chunk_type.value,
+                    "content_preview": chunk.content[:100] + "..." if len(chunk.content) > 100 else chunk.content,
+                    "embedding_id": chunk.embedding_id,
+                    "created_at": chunk.created_at.isoformat()
+                }
+                for chunk in chunks
+            ],
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing chunks: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/stats")
+async def get_chunk_stats(
+    source_id: Optional[UUID] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get chunk statistics"""
+    try:
+        query = db.query(
+            DocumentChunk.chunk_type,
+            func.count(DocumentChunk.id).label('count')
+        )
+        
+        if source_id:
+            query = query.filter(DocumentChunk.source_id == source_id)
+        
+        stats = query.group_by(DocumentChunk.chunk_type).all()
+        
+        return {
+            "stats": {
+                chunk_type.value: count 
+                for chunk_type, count in stats
+            },
+            "total": sum(count for _, count in stats)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting chunk stats: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+def update_source_stats(db: Session, source_id: UUID):
+    """Update source statistics based on chunks"""
+    try:
+        # Get chunk count
+        chunk_count = db.query(func.count(DocumentChunk.id)).filter(
+            DocumentChunk.source_id == source_id
+        ).scalar()
+        
+        # Get unique documents (based on URL or other criteria)
+        # For now, we'll count unique URLs as documents
+        doc_count = db.query(func.count(func.distinct(DocumentChunk.meta_data['url']))).filter(
+            DocumentChunk.source_id == source_id
+        ).scalar() or 0
+        
+        # Update source
+        source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+        if source:
+            if not source.stats:
+                source.stats = {}
+            
+            source.stats["chunks"] = chunk_count or 0
+            source.stats["documents"] = doc_count
+            source.stats["errors"] = source.stats.get("errors", 0)
+            source.updated_at = datetime.utcnow()
+            
+            db.commit()
+            logger.info(f"Updated stats for source {source_id}: chunks={chunk_count}, docs={doc_count}")
+            
+    except Exception as e:
+        logger.error(f"Error updating source stats: {e}")
+        db.rollback()

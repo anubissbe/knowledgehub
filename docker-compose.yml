@@ -1,0 +1,260 @@
+services:
+  # PostgreSQL for document metadata
+  postgres:
+    image: postgres:16-alpine
+    container_name: knowledgehub-postgres
+    environment:
+      POSTGRES_DB: knowledgehub
+      POSTGRES_USER: khuser
+      POSTGRES_PASSWORD: khpassword
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./src/api/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    ports:
+      - "0.0.0.0:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khuser -d knowledgehub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - knowledgehub-network
+
+  # Redis for caching and message queue
+  redis:
+    image: redis:7-alpine
+    container_name: knowledgehub-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "0.0.0.0:6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - knowledgehub-network
+
+  # Weaviate vector database
+  weaviate:
+    image: semitechnologies/weaviate:1.22.4
+    container_name: knowledgehub-weaviate
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-transformers'
+      ENABLE_MODULES: 'text2vec-transformers'
+      TRANSFORMERS_INFERENCE_API: 'http://t2v-transformers:8080'
+      CLUSTER_HOSTNAME: 'weaviate'
+    volumes:
+      - ./data/weaviate:/var/lib/weaviate
+    ports:
+      - "8090:8080"
+      - "50051:50051"
+    depends_on:
+      - t2v-transformers
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - knowledgehub-network
+
+  # Transformer model for embeddings
+  t2v-transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    container_name: knowledgehub-transformers
+    environment:
+      ENABLE_CUDA: '0'
+      MODEL_NAME: sentence-transformers/all-MiniLM-L6-v2
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    networks:
+      - knowledgehub-network
+
+  # MinIO for blob storage (S3-compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: knowledgehub-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "0.0.0.0:9010:9000"
+      - "0.0.0.0:9011:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - knowledgehub-network
+
+  # API Gateway
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: knowledgehub-api
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - REDIS_URL=redis://redis:6379/0
+      - WEAVIATE_URL=http://knowledgehub-weaviate:8080
+      - S3_ENDPOINT_URL=http://minio:9000
+      - EMBEDDINGS_SERVICE_URL=http://embeddings-real:8100
+    volumes:
+      - ./src/api:/app/src/api
+      - ./src/shared:/app/src/shared
+    ports:
+      - "0.0.0.0:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - knowledgehub-network
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 3000 --reload
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/mcp.Dockerfile
+    container_name: knowledgehub-mcp
+    environment:
+      - APP_ENV=development
+      - API_URL=http://api:3000
+      - MCP_SERVER_PORT=3002
+    volumes:
+      - ./src/mcp-server:/app/src/mcp-server
+      - ./src/shared:/app/src/shared
+    ports:
+      - "0.0.0.0:3002:3002"
+    depends_on:
+      - api
+    networks:
+      - knowledgehub-network
+    command: python -m src.mcp_server.server
+
+  # Scraper Worker
+  scraper:
+    build:
+      context: .
+      dockerfile: docker/scraper.Dockerfile
+    container_name: knowledgehub-scraper
+    environment:
+      - APP_ENV=production
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - API_URL=http://api:3000
+      - API_KEY=dev-api-key-123
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      - redis
+      - postgres
+      - api
+    networks:
+      - knowledgehub-network
+    command: ["sh", "-c", "cd /app && python -m src.scraper.main"]
+    restart: unless-stopped
+
+  # RAG Processor
+  rag-processor:
+    build:
+      context: .
+      dockerfile: docker/rag.Dockerfile
+    container_name: knowledgehub-rag
+    environment:
+      - APP_ENV=production
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - WEAVIATE_URL=http://knowledgehub-weaviate:8080
+      - API_URL=http://api:3000
+      - API_KEY=dev-api-key-123
+      - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+    volumes:
+      - ./src/rag_processor:/app/src/rag_processor
+      - ./src/shared:/app/src/shared
+    depends_on:
+      - redis
+      - postgres
+      - weaviate
+      - api
+    networks:
+      - knowledgehub-network
+    command: python -m src.rag_processor.main
+    restart: unless-stopped
+
+  # Web UI (development)
+  web-ui:
+    build:
+      context: .
+      dockerfile: docker/web-ui.Dockerfile
+    container_name: knowledgehub-ui
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
+      - VITE_WS_URL=ws://localhost:3000
+    volumes:
+      - ./src/web-ui:/app
+      - /app/node_modules
+    ports:
+      - "0.0.0.0:3101:80"
+    depends_on:
+      - api
+    networks:
+      - knowledgehub-network
+
+  # Scheduler Service
+  scheduler:
+    build:
+      context: .
+      dockerfile: src/scheduler/Dockerfile
+    container_name: knowledgehub-scheduler
+    environment:
+      - API_BASE_URL=http://api:3000
+      - SCHEDULER_ENABLED=true
+      - REFRESH_SCHEDULE=0 2 * * 0  # Every Sunday at 2 AM
+      - REFRESH_BATCH_SIZE=2
+      - REFRESH_DELAY_SECONDS=300
+      - REFRESH_ON_STARTUP=false
+    volumes:
+      - ./src/scheduler:/app
+      - ./src/shared:/app/shared
+    depends_on:
+      - api
+    networks:
+      - knowledgehub-network
+    restart: unless-stopped
+
+networks:
+  knowledgehub-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  weaviate_data:
+  minio_data:

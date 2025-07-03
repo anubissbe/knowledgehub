@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.Python
+build/
+dist/
+*.egg-info/
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+scripts/
+deploy_*.sh
+*token*
+*secret*
+*password*
+
+# Development files
+test_*.py
+*_test.py
+debug_*.py
+manual_*.py
+simple_*.py
+fix_*.py
+generate_*.py
+temp_*.py
+validate_*.py
+
+# Logs and temporary files
+*.log
+*.tmp
+*.pid
+logs/
+temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Generated documentation (keep only essential docs)
+*.md
+!README.md
+!CHANGELOG.md
+!GITHUB_SETUP.md
+!docs/**/*.md
+
+# Build artifacts
+*.tar
+*.tar.gz
+.vite/
+dist/
+
+# Database files
+*.db
+*.sqlite

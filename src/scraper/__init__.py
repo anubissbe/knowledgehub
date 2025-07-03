@@ -1,0 +1,1 @@
+"""Web scraper module"""
