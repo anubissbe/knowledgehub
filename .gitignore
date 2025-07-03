@@ -43,13 +43,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Generated documentation (keep only essential docs)
-*.md
-!README.md
-!CHANGELOG.md
-!GITHUB_SETUP.md
-!docs/**/*.md
-
 # Build artifacts
 *.tar
 *.tar.gz
@@ -59,3 +52,10 @@ dist/
 # Database files
 *.db
 *.sqlite
+
+# Keep essential documentation
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!LICENSE
+!docs/
