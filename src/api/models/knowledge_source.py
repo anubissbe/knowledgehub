@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 import enum
+from typing import Optional, Dict, Any, List
 
 from .base import Base
 
@@ -25,19 +26,19 @@ class KnowledgeSource(Base):
     
     __tablename__ = "knowledge_sources"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False)
-    url = Column(Text, nullable=False, unique=True)
-    status = Column(
+    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: str = Column(String(255), nullable=False)
+    url: str = Column(Text, nullable=False, unique=True)
+    status: SourceStatus = Column(
         SQLEnum(SourceStatus, name="source_status", values_callable=lambda obj: [e.value for e in obj]),
         default=SourceStatus.PENDING,
         nullable=False
     )
-    config = Column(JSON, default={})
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_scraped_at = Column(DateTime(timezone=True), nullable=True)
-    stats = Column(JSON, default={"documents": 0, "chunks": 0, "errors": 0})
+    config: Dict[str, Any] = Column(JSON, default={})
+    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_scraped_at: Optional[datetime] = Column(DateTime(timezone=True), nullable=True)
+    stats: Dict[str, Any] = Column(JSON, default={"documents": 0, "chunks": 0, "errors": 0})
     
     # Relationships
     documents = relationship("Document", back_populates="source", cascade="all, delete-orphan")
@@ -46,7 +47,7 @@ class KnowledgeSource(Base):
     def __repr__(self):
         return f"<KnowledgeSource(id={self.id}, name='{self.name}', url='{self.url}', status={self.status})>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
             "id": str(self.id),

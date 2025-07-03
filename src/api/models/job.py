@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 import enum
+from typing import Optional, Dict, Any
 
 from .base import Base
 
@@ -31,24 +32,24 @@ class ScrapingJob(Base):
     
     __tablename__ = "scraping_jobs"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
-    job_type = Column(
+    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False)
+    job_type: JobType = Column(
         SQLEnum(JobType, name="job_type", values_callable=lambda x: [e.value for e in x]),
         default=JobType.SCRAPING,
         nullable=False
     )
-    status = Column(
+    status: JobStatus = Column(
         SQLEnum(JobStatus, name="job_status", values_callable=lambda x: [e.value for e in x]),
         default=JobStatus.PENDING,
         nullable=False
     )
-    config = Column(JSON, default={})
-    started_at = Column(DateTime(timezone=True))
-    completed_at = Column(DateTime(timezone=True))
-    error = Column(Text)
-    stats = Column(JSON, default={})
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    config: Dict[str, Any] = Column(JSON, default={})
+    started_at: Optional[datetime] = Column(DateTime(timezone=True))
+    completed_at: Optional[datetime] = Column(DateTime(timezone=True))
+    error: Optional[str] = Column(Text)
+    stats: Dict[str, Any] = Column(JSON, default={})
+    created_at: datetime = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     # Relationships
     source = relationship("KnowledgeSource", back_populates="jobs")
@@ -56,7 +57,7 @@ class ScrapingJob(Base):
     def __repr__(self):
         return f"<ScrapingJob(id={self.id}, type={self.job_type}, status={self.status})>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
             "id": str(self.id),

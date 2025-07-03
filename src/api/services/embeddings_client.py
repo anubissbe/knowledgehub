@@ -14,9 +14,9 @@ class EmbeddingsClient:
     def __init__(self, base_url: str = "http://localhost:8100"):
         self.base_url = base_url
         self.session: Optional[aiohttp.ClientSession] = None
-        self._is_available = None
-        self._last_check = 0
-        self._check_interval = 60  # seconds
+        self._is_available: Optional[bool] = None
+        self._last_check: float = 0
+        self._check_interval: int = 60  # seconds
     
     async def _ensure_session(self):
         """Ensure aiohttp session is created"""
@@ -34,6 +34,8 @@ class EmbeddingsClient:
         
         try:
             await self._ensure_session()
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.get(f"{self.base_url}/health", timeout=5) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -62,6 +64,8 @@ class EmbeddingsClient:
             await self._ensure_session()
             
             # Call remote service
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.post(
                 f"{self.base_url}/embeddings",
                 json={

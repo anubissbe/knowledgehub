@@ -2,7 +2,7 @@
 
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 import json
 from datetime import datetime
 
@@ -41,7 +41,7 @@ class JSONFormatter(logging.Formatter):
 def setup_logging(
     name: str,
     level: Optional[str] = None,
-    use_json: bool = None
+    use_json: Optional[bool] = None
 ) -> logging.Logger:
     """Setup logging for a module"""
     config = Config()
@@ -85,10 +85,10 @@ def get_logger(name: str) -> logging.Logger:
 class LoggerAdapter(logging.LoggerAdapter):
     """Logger adapter for adding context to logs"""
     
-    def __init__(self, logger: logging.Logger, extra: dict):
+    def __init__(self, logger: logging.Logger, extra: Dict[str, Any]) -> None:
         super().__init__(logger, extra)
     
-    def process(self, msg, kwargs):
+    def process(self, msg: Any, kwargs: Dict[str, Any]) -> Tuple[Any, Dict[str, Any]]:
         # Add extra context to all log messages
         if "extra" not in kwargs:
             kwargs["extra"] = {}
@@ -99,7 +99,7 @@ class LoggerAdapter(logging.LoggerAdapter):
 
 def create_logger_with_context(
     name: str,
-    context: dict
+    context: Dict[str, Any]
 ) -> LoggerAdapter:
     """Create a logger with additional context"""
     logger = get_logger(name)

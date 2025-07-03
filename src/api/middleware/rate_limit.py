@@ -30,7 +30,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         # Get client identifier (IP address)
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = request.client.host if request.client and hasattr(request.client, 'host') else "unknown"
         
         # Current timestamp
         now = time.time()

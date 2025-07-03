@@ -43,6 +43,8 @@ class KnowledgeTools:
             payload["source_filter"] = source_filter
         
         try:
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.post(
                 f"{self.api_url}/api/v1/search",
                 json=payload,
@@ -101,6 +103,8 @@ class KnowledgeTools:
         }
         
         try:
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.post(
                 f"{self.api_url}/api/v1/memories",
                 json=payload,
@@ -162,6 +166,8 @@ class KnowledgeTools:
         await self._ensure_session()
         
         try:
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.get(
                 f"{self.api_url}/api/v1/sources"
             ) as response:

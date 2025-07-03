@@ -106,7 +106,7 @@ class TextChunkingStrategy(ChunkingStrategy):
             return len(self.encoding.encode(text))
         else:
             # Fallback to word count approximation
-            return len(text.split()) * 1.3
+            return int(len(text.split()) * 1.3)
     
     def _create_chunk(
         self,

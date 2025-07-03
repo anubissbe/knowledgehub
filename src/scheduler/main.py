@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -114,7 +114,7 @@ class SourceScheduler:
         except Exception as e:
             logger.error(f"Error during scheduled refresh: {e}")
     
-    async def manual_refresh(self, source_id: str = None):
+    async def manual_refresh(self, source_id: Optional[str] = None):
         """Manually trigger refresh for a specific source or all sources"""
         if source_id:
             sources = await self.get_sources()
