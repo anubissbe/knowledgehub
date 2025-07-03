@@ -55,7 +55,8 @@ export interface SearchResponse {
 export interface Job {
   id: string
   source_id: string
-  type: string
+  job_type: string
+  type?: string // legacy field
   status: string
   config: Record<string, any>
   result?: Record<string, any>
@@ -64,6 +65,7 @@ export interface Job {
   started_at?: string
   completed_at?: string
   duration?: number
+  stats?: Record<string, any>
 }
 
 // Memory types

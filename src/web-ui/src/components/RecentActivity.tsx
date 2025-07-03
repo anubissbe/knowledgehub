@@ -23,18 +23,31 @@ function RecentActivity() {
   const { data: activities } = useQuery({
     queryKey: ['recent-activity'],
     queryFn: async () => {
-      // Get recent jobs
-      const response = await api.getJobs({ limit: 10 })
-      const jobs = Array.isArray(response?.jobs) ? response.jobs : []
+      // Get recent jobs and sources to match job.source_id with source.name
+      const [jobsResponse, sourcesResponse] = await Promise.all([
+        api.getJobs({ limit: 10 }),
+        api.getSources()
+      ])
       
-      return jobs.map(job => ({
-        id: job.id,
-        type: job.type,
-        title: `${job.type} job`,
-        description: `Source: ${job.source_id.slice(0, 8)}...`,
-        status: job.status,
-        timestamp: job.created_at,
-      }))
+      const jobs = Array.isArray(jobsResponse?.jobs) ? jobsResponse.jobs : []
+      const sources = Array.isArray(sourcesResponse?.sources) ? sourcesResponse.sources : []
+      
+      // Create a map of source_id to source name for quick lookup
+      const sourceMap = new Map(sources.map(source => [source.id, source.name]))
+      
+      return jobs.map(job => {
+        const sourceName = sourceMap.get(job.source_id) || 'Unknown Source'
+        const jobType = job.job_type || job.type || 'unknown'
+        
+        return {
+          id: job.id,
+          type: jobType,
+          title: `${sourceName}`,
+          description: `${jobType} job`,
+          status: job.status,
+          timestamp: job.created_at,
+        }
+      })
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   })
