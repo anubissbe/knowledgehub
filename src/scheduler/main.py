@@ -145,13 +145,15 @@ class SourceScheduler:
         
         logger.info(f"Scheduled weekly refresh with cron: {REFRESH_SCHEDULE}")
         
-        # Log next run time
-        job = self.scheduler.get_job("weekly_refresh")
-        if job and hasattr(job, 'next_run_time'):
-            logger.info(f"Next refresh scheduled for: {job.next_run_time}")
-        
         self.scheduler.start()
         logger.info("Scheduler started successfully")
+        
+        # Log next run time (after scheduler has started)
+        job = self.scheduler.get_job("weekly_refresh")
+        if job and hasattr(job, 'next_run_time') and job.next_run_time:
+            logger.info(f"Next refresh scheduled for: {job.next_run_time}")
+        elif job:
+            logger.info("Weekly refresh job scheduled (next run time will be available soon)")
     
     async def stop(self):
         """Stop the scheduler and cleanup"""

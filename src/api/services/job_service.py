@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from datetime import datetime, timedelta
 import json
 import logging
+import asyncio
 
 from ..models import get_db
 from ..models.job import ScrapingJob as Job, JobType, JobStatus
@@ -269,6 +270,37 @@ class JobService:
         
         self.db.commit()
         self.db.refresh(job)
+        
+        # Broadcast WebSocket notifications
+        try:
+            from ..routers.websocket import broadcast_to_all
+            
+            # Determine the notification type based on status
+            notification_type = None
+            if status.lower() == "completed":
+                notification_type = "job_completed"
+            elif status.lower() == "failed":
+                notification_type = "job_failed"
+            elif status.lower() == "cancelled":
+                notification_type = "job_cancelled"
+            
+            if notification_type:
+                # Send notification to all connected clients
+                asyncio.create_task(broadcast_to_all({
+                    "type": notification_type,
+                    "job_id": str(job_id),
+                    "status": status.lower(),
+                    "stats": stats
+                }))
+                
+                # Also send stats update notification
+                asyncio.create_task(broadcast_to_all({
+                    "type": "stats_updated",
+                    "source_id": str(job.source_id) if job.source_id else None
+                }))
+                
+        except Exception as e:
+            logger.error(f"Failed to broadcast WebSocket notification: {e}")
         
         return job
     

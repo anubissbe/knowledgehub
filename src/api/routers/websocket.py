@@ -93,3 +93,21 @@ async def broadcast_job_update(job_id: str, update: Dict):
                     })
                 except Exception as e:
                     logger.error(f"Failed to send update to {client_id}: {e}")
+
+
+async def broadcast_to_all(message: Dict):
+    """Broadcast message to all connected clients"""
+    disconnected_clients = []
+    for client_id, websocket in clients.items():
+        try:
+            await websocket.send_json(message)
+        except Exception as e:
+            logger.error(f"Failed to send to {client_id}: {e}")
+            disconnected_clients.append(client_id)
+    
+    # Clean up disconnected clients
+    for client_id in disconnected_clients:
+        if client_id in clients:
+            del clients[client_id]
+        if client_id in subscriptions:
+            del subscriptions[client_id]

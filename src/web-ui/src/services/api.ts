@@ -205,6 +205,6 @@ export const api = {
   // WebSocket connection for real-time updates
   connectWebSocket: () => {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000'
-    return new WebSocket(`${wsUrl}/ws`)
+    return new WebSocket(`${wsUrl}/ws/notifications`)
   },
 }

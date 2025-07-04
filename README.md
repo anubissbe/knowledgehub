@@ -19,6 +19,35 @@
 
 ---
 
+## 📢 Recent Updates
+
+### v1.1.0 - Real-time Dashboard Updates (2025-07-04)
+- **🔄 Live Stats Updates**: Dashboard statistics now update in real-time via WebSocket
+- **🚀 Auto-refresh**: Dashboard refreshes every 30 seconds automatically
+- **🔔 WebSocket Notifications**: Job completions trigger immediate UI updates
+- **🎯 Cache Invalidation**: Improved query cache management for instant updates
+- **📊 Manual Refresh**: Added refresh button for on-demand stats updates
+
+See [Dashboard Stats Update Documentation](docs/DASHBOARD_STATS_UPDATE_FIX.md) for implementation details.
+
+### v1.1.1 - Jobs Page Auto-refresh (2025-07-04)
+- **⚡ Jobs Auto-refresh**: Jobs page updates every 5 seconds automatically
+- **🔄 Manual Sync**: Added sync button for immediate job list refresh
+- **📱 Background Updates**: Continues refreshing when tab is not active
+- **🎯 Real-time Status**: Job status changes appear within seconds
+
+See [Jobs Page Auto-refresh Documentation](docs/JOBS_PAGE_AUTO_REFRESH_FIX.md) for implementation details.
+
+### v1.1.2 - Scheduler AttributeError Fix (2025-07-04)
+- **🛠️ Fixed Scheduler Error**: Resolved AttributeError for 'next_run_time' in APScheduler
+- **✅ Proper Attribute Checking**: Added hasattr() validation before accessing job attributes
+- **📅 Weekly Refresh**: Scheduler now runs reliably every Sunday at 2 AM UTC
+- **🔍 Improved Logging**: Better error handling and status messages
+
+See [Scheduler Fix Documentation](docs/SCHEDULER_ATTRIBUTE_ERROR_FIX.md) for implementation details.
+
+---
+
 ## 🌟 Overview
 
 KnowledgeHub is a modern, AI-powered knowledge management system that transforms how organizations capture, process, and search through their documentation. Built with a microservices architecture, it provides intelligent document processing, vector-based semantic search, and real-time content updates.
@@ -42,6 +71,7 @@ KnowledgeHub is a modern, AI-powered knowledge management system that transforms
 - **Real-time Updates**: WebSocket-based live progress monitoring
 - **Auto-scaling**: Queue-based background processing
 - **High Availability**: Health checks and graceful failure handling
+- **Live Dashboard**: Real-time stats updates via WebSocket notifications
 
 #### 🤖 **AI/ML Integration**
 - **GPU Acceleration**: Tesla V100 support for embeddings

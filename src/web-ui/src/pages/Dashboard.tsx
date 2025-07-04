@@ -1,9 +1,10 @@
-import { Grid, Card, CardContent, Typography, Box } from '@mui/material'
+import { Grid, Card, CardContent, Typography, Box, IconButton, Tooltip } from '@mui/material'
 import {
   Storage as StorageIcon,
   Work as WorkIcon,
   Search as SearchIcon,
   Memory as MemoryIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
@@ -12,9 +13,11 @@ import RecentActivity from '@/components/RecentActivity'
 import SystemHealth from '@/components/SystemHealth'
 
 function Dashboard() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: api.getDashboardStats,
+    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchIntervalInBackground: true, // Continue refreshing even when tab is not active
   })
 
   if (isLoading) {
@@ -23,9 +26,20 @@ function Dashboard() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ flexGrow: 1 }}>
+          Dashboard
+        </Typography>
+        <Tooltip title="Refresh stats">
+          <IconButton 
+            onClick={() => refetch()} 
+            disabled={isRefetching}
+            color="primary"
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
       
       <Grid container spacing={3}>
         {/* Stats Cards */}

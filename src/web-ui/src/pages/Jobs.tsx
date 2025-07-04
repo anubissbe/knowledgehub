@@ -11,10 +11,12 @@ import {
   Chip,
   IconButton,
   TablePagination,
+  Tooltip,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
   Cancel as CancelIcon,
+  Sync as SyncIcon,
 } from '@mui/icons-material'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -25,9 +27,11 @@ function Jobs() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const queryClient = useQueryClient()
 
-  const { data: jobsResponse, isLoading } = useQuery({
+  const { data: jobsResponse, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['jobs', page, rowsPerPage],
     queryFn: () => api.getJobs(),
+    refetchInterval: 5000, // Refresh every 5 seconds for more frequent job updates
+    refetchIntervalInBackground: true, // Continue refreshing even when tab is not active
   })
   
   const jobs = Array.isArray(jobsResponse?.jobs) ? jobsResponse.jobs : []
@@ -36,14 +40,20 @@ function Jobs() {
   const retryMutation = useMutation({
     mutationFn: api.retryJob,
     onSuccess: () => {
+      // Invalidate multiple queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })
 
   const cancelMutation = useMutation({
     mutationFn: api.cancelJob,
     onSuccess: () => {
+      // Invalidate multiple queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['sources'] })
     },
   })
 
@@ -88,9 +98,20 @@ function Jobs() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Jobs
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" sx={{ flexGrow: 1 }}>
+          Jobs
+        </Typography>
+        <Tooltip title="Refresh jobs">
+          <IconButton 
+            onClick={() => refetch()} 
+            disabled={isRefetching}
+            color="primary"
+          >
+            <SyncIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <TableContainer component={Paper}>
         <Table>

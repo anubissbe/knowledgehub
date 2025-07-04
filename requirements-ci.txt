@@ -1,0 +1,46 @@
+# Minimal dependencies for CI testing
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Redis for caching and message queue
+redis==5.0.1
+
+# Vector database client (lightweight)
+weaviate-client==3.25.3
+
+# Basic web scraping
+httpx==0.25.2
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# API utilities
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Development tools
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Logging
+python-json-logger==2.0.7
+
+# Environment management
+python-dotenv==1.0.0
+
+# Note: Excluding heavy ML dependencies for CI:
+# - sentence-transformers
+# - torch
+# - playwright (large browser downloads)
+# These should only be in the full requirements.txt
