@@ -74,7 +74,7 @@ class JobService:
         # Queue job for processing (if message queue available)
         try:
             from .message_queue import message_queue
-            if message_queue and message_queue.client:
+            if message_queue and getattr(message_queue, 'client', None):
                 # Publish to stream for new consumers
                 await message_queue.publish(
                     f"{job_type}_jobs",
@@ -95,16 +95,17 @@ class JobService:
                     )
                     
                     # Determine priority based on config
-                    priority = config.get("priority", "normal")
+                    priority = (config or {}).get("priority", "normal")
                     queue_name = f"crawl_jobs:{priority}"
                     
                     # Push job data to list
+                    config_dict = config or {}
                     job_data = {
                         "job_id": str(job.id),
                         "source_id": str(source_id),
-                        "url": config.get("url", ""),
-                        "max_depth": config.get("max_depth", 2),
-                        "max_pages": config.get("max_pages", 50)
+                        "url": config_dict.get("url", ""),
+                        "max_depth": config_dict.get("max_depth", 2),
+                        "max_pages": config_dict.get("max_pages", 50)
                     }
                     
                     await redis_client.rpush(queue_name, json.dumps(job_data))
@@ -297,9 +298,9 @@ class JobService:
             source_id=job.source_id,
             job_type=job.job_type,
             config={
-                **job.config,
+                **(job.config or {}),
                 "retry_of": str(job.id),
-                "retry_count": job.config.get("retry_count", 0) + 1
+                "retry_count": (job.config or {}).get("retry_count", 0) + 1
             }
         )
         
@@ -336,7 +337,7 @@ class JobService:
                 job_data = json.dumps({
                     "job_id": str(job_id),
                     "source_id": str(job.source_id),
-                    "config": job.config
+                    "config": job.config or {}
                 })
                 
                 for priority in ["high", "normal", "low"]:

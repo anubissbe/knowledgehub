@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 import enum
+from typing import Optional, Dict, Any, List
 
 from .base import Base
 
@@ -43,7 +44,7 @@ class Document(Base):
     def __repr__(self):
         return f"<Document(id={self.id}, url='{self.url}', title='{self.title}')>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
             "id": str(self.id),
@@ -67,7 +68,7 @@ class DocumentChunk(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
-    chunk_type = Column(
+    chunk_type: ChunkType = Column(
         SQLEnum(ChunkType, name="chunk_type", values_callable=lambda x: [e.value for e in x]),
         nullable=False
     )
@@ -83,7 +84,7 @@ class DocumentChunk(Base):
     def __repr__(self):
         return f"<DocumentChunk(id={self.id}, document_id={self.document_id}, type={self.chunk_type})>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
             "id": str(self.id),

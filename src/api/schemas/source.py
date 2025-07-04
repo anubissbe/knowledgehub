@@ -14,7 +14,7 @@ class SourceCreate(BaseModel):
     refresh_interval: Optional[int] = Field(default=86400)  # 24 hours in seconds
     authentication: Optional[Dict[str, Any]] = None
     crawl_config: Optional[Dict[str, Any]] = None
-    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    config: Optional[Dict[str, Any]] = Field(default_factory=lambda: {})
     
     def to_db_config(self) -> Dict[str, Any]:
         """Convert frontend fields to backend config format"""

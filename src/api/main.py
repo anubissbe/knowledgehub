@@ -3,13 +3,14 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 import time
 import os
 from typing import Dict, Any
 
-from .routers import sources, search, jobs, websocket, memories, chunks, scheduler
+from .routers import sources, search, jobs, websocket, memories, chunks, documents
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
@@ -100,12 +101,13 @@ app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
+app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
-app.include_router(scheduler.router, prefix="/api/v1/scheduler", tags=["scheduler"])
+# Scheduler router removed - scheduler runs as separate service
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
 
-@app.get("/", tags=["root"])
+@app.get("/api", tags=["root"])
 async def root() -> Dict[str, Any]:
     """Root endpoint with API information"""
     return {
@@ -124,6 +126,11 @@ async def root() -> Dict[str, Any]:
             "websocket": "/ws"
         }
     }
+
+# Mount static files for frontend (check if directory exists) - this must be last
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "web-ui", "dist")
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="static")
 
 
 @app.get("/health", tags=["health"])

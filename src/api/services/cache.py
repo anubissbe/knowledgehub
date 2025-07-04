@@ -27,6 +27,8 @@ class RedisCache:
                 max_connections=settings.REDIS_MAX_CONNECTIONS
             )
             # Test connection
+            if self.client is None:
+                raise Exception("Redis client not initialized")
             await self.client.ping()
             logger.info("Redis connection established")
         except Exception as e:
@@ -45,6 +47,8 @@ class RedisCache:
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
         try:
+            if self.client is None:
+                return None
             value = await self.client.get(key)
             if value:
                 return json.loads(value)
@@ -56,6 +60,8 @@ class RedisCache:
     async def set(self, key: str, value: Any, expiry: int = 3600):
         """Set value in cache with expiry (seconds)"""
         try:
+            if self.client is None:
+                return
             json_value = json.dumps(value)
             await self.client.setex(key, expiry, json_value)
         except Exception as e:
@@ -64,6 +70,8 @@ class RedisCache:
     async def delete(self, key: str):
         """Delete key from cache"""
         try:
+            if self.client is None:
+                return
             await self.client.delete(key)
         except Exception as e:
             logger.error(f"Redis delete error: {e}")

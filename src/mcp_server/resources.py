@@ -2,7 +2,7 @@
 
 import aiohttp
 import json
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
 
@@ -26,6 +26,8 @@ class KnowledgeResources:
         await self._ensure_session()
         
         try:
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.get(
                 f"{self.api_url}/api/v1/sources"
             ) as response:
@@ -78,7 +80,7 @@ class KnowledgeResources:
         
         try:
             # Fetch various statistics
-            stats = {
+            stats: Dict[str, Any] = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "sources": {},
                 "documents": {},
@@ -87,6 +89,8 @@ class KnowledgeResources:
             }
             
             # Get sources stats
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.get(
                 f"{self.api_url}/api/v1/sources"
             ) as response:
@@ -102,8 +106,9 @@ class KnowledgeResources:
                     # Count by status
                     for source in sources:
                         status = source.get("status", "unknown")
-                        stats["sources"]["by_status"][status] = \
-                            stats["sources"]["by_status"].get(status, 0) + 1
+                        by_status = stats["sources"]["by_status"]
+                        if isinstance(by_status, dict):
+                            by_status[status] = by_status.get(status, 0) + 1
                     
                     # Calculate totals
                     total_docs = sum(s.get("stats", {}).get("documents", 0) for s in sources)
@@ -118,6 +123,8 @@ class KnowledgeResources:
                     }
             
             # Get health status
+            if self.session is None:
+                raise Exception("Session not initialized")
             async with self.session.get(
                 f"{self.api_url}/health"
             ) as response:
@@ -146,6 +153,8 @@ class KnowledgeResources:
             
             # Check API health
             try:
+                if self.session is None:
+                    raise Exception("Session not initialized")
                 async with self.session.get(
                     f"{self.api_url}/health",
                     timeout=aiohttp.ClientTimeout(total=5)

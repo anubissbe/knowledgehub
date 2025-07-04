@@ -45,6 +45,13 @@ async def create_chunk(
                 and_(Document.source_id == source_id, Document.url == url)
             ).first()
             
+            # Update content hash if document exists and hash changed
+            if document and chunk_data.get("content_hash"):
+                if document.content_hash != chunk_data.get("content_hash"):
+                    document.content_hash = chunk_data.get("content_hash")
+                    document.updated_at = datetime.utcnow()
+                    db.commit()
+            
             if not document:
                 try:
                     document = Document(
@@ -52,6 +59,7 @@ async def create_chunk(
                         url=url,
                         title=metadata.get("title", ""),
                         content="",  # Will be populated from chunks
+                        content_hash=chunk_data.get("content_hash"),
                         metadata=metadata,
                         created_at=datetime.utcnow()
                     )

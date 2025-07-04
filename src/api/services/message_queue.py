@@ -23,7 +23,7 @@ class MessageQueue:
         self.consumer_name = f"worker-{uuid.uuid4().hex[:8]}"
         self.handlers: Dict[str, List[Callable]] = {}
         self._running = False
-        self._tasks = []
+        self._tasks: List[asyncio.Task] = []
     
     async def initialize(self):
         """Initialize Redis connection and consumer groups"""
@@ -35,6 +35,8 @@ class MessageQueue:
             )
             
             # Test connection
+            if self.client is None:
+                raise Exception("Redis client not initialized")
             await self.client.ping()
             logger.info("Message queue connection established")
             
@@ -42,6 +44,8 @@ class MessageQueue:
             streams = ["scraping_jobs", "rag_processing", "notifications"]
             for stream in streams:
                 try:
+                    if self.client is None:
+                        raise Exception("Redis client not initialized")
                     await self.client.xgroup_create(
                         stream, self.consumer_group, id="0", mkstream=True
                     )
@@ -68,6 +72,8 @@ class MessageQueue:
             }
             
             # Add to stream
+            if self.client is None:
+                raise Exception("Redis client not initialized")
             message_id = await self.client.xadd(stream, data)
             logger.debug(f"Published to {stream}: {message_id}")
             return message_id
@@ -105,6 +111,8 @@ class MessageQueue:
         while self._running:
             try:
                 # Read messages from stream
+                if self.client is None:
+                    raise Exception("Redis client not initialized")
                 messages = await self.client.xreadgroup(
                     self.consumer_group,
                     self.consumer_name,
@@ -128,7 +136,8 @@ class MessageQueue:
                                 await handler(message_content)
                             
                             # Acknowledge message
-                            await self.client.xack(stream, self.consumer_group, message_id)
+                            if self.client is not None:
+                                await self.client.xack(stream, self.consumer_group, message_id)
                             
                         except Exception as e:
                             logger.error(f"Error processing message {message_id}: {e}")
@@ -143,6 +152,8 @@ class MessageQueue:
     async def get(self, stream: str) -> Optional[str]:
         """Get a single message from a stream (for simple consumers)"""
         try:
+            if self.client is None:
+                raise Exception("Redis client not initialized")
             messages = await self.client.xreadgroup(
                 self.consumer_group,
                 self.consumer_name,
@@ -157,7 +168,8 @@ class MessageQueue:
             for stream_name, stream_messages in messages:
                 for message_id, data in stream_messages:
                     # Acknowledge immediately
-                    await self.client.xack(stream, self.consumer_group, message_id)
+                    if self.client is not None:
+                        await self.client.xack(stream, self.consumer_group, message_id)
                     return data.get("message")
             
             return None
@@ -180,7 +192,8 @@ class MessageQueue:
         
         # Close Redis connection
         if self.client:
-            await self.client.close()
+            if self.client is not None:
+                await self.client.close()
         
         logger.info("Message queue closed")
 

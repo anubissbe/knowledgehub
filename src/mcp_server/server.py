@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 class KnowledgeHubMCPServer:
     """MCP Server for AI Knowledge Hub"""
     
-    def __init__(self, knowledge_api_url: str = None, port: int = None):
+    def __init__(self, knowledge_api_url: Optional[str] = None, port: Optional[int] = None):
         self.api_url = knowledge_api_url or os.getenv("API_URL", "http://localhost:3000")
-        self.port = port or int(os.getenv("MCP_SERVER_PORT", "3002"))
+        self.port = port if port is not None else int(os.getenv("MCP_SERVER_PORT", "3002"))
         self.protocol = MCPProtocol()
         self.tools = KnowledgeTools(self.api_url)
         self.resources = KnowledgeResources(self.api_url)

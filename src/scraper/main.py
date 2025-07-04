@@ -9,10 +9,13 @@ from typing import Optional
 from datetime import datetime
 
 try:
-    from .crawler import WebCrawler
+    from .incremental_crawler import IncrementalWebCrawler as WebCrawler
 except ImportError:
-    # Fallback to simple crawler if Playwright crawler fails
-    from .simple_crawler import SimpleCrawler as WebCrawler
+    try:
+        from .crawler import WebCrawler
+    except ImportError:
+        # Fallback to simple crawler if Playwright crawler fails
+        from .simple_crawler import SimpleCrawler as WebCrawler
 from .parsers import ContentParserFactory
 from ..shared.config import Config
 from ..shared.logging import setup_logging
@@ -26,7 +29,13 @@ class ScraperWorker:
     
     def __init__(self):
         self.config = Config()
-        self.crawler = WebCrawler()
+        # Initialize crawler with API info if it's the incremental crawler
+        try:
+            api_key = os.getenv("API_KEY", "dev-api-key-123")
+            self.crawler = WebCrawler(api_url=self.config.API_URL, api_key=api_key)
+        except TypeError:
+            # Regular crawler doesn't accept these params
+            self.crawler = WebCrawler()
         self.parser_factory = ContentParserFactory()
         self.running = True
         
@@ -174,15 +183,22 @@ class ScraperWorker:
             "cancelled": False
         }
         
+        # Prepare crawl parameters
+        crawl_params = {
+            "max_depth": crawl_config.get("max_depth", 2),
+            "max_pages": crawl_config.get("max_pages", 100),
+            "follow_patterns": crawl_config.get("follow_patterns", []),
+            "exclude_patterns": crawl_config.get("exclude_patterns", []),
+            "crawl_delay": crawl_config.get("crawl_delay", 1)
+        }
+        
+        # Add source_id for incremental crawling if available
+        if hasattr(self.crawler, 'crawl') and 'source_id' in self.crawler.crawl.__code__.co_varnames:
+            crawl_params["source_id"] = source.get("id")
+            crawl_params["force_refresh"] = crawl_config.get("force_refresh", False)
+        
         # Start crawling
-        async for page_data in self.crawler.crawl(
-            url,
-            max_depth=crawl_config.get("max_depth", 2),
-            max_pages=crawl_config.get("max_pages", 100),
-            follow_patterns=crawl_config.get("follow_patterns", []),
-            exclude_patterns=crawl_config.get("exclude_patterns", []),
-            crawl_delay=crawl_config.get("crawl_delay", 1)
-        ):
+        async for page_data in self.crawler.crawl(url, **crawl_params):
             # Check for cancellation periodically
             if await self._is_job_cancelled(job_id):
                 logger.info(f"Job {job_id} cancelled during crawling")
@@ -201,10 +217,16 @@ class ScraperWorker:
                 
                 # Send chunks to RAG processor
                 for chunk in chunks:
+                    # Add content hash and other metadata from page
+                    chunk_with_metadata = {
+                        **chunk,
+                        "content_hash": page_data.get("content_hash"),
+                        "is_update": page_data.get("is_update", False)
+                    }
                     await self._queue_chunk_for_processing({
                         "source_id": source["id"],
                         "job_id": job_data["job_id"],
-                        "chunk": chunk
+                        "chunk": chunk_with_metadata
                     })
                 
                 results["pages_crawled"] += 1

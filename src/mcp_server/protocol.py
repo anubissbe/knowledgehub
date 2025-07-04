@@ -2,6 +2,7 @@
 
 import json
 from typing import Dict, Any, Callable, Optional
+from dataclasses import field
 import logging
 from dataclasses import dataclass
 
@@ -19,7 +20,7 @@ class JSONRPCRequest:
     """JSON-RPC 2.0 Request"""
     jsonrpc: str = "2.0"
     method: str = ""
-    params: Dict[str, Any] = None
+    params: Optional[Dict[str, Any]] = field(default_factory=dict)
     id: Optional[Any] = None
 
 @dataclass 

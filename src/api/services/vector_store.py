@@ -28,7 +28,7 @@ class VectorStore:
             )
             
             # Check if client is ready
-            if not self.client.is_ready():
+            if self.client is None or not self.client.is_ready():
                 raise Exception("Weaviate is not ready")
             
             logger.info("Weaviate connection established")
@@ -44,6 +44,8 @@ class VectorStore:
         """Create Weaviate collection schema"""
         try:
             # Check if collection already exists
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             schema = self.client.schema.get()
             existing_classes = [cls["class"] for cls in schema.get("classes", [])]
             
@@ -116,6 +118,8 @@ class VectorStore:
             }
             
             # Create collection
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             self.client.schema.create_class(collection_schema)
             logger.info(f"Created collection: {self.collection_name}")
             
@@ -135,6 +139,8 @@ class VectorStore:
     async def insert_chunk(self, chunk_data: Dict[str, Any], vector: List[float]) -> str:
         """Insert a single chunk with its vector"""
         try:
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             result = self.client.data_object.create(
                 data_object=chunk_data,
                 class_name=self.collection_name,
@@ -148,6 +154,8 @@ class VectorStore:
     async def batch_insert(self, chunks: List[Dict[str, Any]]) -> List[str]:
         """Batch insert multiple chunks"""
         try:
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             with self.client.batch as batch:
                 batch.batch_size = 100
                 ids = []
@@ -186,6 +194,8 @@ class VectorStore:
     ) -> List[Dict[str, Any]]:
         """Search for similar chunks"""
         try:
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             query = (
                 self.client.query
                 .get(self.collection_name, ["chunk_id", "document_id", "source_id", "content", 
@@ -225,7 +235,7 @@ class VectorStore:
             logger.error(f"Search failed: {e}")
             return []
     
-    def _build_where_filter(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_where_filter(self, filters: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Build Weaviate where filter from filters dict"""
         where_conditions = []
         
@@ -257,6 +267,8 @@ class VectorStore:
     async def delete_by_source(self, source_id: str):
         """Delete all chunks for a source"""
         try:
+            if self.client is None:
+                raise Exception("Weaviate client not initialized")
             self.client.batch.delete_objects(
                 class_name=self.collection_name,
                 where={

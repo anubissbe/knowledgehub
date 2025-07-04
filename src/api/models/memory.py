@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, DateTime, JSON, Text, Integer, ARRAY
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
+from typing import Optional, Dict, Any, List
 
 from .base import Base
 
@@ -27,7 +28,7 @@ class MemoryItem(Base):
     def __repr__(self):
         return f"<MemoryItem(id={self.id}, tags={self.tags}, access_count={self.access_count})>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses"""
         return {
             "id": str(self.id),
@@ -42,7 +43,7 @@ class MemoryItem(Base):
             "accessed_at": self.accessed_at.isoformat() if self.accessed_at else None,
         }
     
-    def increment_access(self):
+    def increment_access(self) -> None:
         """Increment access count and update accessed timestamp"""
         self.access_count += 1
         self.accessed_at = datetime.utcnow()

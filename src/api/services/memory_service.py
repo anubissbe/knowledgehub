@@ -55,7 +55,7 @@ class MemoryService:
         
         # Store in vector store if available
         from .vector_store import vector_store
-        if vector_store.client:
+        if hasattr(vector_store, 'client') and vector_store.client:
             # In production, generate real embeddings
             mock_embedding = [0.1] * 384  # Match the system's embedding dimension
             
@@ -111,7 +111,7 @@ class MemoryService:
         from .vector_store import vector_store
         
         # Try vector search first if available
-        if vector_store.client:
+        if hasattr(vector_store, 'client') and vector_store.client:
             # In production, generate query embedding
             query_vector = [0.1] * 768
             
@@ -216,7 +216,7 @@ class MemoryService:
         
         # Delete from vector store if available
         from .vector_store import vector_store
-        if vector_store.client:
+        if hasattr(vector_store, 'client') and vector_store.client:
             for memory in to_delete:
                 # In production, would delete from vector store
                 pass
