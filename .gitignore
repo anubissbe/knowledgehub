@@ -56,8 +56,8 @@ dist/
 # Persistent data volumes
 data/
 
-# Model files (download separately)
-embeddings-service/models/
+# Model files and runtime data (download separately)
+embeddings-service/
 
 # Keep essential documentation
 !README.md
