@@ -13,11 +13,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/mcp ./mcp
+COPY src/mcp_server ./mcp_server
 COPY src/shared ./shared
 
 # Set Python path
 ENV PYTHONPATH=/app
 
 # Run the MCP service
-CMD ["python", "-m", "mcp.server"]
+CMD ["python", "-m", "mcp_server.server"]
