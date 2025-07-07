@@ -118,6 +118,16 @@ app.include_router(analytics.router)
 # WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
+# Memory system routers
+try:
+    from ..memory_system.api.routers import session as memory_session
+    from ..memory_system.api.routers import memory as memory_router
+    app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
+    app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
+    logger.info("Memory system integrated successfully")
+except ImportError:
+    logger.warning("Memory system not available")
+
 
 @app.get("/api", tags=["root"])
 async def root() -> Dict[str, Any]:
@@ -135,28 +145,21 @@ async def root() -> Dict[str, Any]:
             "search": "/api/v1/search",
             "jobs": "/api/v1/jobs",
             "memories": "/api/v1/memories",
-            "websocket": "/ws"
+            "websocket": "/ws",
+            "memory_system": {
+                "sessions": "/api/memory/session",
+                "memory_storage": "/api/memory/memories"
+            }
         }
     }
 
-# Mount static files for frontend (check if directory exists) - this must be last
-# BUT exclude WebSocket paths to prevent assertion errors
+# Mount static files for frontend (check if directory exists)
+# Note: This should be done AFTER all routes are registered
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "..", "web-ui", "dist")
 if os.path.exists(frontend_dist_path):
-    # Create a custom static files handler that excludes WebSocket paths
-    from starlette.types import Scope, Receive, Send
-    
-    class SelectiveStaticFiles(StaticFiles):
-        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-            # Skip static file handling for WebSocket paths
-            if scope["type"] == "websocket" or scope["path"].startswith("/ws"):
-                # Let the WebSocket handler take over
-                await self.app(scope, receive, send)
-                return
-            # For HTTP requests, use normal static file handling
-            await super().__call__(scope, receive, send)
-    
-    app.mount("/", SelectiveStaticFiles(directory=frontend_dist_path, html=True), name="static")
+    # Don't mount on root "/" to avoid conflicts with WebSocket routes
+    # Instead, handle static files through a specific route
+    pass
 
 
 @app.get("/health", tags=["health"])

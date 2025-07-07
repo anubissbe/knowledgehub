@@ -73,12 +73,19 @@ class Settings(BaseSettings):
     JWT_EXPIRY_HOURS: int = 24
     API_KEY_HEADER: str = "X-API-Key"
     
-    # CORS settings - secure by default
+    # CORS settings - secure by default with HTTPS support
     CORS_ORIGINS: List[str] = [
+        "https://localhost:8443",
+        "https://api.localhost:8443", 
+        "http://localhost:8080",
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:3102", 
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:3102"
+        "http://127.0.0.1:3102",
+        "http://127.0.0.1:3100",
+        "http://192.168.1.25:3100",
+        "http://192.168.1.25:3000"
     ]
     CORS_ALLOW_CREDENTIALS: bool = True
     

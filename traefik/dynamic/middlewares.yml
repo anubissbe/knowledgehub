@@ -1,0 +1,41 @@
+# Security Middleware Configuration
+
+http:
+  middlewares:
+    # Security headers middleware
+    security-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Frame-Options: "DENY"
+          X-Content-Type-Options: "nosniff"
+          X-XSS-Protection: "1; mode=block"
+          Strict-Transport-Security: "max-age=63072000; includeSubDomains; preload"
+          Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'none';"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+          Permissions-Policy: "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # Compression middleware
+    compress:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+
+    # Rate limiting middleware
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 100
+
+    # Basic auth for dashboard
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$K8k5OhJ5X5rDjGK5g5JxXuQs5x3K5g5JxXuQs5x3K5g5JxXuQs5x3" # admin:admin
+
+    # HTTPS redirect middleware
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true

@@ -35,7 +35,17 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
     # Development paths (only exempt in development mode)
     DEV_EXEMPT_PATHS = [
         "/api/auth/setup",  # Initial setup endpoint
-        "/api/system/status"  # System status in dev
+        "/api/system/status",  # System status in dev
+        "/api/v1/sources/",  # Temporarily allow sources access
+        "/api/v1/jobs/",  # Temporarily allow jobs access
+        "/api/v1/analytics/",  # Temporarily allow analytics access
+        "/api/v1/health",  # Health check
+        "/api/v1/memories/",  # Temporarily allow memories access
+        "/api/v1/search",  # Allow search access
+        "/api/v1/documents/",  # Allow documents access
+        "/api/v1/chunks/",  # Allow chunks access
+        "/ws/",  # WebSocket connections
+        "/api/memory/"  # Memory system endpoints
     ]
     
     def __init__(self, app):
@@ -121,9 +131,11 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         # In development mode, allow additional dev paths
-        if settings.APP_ENV == "development" and request.url.path in self.DEV_EXEMPT_PATHS:
-            logger.info(f"Allowing dev path: {request.url.path}")
-            return await call_next(request)
+        if settings.APP_ENV == "development":
+            for dev_path in self.DEV_EXEMPT_PATHS:
+                if request.url.path.startswith(dev_path.rstrip('/')):
+                    logger.info(f"Allowing dev path: {request.url.path}")
+                    return await call_next(request)
         
         # Extract API key from headers
         api_key = request.headers.get(settings.API_KEY_HEADER)

@@ -1,0 +1,70 @@
+# Dynamic TLS Configuration
+# Provides secure TLS settings and certificate management
+
+# TLS Options
+tls:
+  options:
+    default:
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+      curvePreferences:
+        - "CurveP521"
+        - "CurveP384"
+      sniStrict: true
+
+    modern:
+      minVersion: "VersionTLS13"
+      maxVersion: "VersionTLS13"
+      sniStrict: true
+
+# HTTP Security Headers
+http:
+  middlewares:
+    security-headers:
+      headers:
+        # HTTPS Security Headers
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 63072000  # 2 years
+        
+        # Content Security Policy
+        contentSecurityPolicy: |
+          default-src 'self';
+          script-src 'self' 'unsafe-inline' 'unsafe-eval';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data: https:;
+          font-src 'self';
+          connect-src 'self' wss: ws:;
+          frame-ancestors 'none';
+          base-uri 'self';
+          form-action 'self';
+
+        # Security Headers
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex,nofollow,nosnippet,noarchive"
+          X-Frame-Options: "DENY"
+          X-Content-Type-Options: "nosniff"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+          Permissions-Policy: "geolocation=(), microphone=(), camera=()"
+
+    # Rate limiting for API endpoints
+    api-rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+
+    # Compression
+    compress:
+      compress: {}

@@ -1,0 +1,53 @@
+# Use specific version instead of latest for better security
+FROM python:3.11.9-slim@sha256:a52ddb5c7e0c5b72c5c3b31fe2db70bb2cc0b8dac6cf1b7b0b6a8a5b3c9c8e1a
+
+# Create non-root user for security
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies and clean up in single layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Copy and install Python dependencies as root first
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge
+
+# Copy source code
+COPY src/api ./src/api
+COPY src/shared ./src/shared
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs /app/data && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Set security-focused environment variables
+ENV PYTHONPATH=/app \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Use non-root port
+EXPOSE 3000
+
+# Run application as non-root user
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "3000", "--workers", "1"]

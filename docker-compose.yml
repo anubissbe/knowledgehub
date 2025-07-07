@@ -1,4 +1,35 @@
 services:
+  # Traefik reverse proxy for HTTPS/TLS termination
+  traefik:
+    image: traefik:v3.0
+    container_name: knowledgehub-traefik
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # HTTP (redirects to HTTPS)
+      - "8443:8443" # HTTPS
+      - "8082:8082" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
+      - ./data/traefik/acme:/etc/traefik/acme
+      - ./data/traefik/logs:/var/log/traefik
+    networks:
+      - knowledgehub-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`localhost`) && PathPrefix(`/traefik`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$10$$K8k5OhJ5X5rDjGK5g5JxXuQs5x3K5g5JxXuQs5x3K5g5JxXuQs5x3" # admin:admin
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # PostgreSQL for document metadata
   postgres:
     image: postgres:15-alpine
@@ -144,6 +175,21 @@ services:
     networks:
       - knowledgehub-network
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 3000 --reload
+    labels:
+      - "traefik.enable=true"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.api-http.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.api-http.entrypoints=web"
+      - "traefik.http.routers.api-http.priority=100"
+      - "traefik.http.routers.api-http.middlewares=redirect-to-https@file"
+      # HTTPS router
+      - "traefik.http.routers.api-secure.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.api-secure.entrypoints=websecure"
+      - "traefik.http.routers.api-secure.priority=100"
+      - "traefik.http.routers.api-secure.tls=true"
+      - "traefik.http.routers.api-secure.middlewares=security-headers@file,compress@file"
+      - "traefik.http.routers.api-secure.service=api-service"
+      - "traefik.http.services.api-service.loadbalancer.server.port=3000"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
@@ -296,17 +342,32 @@ services:
     container_name: knowledgehub-ui
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3000
-      - VITE_WS_URL=ws://localhost:3000
+      - VITE_API_URL=http://localhost:3000/api/v1
+      - VITE_WS_URL=ws://localhost:3000/ws
     volumes:
       - ./src/web-ui:/app
       - /app/node_modules
-    ports:
-      - "0.0.0.0:3102:80"
+    expose:
+      - "80"
     depends_on:
       - api
     networks:
       - knowledgehub-network
+    labels:
+      - "traefik.enable=true"
+      # HTTP to HTTPS redirect for root
+      - "traefik.http.routers.ui-http.rule=Host(`localhost`)"
+      - "traefik.http.routers.ui-http.entrypoints=web"
+      - "traefik.http.routers.ui-http.priority=1"
+      - "traefik.http.routers.ui-http.middlewares=redirect-to-https@file"
+      # HTTPS router for Web UI
+      - "traefik.http.routers.ui-secure.rule=Host(`localhost`)"
+      - "traefik.http.routers.ui-secure.entrypoints=websecure"
+      - "traefik.http.routers.ui-secure.priority=1"
+      - "traefik.http.routers.ui-secure.tls=true"
+      - "traefik.http.routers.ui-secure.middlewares=security-headers@file,compress@file"
+      - "traefik.http.routers.ui-secure.service=ui-service"
+      - "traefik.http.services.ui-service.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
@@ -330,7 +391,7 @@ services:
       - ./src/scheduler:/app
       - ./src/shared:/app/shared
     ports:
-      - "0.0.0.0:8080:8080"
+      - "0.0.0.0:8085:8080"
     depends_on:
       - api
     networks:

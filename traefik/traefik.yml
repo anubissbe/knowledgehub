@@ -1,0 +1,69 @@
+# Traefik Configuration for HTTPS/TLS
+# Provides automatic HTTPS with Let's Encrypt certificates
+
+# Global Configuration
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# Entry Points
+entryPoints:
+  web:
+    address: ":8080"
+    http:
+      # Redirect HTTP to HTTPS
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":8443"
+
+  traefik:
+    address: ":8082"
+
+# Providers
+providers:
+  # Docker provider for automatic service discovery
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: knowledgehub_knowledgehub-network
+
+  # File provider for static configuration
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+# Certificate Resolvers (using static certificates for development)
+# certificateResolvers:
+#   letsencrypt:
+#     acme:
+#       email: admin@knowledgehub.local
+#       storage: /etc/traefik/acme/acme.json
+#       httpChallenge:
+#         entryPoint: web
+
+# API and Dashboard
+api:
+  dashboard: true
+  insecure: true  # Enable insecure API access for debugging
+
+# Metrics
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+# Access Logs
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json
+
+# Traefik Logs
+log:
+  level: INFO
+  filePath: "/var/log/traefik/traefik.log"
+  format: json

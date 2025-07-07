@@ -1,0 +1,15 @@
+# Static Certificate Configuration for Development
+# For production, use Let's Encrypt or proper CA certificates
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/tls.crt
+      keyFile: /etc/traefik/certs/tls.key
+      stores:
+        - default
+
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/tls.crt
+        keyFile: /etc/traefik/certs/tls.key

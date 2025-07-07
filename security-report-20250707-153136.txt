@@ -1,0 +1,134 @@
+KnowledgeHub Container Security Report
+Generated: Mon Jul  7 03:31:36 PM UTC 2025
+========================================
+
+Docker Images:
+knowledgehub-api                              latest                          2025-07-07 14:25:39 +0000 UTC   6.55GB
+knowledgehub-scheduler                        latest                          2025-07-07 13:05:44 +0000 UTC   392MB
+knowledgehub-scraper2                         latest                          2025-07-07 11:57:21 +0000 UTC   7.4GB
+knowledgehub-scraper                          latest                          2025-07-07 11:57:21 +0000 UTC   7.4GB
+knowledgehub-web-ui                           latest                          2025-07-07 11:54:28 +0000 UTC   53.6MB
+knowledgehub-rag-processor                    latest                          2025-07-07 11:53:55 +0000 UTC   6.55GB
+knowledgehub-mcp-server                       fixed                           2025-07-06 13:18:40 +0000 UTC   6.55GB
+knowledgehub-ai-service                       latest                          2025-07-05 17:50:27 +0000 UTC   5.78GB
+knowledgehub-api                              memory-fixed                    2025-06-30 06:33:39 +0000 UTC   6.14GB
+nginx                                         alpine                          2025-06-24 20:52:14 +0000 UTC   52.5MB
+postgres                                      15-alpine                       2025-06-06 18:27:47 +0000 UTC   274MB
+redis                                         7-alpine                        2025-05-29 14:46:25 +0000 UTC   41.4MB
+traefik                                       v3.0                            2024-07-02 22:20:26 +0000 UTC   172MB
+
+Running Containers:
+knowledgehub-ui              Up 11 minutes (healthy)     80/tcp
+knowledgehub-api             Up 3 minutes (unhealthy)    0.0.0.0:3000->3000/tcp, 8000/tcp
+knowledgehub-traefik         Up 16 minutes (unhealthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp, 0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp, 80/tcp, 0.0.0.0:8443->8443/tcp, [::]:8443->8443/tcp
+knowledgehub-minio           Up 27 minutes (healthy)     0.0.0.0:9010->9000/tcp, 0.0.0.0:9011->9001/tcp
+knowledgehub-redis           Up 27 minutes (healthy)     0.0.0.0:6381->6379/tcp
+knowledgehub-postgres        Up 27 minutes (healthy)     0.0.0.0:5433->5432/tcp
+knowledgehub-weaviate        Up 27 minutes (healthy)     0.0.0.0:50051->50051/tcp, 0.0.0.0:8090->8080/tcp
+knowledgehub-cadvisor        Up 24 hours (healthy)       0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp
+knowledgehub-ai              Up 26 hours (healthy)       0.0.0.0:8002->8000/tcp, [::]:8002->8000/tcp
+knowledgehub-frontend        Up 28 hours                 0.0.0.0:3100->80/tcp, [::]:3100->80/tcp
+knowledgehub-alertmanager    Up 43 hours                 0.0.0.0:9093->9093/tcp, [::]:9093->9093/tcp
+knowledgehub-prometheus      Up 43 hours                 0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp
+knowledgehub-grafana         Up 43 hours                 0.0.0.0:3030->3000/tcp, [::]:3030->3000/tcp
+knowledgehub-node-exporter   Up 43 hours                 0.0.0.0:9100->9100/tcp, [::]:9100->9100/tcp
+
+Container Security Summary:
+Container: knowledgehub-ui
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-api
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-traefik
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-minio
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-redis
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-postgres
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-weaviate
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-cadvisor
+  User: root
+  Capabilities: []
+  Security Opts: [label=disable]
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-ai
+  User: appuser
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-frontend
+  User: root
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-alertmanager
+  User: nobody
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-prometheus
+  User: nobody
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-grafana
+  User: grafana
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
+Container: knowledgehub-node-exporter
+  User: nobody
+  Capabilities: []
+  Security Opts: []
+  Read-only: false
+  Memory Limit: 0
+
