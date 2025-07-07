@@ -358,6 +358,34 @@ Based on real-world testing:
 
 🔐 **Never commit credentials to git** - all sensitive data should be in `.env` files only.
 
+### API Key Management
+
+🔑 **Initial Setup**: After deployment, create your first API key:
+```bash
+curl -X POST http://localhost:3000/api/auth/setup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Admin Key",
+    "permissions": ["read", "write", "admin"],
+    "expires_in_days": 90
+  }'
+```
+
+📋 **Managing Keys**: Use the admin API key to create additional keys:
+```bash
+# List all API keys
+curl -H "X-API-Key: YOUR_ADMIN_KEY" http://localhost:3000/api/auth/keys
+
+# Create read-only key
+curl -X POST -H "X-API-Key: YOUR_ADMIN_KEY" -H "Content-Type: application/json" \
+  http://localhost:3000/api/auth/keys \
+  -d '{"name": "Read Only", "permissions": ["read"], "expires_in_days": 30}'
+
+# Revoke a key
+curl -X DELETE -H "X-API-Key: YOUR_ADMIN_KEY" \
+  http://localhost:3000/api/auth/keys/KEY_ID
+```
+
 ---
 
 ## 📄 License

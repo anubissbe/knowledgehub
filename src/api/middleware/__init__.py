@@ -1,6 +1,6 @@
 """API middleware"""
 
-from .auth import AuthMiddleware
+from .auth import SecureAuthMiddleware
 from .rate_limit import RateLimitMiddleware
 
-__all__ = ["AuthMiddleware", "RateLimitMiddleware"]
+__all__ = ["SecureAuthMiddleware", "RateLimitMiddleware"]

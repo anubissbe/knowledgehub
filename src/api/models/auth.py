@@ -45,10 +45,18 @@ class APIKey(Base):
         """Check if API key is valid (active and not expired)"""
         if not self.is_active:
             return False
-        if self.expires_at and datetime.utcnow() > self.expires_at:
-            return False
+        if self.expires_at:
+            # Handle timezone-aware comparison
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+            expires_at = self.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if now > expires_at:
+                return False
         return True
     
     def update_last_used(self):
         """Update last used timestamp"""
-        self.last_used_at = datetime.utcnow()
+        from datetime import timezone
+        self.last_used_at = datetime.now(timezone.utc)

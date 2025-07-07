@@ -33,10 +33,17 @@ def get_memory_service():
     return MemoryService()
 
 
-def get_current_user():
-    """Get current user (placeholder for authentication)"""
-    # TODO: Implement proper authentication
-    return {"id": "system", "username": "system"}
+def get_current_user(request):
+    """Get current authenticated user from request state"""
+    if hasattr(request.state, 'api_key') and request.state.authenticated:
+        return {
+            "id": request.state.api_key["id"],
+            "name": request.state.api_key["name"], 
+            "permissions": request.state.api_key["permissions"],
+            "type": "api_key"
+        }
+    # Fallback for development/unauthenticated requests
+    return {"id": "system", "name": "system", "permissions": ["read"], "type": "system"}
 
 
 # Re-export commonly used dependencies

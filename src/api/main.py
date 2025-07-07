@@ -16,8 +16,9 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
+from .routes import auth
 from .services.startup import initialize_services, shutdown_services
-from .middleware.auth import AuthMiddleware
+from .middleware.auth import SecureAuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
 from .config import settings
@@ -70,7 +71,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
-app.add_middleware(AuthMiddleware)
+app.add_middleware(SecureAuthMiddleware)
 
 
 @app.middleware("http")
@@ -105,6 +106,7 @@ async def log_requests(request: Request, call_next):
 
 
 # Include routers
+app.include_router(auth.router)  # Authentication endpoints
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])

@@ -167,10 +167,6 @@ LEFT JOIN documents d ON ks.id = d.source_id
 LEFT JOIN document_chunks dc ON d.id = dc.document_id
 GROUP BY ks.id;
 
--- Insert default API key for development (remove in production)
-INSERT INTO api_keys (name, key_hash, permissions) 
-VALUES (
-    'Development Key',
-    '$2b$12$X3K9LJM7qK.Uh9wD5YK.8e7xvU5p9Yvhfc5SQ4XNjK7R9bMZ5XNK2', -- hash of 'dev-api-key-123'
-    '["read", "write", "admin"]'
-);
+-- Note: No default API keys inserted for security
+-- Use the /api/auth/setup endpoint to create your first API key
+-- or use the setup script with proper secure API key generation

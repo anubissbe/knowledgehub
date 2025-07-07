@@ -73,8 +73,13 @@ class Settings(BaseSettings):
     JWT_EXPIRY_HOURS: int = 24
     API_KEY_HEADER: str = "X-API-Key"
     
-    # CORS settings
-    CORS_ORIGINS: List[str] = ["*"]  # Allow all origins - restrict in production as needed
+    # CORS settings - secure by default
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3102", 
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3102"
+    ]
     CORS_ALLOW_CREDENTIALS: bool = True
     
     # Rate limiting
