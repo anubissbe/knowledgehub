@@ -1,0 +1,106 @@
+{
+  "dashboard": {
+    "title": "KnowledgeHub Database Performance",
+    "uid": "knowledgehub-database",
+    "version": 1,
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "PostgreSQL Connections",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_network_tcp_usage_total{name=\"knowledgehub-postgres\"}",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Redis Operations",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_network_receive_packets_total{name=\"knowledgehub-redis\"}[5m])",
+            "legendFormat": "Ops/sec",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Weaviate Vector DB Memory",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{name=\"knowledgehub-weaviate\"} / 1024 / 1024 / 1024",
+            "legendFormat": "Memory Usage (GB)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": "Memory"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "MinIO Storage I/O",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_fs_reads_bytes_total{name=\"knowledgehub-minio\"}[5m])",
+            "legendFormat": "Read",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(container_fs_writes_bytes_total{name=\"knowledgehub-minio\"}[5m])",
+            "legendFormat": "Write",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "Bps",
+            "label": "Bytes/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Database Container CPU",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{name=~\"knowledgehub-(postgres|redis|weaviate|minio)\"}[5m]) * 100",
+            "legendFormat": "{{name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "CPU %"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 37,
+    "tags": ["knowledgehub", "database", "performance"]
+  },
+  "overwrite": true
+}

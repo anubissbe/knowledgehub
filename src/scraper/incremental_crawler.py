@@ -37,6 +37,7 @@ from datetime import datetime
 from urllib.parse import urljoin, urlparse
 import httpx
 import logging
+import re
 
 from .crawler import WebCrawler
 
@@ -100,7 +101,8 @@ class IncrementalWebCrawler(WebCrawler):
         Returns:
             IncrementalWebCrawler: The crawler instance for use in async with statements
         """
-        await super().__aenter__()
+        # Initialize the browser using parent's start method
+        await self.start()
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -115,7 +117,8 @@ class IncrementalWebCrawler(WebCrawler):
             exc_tb: Exception traceback if an exception occurred
         """
         await self.api_client.aclose()
-        await super().__aexit__(exc_type, exc_val, exc_tb)
+        # Use parent's stop method to cleanup browser
+        await self.stop()
         
     def _calculate_content_hash(self, content: str) -> str:
         """Calculate SHA-256 hash of page content for change detection.
@@ -311,13 +314,17 @@ class IncrementalWebCrawler(WebCrawler):
             else:
                 await asyncio.sleep(crawl_delay)  # Full delay for new content
             
+            page = None
             try:
+                # Create new page for this request
+                page = await self.browser.new_page()
+                
                 # Navigate to page
-                await self.page.goto(url, wait_until="networkidle", timeout=30000)
+                await page.goto(url, wait_until="networkidle", timeout=30000)
                 
                 # Get page content
-                content = await self.page.content()
-                title = await self.page.title()
+                content = await page.content()
+                title = await page.title()
                 
                 # Calculate content hash
                 content_hash = self._calculate_content_hash(content)
@@ -348,6 +355,7 @@ class IncrementalWebCrawler(WebCrawler):
                     yield {
                         "url": url,
                         "content": content,
+                        "content_type": "text/html",  # Default for web pages
                         "title": title,
                         "content_hash": content_hash,
                         "is_new": is_new,
@@ -364,7 +372,7 @@ class IncrementalWebCrawler(WebCrawler):
                 pages_processed += 1
                 
                 # Extract links even from unchanged pages to find new content
-                links = await self.page.evaluate("""
+                links = await page.evaluate("""
                     () => {
                         return Array.from(document.querySelectorAll('a[href]'))
                             .map(a => a.href)
@@ -392,9 +400,50 @@ class IncrementalWebCrawler(WebCrawler):
                     "error": str(e),
                     "metadata": {"url": url, "error": str(e)}
                 }
+            finally:
+                # Always close the page to prevent memory leaks
+                if page:
+                    await page.close()
                 
         # Log summary
         logger.info(
             f"Incremental crawl complete: {pages_processed} pages checked, "
             f"{new_pages_found} new, {updated_pages} updated"
         )
+    
+    def _should_follow_url(
+        self,
+        url: str,
+        start_url: str,
+        follow_patterns: List[str],
+        exclude_patterns: List[str]
+    ) -> bool:
+        """Check if URL should be followed based on patterns.
+        
+        Args:
+            url: The URL to check
+            start_url: The starting URL for domain comparison
+            follow_patterns: List of regex patterns that URLs must match
+            exclude_patterns: List of regex patterns to exclude URLs
+            
+        Returns:
+            bool: True if URL should be followed, False otherwise
+        """
+        # Check exclude patterns first
+        if exclude_patterns:
+            for pattern in exclude_patterns:
+                if re.search(pattern, url):
+                    return False
+        
+        # Check follow patterns (if any specified)
+        if follow_patterns:
+            for pattern in follow_patterns:
+                if re.search(pattern, url):
+                    return True
+            # If follow patterns specified but none match, don't follow
+            return False
+        
+        # Default: follow if same domain
+        start_domain = urlparse(start_url).netloc
+        url_domain = urlparse(url).netloc
+        return url_domain == start_domain

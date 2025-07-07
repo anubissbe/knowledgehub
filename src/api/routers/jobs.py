@@ -30,27 +30,95 @@ async def list_jobs(
     status: Optional[str] = Query(None),
     job_service=Depends(get_job_service)
 ):
-    """List all jobs with optional filtering"""
+    """List all jobs with optional filtering - now based on Redis queue state"""
     try:
-        # Convert source_id to UUID if provided
-        source_uuid = None
-        if source_id:
+        import redis.asyncio as redis
+        import json
+        from datetime import datetime
+        
+        # Connect to Redis
+        redis_client = redis.from_url("redis://knowledgehub-redis:6379/0", decode_responses=True)
+        
+        jobs = []
+        
+        # Get active jobs from Redis locks
+        active_keys = await redis_client.keys("source:active:*")
+        for key in active_keys:
+            source_id_from_key = key.replace("source:active:", "")
+            ttl = await redis_client.ttl(key)
+            
+            # Get source name
             try:
-                source_uuid = UUID(source_id)
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid source_id format")
+                from sqlalchemy import create_engine, text
+                import os
+                engine = create_engine(os.getenv('DATABASE_URL', 'postgresql://khuser:khpassword@postgres:5432/knowledgehub'))
+                with engine.connect() as conn:
+                    result = conn.execute(text("SELECT name FROM knowledge_sources WHERE id = :id"), {"id": source_id_from_key})
+                    row = result.fetchone()
+                    source_name = row[0] if row else "Unknown Source"
+            except:
+                source_name = "Unknown Source"
+            
+            jobs.append({
+                "id": f"active-{source_id_from_key}",
+                "source_id": source_id_from_key,
+                "source_name": source_name,
+                "status": "running",
+                "job_type": "crawl",
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat(),
+                "ttl_seconds": ttl
+            })
         
-        jobs = await job_service.list_jobs(
-            skip=skip,
-            limit=limit,
-            source_id=source_uuid,
-            status=status
-        )
+        # Get queued jobs from Redis queues
+        for queue_name in ["crawl_jobs:high", "crawl_jobs:normal", "crawl_jobs:low"]:
+            queue_length = await redis_client.llen(queue_name)
+            for i in range(min(queue_length, 20)):  # Limit to avoid performance issues
+                job_str = await redis_client.lindex(queue_name, i)
+                if job_str:
+                    try:
+                        job_data = json.loads(job_str)
+                        job_source_id = job_data.get("source_id")
+                        
+                        # Get source name
+                        try:
+                            from sqlalchemy import create_engine, text
+                            import os
+                            engine = create_engine(os.getenv('DATABASE_URL', 'postgresql://khuser:khpassword@postgres:5432/knowledgehub'))
+                            with engine.connect() as conn:
+                                result = conn.execute(text("SELECT name FROM knowledge_sources WHERE id = :id"), {"id": job_source_id})
+                                row = result.fetchone()
+                                source_name = row[0] if row else "Unknown Source"
+                        except:
+                            source_name = "Unknown Source"
+                        
+                        jobs.append({
+                            "id": job_data.get("job_id", f"queued-{i}"),
+                            "source_id": job_source_id,
+                            "source_name": source_name,
+                            "status": "pending",
+                            "job_type": job_data.get("job_type", "crawl"),
+                            "created_at": datetime.utcnow().isoformat(),
+                            "updated_at": datetime.utcnow().isoformat(),
+                            "queue": queue_name
+                        })
+                    except json.JSONDecodeError:
+                        continue
         
-        total = len(jobs)  # For now, just return the count of returned jobs
+        await redis_client.close()
+        
+        # Apply filters
+        if source_id:
+            jobs = [job for job in jobs if job["source_id"] == source_id]
+        if status:
+            jobs = [job for job in jobs if job["status"] == status]
+        
+        # Apply pagination
+        total = len(jobs)
+        jobs = jobs[skip:skip + limit]
         
         return {
-            "jobs": [job.to_dict() if hasattr(job, 'to_dict') else job.__dict__ for job in jobs],
+            "jobs": jobs,
             "total": total,
             "skip": skip,
             "limit": limit

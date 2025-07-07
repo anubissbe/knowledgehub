@@ -8,17 +8,12 @@ import sys
 from typing import Optional
 from datetime import datetime
 
-try:
-    from .incremental_crawler import IncrementalWebCrawler as WebCrawler
-except ImportError:
-    try:
-        from .crawler import WebCrawler
-    except ImportError:
-        # Fallback to simple crawler if Playwright crawler fails
-        from .simple_crawler import SimpleCrawler as WebCrawler
+# Use the regular crawler for now
+from .crawler import WebCrawler
 from .parsers import ContentParserFactory
 from ..shared.config import Config
 from ..shared.logging import setup_logging
+from aiohttp import web
 
 # Setup logging
 logger = setup_logging("scraper")
@@ -29,13 +24,8 @@ class ScraperWorker:
     
     def __init__(self):
         self.config = Config()
-        # Initialize crawler with API info if it's the incremental crawler
-        try:
-            api_key = os.getenv("API_KEY", "dev-api-key-123")
-            self.crawler = WebCrawler(api_url=self.config.API_URL, api_key=api_key)
-        except TypeError:
-            # Regular crawler doesn't accept these params
-            self.crawler = WebCrawler()
+        # Initialize crawler
+        self.crawler = None
         self.parser_factory = ContentParserFactory()
         self.running = True
         
@@ -61,6 +51,77 @@ class ScraperWorker:
                 "Content-Type": "application/json"
             }
         )
+        
+        # HTTP server for health checks
+        self.app = web.Application()
+        self.setup_routes()
+        self.http_server = None
+        self.health_check_port = int(os.environ.get('HEALTH_CHECK_PORT', '3014'))
+    
+    def setup_routes(self):
+        """Setup HTTP routes for health checks"""
+        self.app.router.add_get('/health', self.health_check)
+    
+    async def health_check(self, request: web.Request) -> web.Response:
+        """Health check endpoint"""
+        try:
+            # Check all dependencies
+            dependencies = {}
+            
+            # Check Redis
+            if self.redis:
+                try:
+                    await self.redis.ping()
+                    dependencies['redis'] = 'healthy'
+                except Exception as e:
+                    dependencies['redis'] = f'unhealthy: {str(e)}'
+            else:
+                dependencies['redis'] = 'not_initialized'
+            
+            # Check API client
+            if self.api_client:
+                try:
+                    # Just check if client is created, don't make actual request
+                    dependencies['api'] = 'healthy'
+                except Exception as e:
+                    dependencies['api'] = f'unhealthy: {str(e)}'
+            else:
+                dependencies['api'] = 'not_initialized'
+            
+            # Check crawler
+            if self.crawler:
+                dependencies['crawler'] = 'healthy'
+            else:
+                dependencies['crawler'] = 'not_initialized'
+            
+            # Check processing status
+            processing_status = {
+                'running': self.running
+            }
+            
+            # Determine overall status
+            overall_status = 'healthy'
+            if any('unhealthy' in str(v) for v in dependencies.values()):
+                overall_status = 'unhealthy'
+            elif any(v == 'not_initialized' for v in dependencies.values()):
+                overall_status = 'degraded'
+            
+            return web.json_response({
+                'status': overall_status,
+                'service': 'scraper',
+                'dependencies': dependencies,
+                'processing': processing_status,
+                'timestamp': datetime.utcnow().isoformat()
+            }, status=200 if overall_status != 'unhealthy' else 503)
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return web.json_response({
+                'status': 'unhealthy',
+                'service': 'scraper',
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }, status=503)
     
     async def start(self):
         """Start the scraper worker"""
@@ -72,8 +133,19 @@ class ScraperWorker:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
         
-        # Start crawler
+        # For now, use the regular crawler which is more stable
+        self.crawler = WebCrawler()
+        logger.info("Using regular WebCrawler")
+        # Start regular crawler
         await self.crawler.start()
+        
+        # Start HTTP server for health checks
+        logger.info(f"Starting health check server on port {self.health_check_port}")
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        self.http_server = web.TCPSite(runner, '0.0.0.0', self.health_check_port)
+        await self.http_server.start()
+        logger.info(f"Health check server started on port {self.health_check_port}")
         
         # Main processing loop
         while self.running:
@@ -95,18 +167,36 @@ class ScraperWorker:
         await self.cleanup()
     
     async def _get_next_job(self) -> Optional[dict]:
-        """Get next job from Redis queue"""
+        """Get next job from Redis queue, avoiding sources already being processed"""
         try:
-            # Use BLPOP for blocking pop with timeout
-            result = await self.redis.blpop(
-                ["crawl_jobs:high", "crawl_jobs:normal", "crawl_jobs:low"],
-                timeout=5
-            )
+            # Check for jobs avoiding source conflicts
+            for queue_name in ["crawl_jobs:high", "crawl_jobs:normal", "crawl_jobs:low"]:
+                queue_length = await self.redis.llen(queue_name)
+                if queue_length > 0:
+                    # Check each job in queue to find one with source not being processed
+                    for i in range(queue_length):
+                        job_str = await self.redis.lindex(queue_name, i)
+                        if job_str:
+                            job_data = json.loads(job_str)
+                            source_id = job_data.get("source_id")
+                            
+                            # Check if this source is already being processed
+                            active_key = f"source:active:{source_id}"
+                            is_active = await self.redis.get(active_key)
+                            
+                            if not is_active:
+                                # Remove this specific job from queue and return it
+                                await self.redis.lrem(queue_name, 1, job_str)
+                                # Mark source as active for 1 hour
+                                await self.redis.setex(active_key, 3600, "1")
+                                logger.info(f"Selected job for source {source_id} (not currently active)")
+                                return job_data
+                            else:
+                                logger.debug(f"Skipping job for source {source_id} (already active)")
             
-            if result:
-                queue, job_str = result
-                return json.loads(job_str)
-                
+            # If no suitable job found, wait a bit
+            await asyncio.sleep(2)
+            
         except Exception as e:
             logger.error(f"Error getting job from queue: {e}")
         
@@ -165,6 +255,11 @@ class ScraperWorker:
                 "failed",
                 error=str(e)
             )
+        finally:
+            # Always cleanup the active source flag
+            active_key = f"source:active:{source_id}"
+            await self.redis.delete(active_key)
+            logger.info(f"Released source lock for {source_id}")
     
     async def _crawl_source(self, source: dict, job_data: dict) -> dict:
         """Crawl a source and extract content"""
@@ -197,52 +292,74 @@ class ScraperWorker:
             crawl_params["source_id"] = source.get("id")
             crawl_params["force_refresh"] = crawl_config.get("force_refresh", False)
         
-        # Start crawling
-        async for page_data in self.crawler.crawl(url, **crawl_params):
-            # Check for cancellation periodically
-            if await self._is_job_cancelled(job_id):
-                logger.info(f"Job {job_id} cancelled during crawling")
-                results["cancelled"] = True
-                results["errors"].append({"error": "Job cancelled by user"})
-                break
-            
-            try:
-                # Parse content based on type
-                parser = self.parser_factory.get_parser(page_data["content_type"])
-                chunks = await parser.parse(
-                    content=page_data["content"],
-                    url=page_data["url"],
-                    metadata=page_data.get("metadata", {})
-                )
+        # Process pages function
+        async def process_pages(crawler):
+            async for page_data in crawler.crawl(url, **crawl_params):
+                # Check for cancellation periodically
+                if await self._is_job_cancelled(job_id):
+                    logger.info(f"Job {job_id} cancelled during crawling")
+                    results["cancelled"] = True
+                    results["errors"].append({"error": "Job cancelled by user"})
+                    break
                 
-                # Send chunks to RAG processor
-                for chunk in chunks:
-                    # Add content hash and other metadata from page
-                    chunk_with_metadata = {
-                        **chunk,
-                        "content_hash": page_data.get("content_hash"),
-                        "is_update": page_data.get("is_update", False)
-                    }
-                    await self._queue_chunk_for_processing({
-                        "source_id": source["id"],
-                        "job_id": job_data["job_id"],
-                        "chunk": chunk_with_metadata
+                try:
+                    # Skip pages with errors (e.g., 404, network errors)
+                    if "error" in page_data:
+                        logger.warning(f"Skipping page {page_data['url']} due to error: {page_data['error']}")
+                        results["errors"].append({
+                            "url": page_data["url"],
+                            "error": page_data["error"]
+                        })
+                        continue
+                    
+                    # Skip pages without content_type (shouldn't happen, but be defensive)
+                    if "content_type" not in page_data:
+                        logger.warning(f"Skipping page {page_data['url']} - missing content_type")
+                        results["errors"].append({
+                            "url": page_data["url"],
+                            "error": "Missing content_type"
+                        })
+                        continue
+                    
+                    # Parse content based on type
+                    parser = self.parser_factory.get_parser(page_data["content_type"])
+                    chunks = await parser.parse(
+                        content=page_data["content"],
+                        url=page_data["url"],
+                        metadata=page_data.get("metadata", {})
+                    )
+                    
+                    # Send chunks to RAG processor
+                    for chunk in chunks:
+                        # Add content hash and other metadata from page
+                        chunk_with_metadata = {
+                            **chunk,
+                            "content_hash": page_data.get("content_hash"),
+                            "is_update": page_data.get("is_update", False)
+                        }
+                        await self._queue_chunk_for_processing({
+                            "source_id": source["id"],
+                            "job_id": job_data["job_id"],
+                            "chunk": chunk_with_metadata
+                        })
+                    
+                    results["pages_crawled"] += 1
+                    results["chunks_created"] += len(chunks)
+                    results["pages"].append({
+                        "url": page_data["url"],
+                        "title": page_data.get("title"),
+                        "chunks": len(chunks)
                     })
-                
-                results["pages_crawled"] += 1
-                results["chunks_created"] += len(chunks)
-                results["pages"].append({
-                    "url": page_data["url"],
-                    "title": page_data.get("title"),
-                    "chunks": len(chunks)
-                })
-                
-            except Exception as e:
-                logger.error(f"Error processing page {page_data['url']}: {e}")
-                results["errors"].append({
-                    "url": page_data["url"],
-                    "error": str(e)
-                })
+                    
+                except Exception as e:
+                    logger.error(f"Error processing page {page_data['url']}: {e}")
+                    results["errors"].append({
+                        "url": page_data["url"],
+                        "error": str(e)
+                    })
+        
+        # Use the regular crawler
+        await process_pages(self.crawler)
         
         results["end_time"] = datetime.utcnow().isoformat()
         return results
@@ -310,6 +427,11 @@ class ScraperWorker:
         logger.info("Cleaning up scraper worker...")
         
         try:
+            # Stop HTTP server
+            if self.http_server:
+                await self.http_server.stop()
+                logger.info("Health check server stopped")
+            
             await self.crawler.stop()
             await self.redis.close()
             await self.api_client.aclose()

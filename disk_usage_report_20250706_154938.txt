@@ -1,0 +1,25 @@
+KnowledgeHub Disk Usage Report
+Generated: Sun Jul  6 03:49:38 PM UTC 2025
+=================================
+
+Top 20 directories by size:
+1.3G	/opt/projects/knowledgehub
+759M	/opt/projects/knowledgehub/embeddings-service/models/sentence-transformers_all-MiniLM-L6-v2
+759M	/opt/projects/knowledgehub/embeddings-service/models
+759M	/opt/projects/knowledgehub/embeddings-service
+402M	/opt/projects/knowledgehub/backups
+35M	/opt/projects/knowledgehub/data/weaviate/knowledge_chunks_fmiTZJS3UdZy.hnsw.commitlog.d
+35M	/opt/projects/knowledgehub/data/weaviate
+35M	/opt/projects/knowledgehub/data
+33M	/opt/projects/knowledgehub/.git
+32M	/opt/projects/knowledgehub/.git/objects/pack
+32M	/opt/projects/knowledgehub/.git/objects
+2.2M	/opt/projects/knowledgehub/src
+1.6M	/opt/projects/knowledgehub/src/web-ui
+1.1M	/opt/projects/knowledgehub/src/web-ui/dist
+344K	/opt/projects/knowledgehub/docs
+336K	/opt/projects/knowledgehub/src/api
+180K	/opt/projects/knowledgehub/data/weaviate/chunk_OAGgzakpIHdB.hnsw.commitlog.d
+164K	/opt/projects/knowledgehub/wiki
+156K	/opt/projects/knowledgehub/src/web-ui/src
+120K	/opt/projects/knowledgehub/data/minio

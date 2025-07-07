@@ -124,3 +124,8 @@ class Config:
     def is_development(self) -> bool:
         """Check if running in development"""
         return not self.is_production
+    
+    @property
+    def APP_ENV(self) -> str:
+        """Get the current application environment"""
+        return os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "development"))

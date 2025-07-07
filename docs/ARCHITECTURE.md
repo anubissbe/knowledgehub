@@ -23,13 +23,13 @@ KnowledgeHub is a modern, cloud-native knowledge management system built using a
 ```mermaid
 graph TB
     subgraph "Frontend Layer"
-        UI[React Web UI<br/>Port: 3101]
+        UI[React Web UI<br/>Port: 5173 (dev)]
     end
     
     subgraph "API Gateway Layer"
         API[FastAPI Gateway<br/>Port: 3000]
         WS[WebSocket Server]
-        MCP[MCP Server<br/>Port: 3002]
+        MCP[MCP Server<br/>Port: 3008]
     end
     
     subgraph "Application Services"
@@ -39,7 +39,7 @@ graph TB
     end
     
     subgraph "AI/ML Services"
-        EMBED[Embeddings Service<br/>Port: 8100]
+        AI[AI Service<br/>Port: 8002]
         TRANS[Transformers Service<br/>sentence-transformers]
     end
     
@@ -59,10 +59,10 @@ graph TB
     SCHED --> API
     SCRAPER --> API
     RAG --> API
-    RAG --> EMBED
+    RAG --> AI
     
     WEAVIATE --> TRANS
-    EMBED --> TRANS
+    AI --> TRANS
     
     API --> MCP
     
@@ -80,12 +80,12 @@ graph TB
 | Service | Technology | Port | Purpose | Dependencies |
 |---------|------------|------|---------|--------------|
 | **API Gateway** | FastAPI | 3000 | Central API hub, request routing | PostgreSQL, Redis, Weaviate |
-| **Web UI** | React + TypeScript | 3101 | User interface | API Gateway |
-| **MCP Server** | WebSocket + JSON-RPC | 3002 | Model Context Protocol | API Gateway |
+| **Web UI** | React + TypeScript | 5173 (dev) | User interface | API Gateway |
+| **MCP Server** | WebSocket + JSON-RPC | 3008 | Model Context Protocol | API Gateway |
 | **Scraper Worker** | Playwright + HTTPX | - | Web content extraction | API Gateway, Redis |
-| **RAG Processor** | Python + Transformers | - | Content chunking & embeddings | API Gateway, Embeddings Service |
+| **RAG Processor** | Python + Transformers | - | Content chunking & embeddings | API Gateway, AI Service |
 | **Scheduler** | APScheduler | - | Automated task execution | API Gateway |
-| **Embeddings Service** | sentence-transformers | 8100 | Vector generation | - |
+| **AI Service** | FastAPI + sentence-transformers | 8002 | AI analysis and vector generation | PostgreSQL |
 | **Transformers Service** | Weaviate Plugin | - | Model inference | - |
 
 ### Service Responsibilities

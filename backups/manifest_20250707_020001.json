@@ -1,0 +1,13 @@
+{
+  "backup_date": "2025-07-07T02:00:25+00:00",
+  "backup_id": "20250707_020001",
+  "components": {
+    "postgresql": "postgresql_20250707_020001.sql.gz",
+    "redis": "redis_20250707_020001.rdb.gz",
+    "weaviate": "weaviate_20250707_020001.tar.gz",
+    "minio": "minio_20250707_020001.tar.gz",
+    "config": "config_20250707_020001.tar.gz"
+  },
+  "backup_size": "603M",
+  "knowledgehub_version": "unknown"
+}

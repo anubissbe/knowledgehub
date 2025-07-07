@@ -13,11 +13,19 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/mcp_server ./mcp_server
-COPY src/shared ./shared
+COPY src/mcp_server ./src/mcp_server
+COPY src/shared ./src/shared
 
 # Set Python path
 ENV PYTHONPATH=/app
 
+# Expose port
+EXPOSE 3002
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Health check removed - using docker-compose health check instead
+
 # Run the MCP service
-CMD ["python", "-m", "mcp_server.server"]
+CMD ["python", "-m", "src.mcp_server.main"]

@@ -1,0 +1,248 @@
+{
+  "dashboard": {
+    "title": "KnowledgeHub Overview",
+    "uid": "knowledgehub-overview",
+    "version": 1,
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Service Health Status",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 24, "h": 4 },
+        "targets": [
+          {
+            "expr": "up{job=~\"knowledgehub.*|postgres|redis|node-exporter\"}",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        }
+      },
+      {
+        "title": "Container CPU Usage",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{name=~\"knowledgehub.*\"}[5m]) * 100",
+            "legendFormat": "{{name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "CPU Usage"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Container Memory Usage",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{name=~\"knowledgehub.*\"} / 1024 / 1024 / 1024",
+            "legendFormat": "{{name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": "Memory (GB)"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Network I/O",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_network_receive_bytes_total{name=~\"knowledgehub.*\"}[5m])",
+            "legendFormat": "{{name}} - RX",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(container_network_transmit_bytes_total{name=~\"knowledgehub.*\"}[5m])",
+            "legendFormat": "{{name}} - TX",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "Bps",
+            "label": "Bytes/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Disk I/O",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_fs_reads_bytes_total{name=~\"knowledgehub.*\"}[5m])",
+            "legendFormat": "{{name}} - Read",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(container_fs_writes_bytes_total{name=~\"knowledgehub.*\"}[5m])",
+            "legendFormat": "{{name}} - Write",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "Bps",
+            "label": "Bytes/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Container Restart Count",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 20, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "container_last_seen{name=~\"knowledgehub.*\"} - container_start_time_seconds{name=~\"knowledgehub.*\"}",
+            "legendFormat": "{{name}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        }
+      },
+      {
+        "title": "System Load Average",
+        "type": "gauge",
+        "gridPos": { "x": 6, "y": 20, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "node_load1",
+            "legendFormat": "1min",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "max": 16,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 8 },
+                { "color": "red", "value": 12 }
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "title": "Disk Usage",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 20, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "(node_filesystem_size_bytes{mountpoint=\"/\"} - node_filesystem_avail_bytes{mountpoint=\"/\"}) / node_filesystem_size_bytes{mountpoint=\"/\"} * 100",
+            "legendFormat": "Root FS",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 85 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Total Memory Usage",
+        "type": "gauge",
+        "gridPos": { "x": 18, "y": 20, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "max": 100,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 90 }
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      }
+    ],
+    "schemaVersion": 37,
+    "tags": ["knowledgehub", "overview"]
+  },
+  "overwrite": true
+}

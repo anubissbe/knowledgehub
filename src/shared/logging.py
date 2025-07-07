@@ -74,6 +74,14 @@ def setup_logging(
     # Prevent propagation to root logger
     logger.propagate = False
     
+    # Log startup message
+    logger.info(f"Logging initialized for {name}", extra={
+        "service": name,
+        "log_level": log_level,
+        "environment": config.APP_ENV,
+        "json_logging": use_json
+    })
+    
     return logger
 
 

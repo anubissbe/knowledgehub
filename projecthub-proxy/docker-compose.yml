@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  projecthub-proxy:
+    build: .
+    container_name: projecthub-proxy
+    ports:
+      - "3109:3109"
+    environment:
+      - NODE_ENV=production
+      - PORT=3109
+      - PROJECTHUB_API=http://192.168.1.24:3009/api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3109/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - projecthub-network
+
+networks:
+  projecthub-network:
+    driver: bridge

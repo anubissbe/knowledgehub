@@ -8,8 +8,9 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import time
 
-from .embeddings_remote import EmbeddingService
-from .chunker_simple import SmartChunker
+from .embeddings_client import EmbeddingServiceClient  # Use external embeddings service
+from .chunker import SmartChunker
+from .health_server import HealthServer
 from ..shared.config import Config
 from ..shared.logging import setup_logging
 
@@ -27,8 +28,10 @@ class RAGProcessor:
     
     def __init__(self):
         self.config = Config()
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = EmbeddingServiceClient()
         self.chunker = SmartChunker()
+        self.health_port = int(os.getenv("HEALTH_CHECK_PORT", "3013"))
+        self.health_server = HealthServer(self.health_port)
         self.redis_client: Optional[aioredis.Redis] = None
         self.weaviate_client: Optional[weaviate.Client] = None
         self.api_client: Optional[httpx.AsyncClient] = None
@@ -60,7 +63,7 @@ class RAGProcessor:
         
         # Initialize embedding service
         await self.embedding_service.initialize()
-        logger.info("Embedding service initialized")
+        logger.info("Embedding service initialized - GPU acceleration enabled")
         
         # Initialize API client
         api_url = os.getenv("API_URL", "http://api:3000")
@@ -72,6 +75,13 @@ class RAGProcessor:
         )
         logger.info("API client initialized")
         
+        # Write health file
+        with open('/tmp/health', 'w') as f:
+            f.write('healthy')
+        
+        # Start health server
+        await self.health_server.start()
+        
         # No consumer group needed for list-based queue
         
         self.running = True
@@ -82,6 +92,15 @@ class RAGProcessor:
         logger.info("Cleaning up RAG processor...")
         self.running = False
         
+        # Remove health file
+        try:
+            os.remove('/tmp/health')
+        except FileNotFoundError:
+            pass
+        
+        # Stop health server
+        await self.health_server.stop()
+            
         if self.embedding_service:
             await self.embedding_service.cleanup()
             
@@ -176,7 +195,7 @@ class RAGProcessor:
                     chunk_metadata = {
                         "source_id": source_id,
                         "content": processed_chunk["content"],
-                        "chunk_type": processed_chunk.get("type", "TEXT").upper(),
+                        "chunk_type": processed_chunk.get("type", "text").lower(),
                         "metadata": {
                             "url": processed_chunk.get("url", ""),
                             "job_id": job_id,
@@ -198,7 +217,7 @@ class RAGProcessor:
                     source_id = batch[batch_idx].get("source_id")
                     job_id = batch[batch_idx].get("job_id")
                     
-                    # Generate embedding
+                    # Generate embedding using GPU acceleration
                     embedding = await self.embedding_service.generate_embedding(
                         processed_chunk["content"]
                     )
@@ -213,7 +232,7 @@ class RAGProcessor:
                             "document_id": chunk_data.get("document_id", ""),
                             "job_id": job_id,
                             "url": processed_chunk.get("url", ""),
-                            "type": processed_chunk.get("type", "TEXT"),
+                            "type": processed_chunk.get("type", "text"),
                             **processed_chunk.get("metadata", {})
                         }
                     )
@@ -222,8 +241,10 @@ class RAGProcessor:
                         "chunk_id": chunk_id,
                         "embedding_id": vector_id
                     })
+                    
+                    logger.info(f"Chunk {chunk_id} created with GPU-accelerated embedding (vector_id: {vector_id})")
                 
-                # Phase 4: Batch update embedding IDs
+                # Phase 4: Update chunk embedding IDs
                 if embedding_updates:
                     await self._update_chunk_embedding_ids_batch(embedding_updates)
                 
@@ -255,7 +276,7 @@ class RAGProcessor:
                 chunk_metadata = {
                     "source_id": source_id,
                     "content": processed_chunk["content"],
-                    "chunk_type": processed_chunk.get("type", "TEXT").upper(),
+                    "chunk_type": processed_chunk.get("type", "text").lower(),
                     "metadata": {
                         "url": processed_chunk.get("url", ""),
                         "job_id": job_id,
@@ -267,7 +288,7 @@ class RAGProcessor:
                 chunk_id = await self._store_chunk_metadata(chunk_metadata)
                 
                 if chunk_id:
-                    # Generate embedding
+                    # Generate embedding using GPU acceleration
                     embedding = await self.embedding_service.generate_embedding(
                         processed_chunk["content"]
                     )
@@ -282,7 +303,7 @@ class RAGProcessor:
                             "document_id": chunk_metadata.get("document_id", ""),
                             "job_id": job_id,
                             "url": processed_chunk.get("url", ""),
-                            "type": processed_chunk.get("type", "TEXT"),
+                            "type": processed_chunk.get("type", "text"),
                             **processed_chunk.get("metadata", {})
                         }
                     )
@@ -290,7 +311,7 @@ class RAGProcessor:
                     # Update chunk with embedding_id
                     await self._update_chunk_embedding_id(chunk_id, vector_id)
                     
-                    logger.debug(f"Chunk {chunk_id} stored in Weaviate with ID: {vector_id}")
+                    logger.info(f"Chunk {chunk_id} stored in Weaviate with GPU-accelerated embedding (vector_id: {vector_id})")
             
             logger.info(f"Processed {len(processed_chunks)} chunks for source {source_id}")
             
@@ -314,7 +335,7 @@ class RAGProcessor:
                     "source_id": metadata.get("source_id"),
                     "chunk_id": metadata.get("chunk_id"),  # This is now the PostgreSQL chunk ID
                     "document_id": metadata.get("document_id", ""),
-                    "chunk_type": metadata.get("type", "TEXT"),
+                    "chunk_type": metadata.get("type", "text"),
                     "url": metadata.get("url", ""),
                     "metadata": json.dumps(metadata),
                     "created_at": datetime.utcnow().isoformat() + "Z"

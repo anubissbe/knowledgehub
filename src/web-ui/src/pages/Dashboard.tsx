@@ -11,6 +11,8 @@ import { api } from '@/services/api'
 import StatsCard from '@/components/StatsCard'
 import RecentActivity from '@/components/RecentActivity'
 import SystemHealth from '@/components/SystemHealth'
+import PerformanceMetrics from '@/components/PerformanceMetrics'
+import TrendingAnalysis from '@/components/TrendingAnalysis'
 
 function Dashboard() {
   const { data: stats, isLoading, refetch, isRefetching } = useQuery({
@@ -98,6 +100,16 @@ function Dashboard() {
               <SystemHealth />
             </CardContent>
           </Card>
+        </Grid>
+
+        {/* Performance Metrics */}
+        <Grid item xs={12}>
+          <PerformanceMetrics />
+        </Grid>
+
+        {/* Trending Analysis */}
+        <Grid item xs={12}>
+          <TrendingAnalysis />
         </Grid>
       </Grid>
     </Box>

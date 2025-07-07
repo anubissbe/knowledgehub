@@ -67,7 +67,7 @@ KnowledgeHub is a modern, AI-powered knowledge management system that transforms
 - **Context-Aware**: Maintains document structure and relationships
 
 #### 🏗️ **Production-Ready Architecture**
-- **Microservices Design**: 11 containerized services working in concert
+- **Microservices Design**: 13+ containerized services working in concert
 - **Real-time Updates**: WebSocket-based live progress monitoring
 - **Auto-scaling**: Queue-based background processing
 - **High Availability**: Health checks and graceful failure handling

@@ -95,7 +95,7 @@ class HTMLParser(ContentParser):
         # Extract sections by headings
         for heading in soup.find_all(["h1", "h2", "h3"]):
             section = {
-                "type": "heading",
+                "type": "HEADING",
                 "heading": heading.text.strip(),
                 "content": [],
                 "level": int(heading.name[1])
@@ -145,7 +145,7 @@ class HTMLParser(ContentParser):
             code_text = code.text.strip()
             if code_text:
                 sections.append({
-                    "type": "code",
+                    "type": "CODE",
                     "content": [code_text],
                     "language": code.get("class", [""])[0] if code.get("class") else ""
                 })
@@ -162,7 +162,7 @@ class HTMLParser(ContentParser):
         chunks = []
         
         # Join content
-        if section["type"] == "heading":
+        if section["type"] == "HEADING":
             content = f"# {section['heading']}\n\n" + "\n\n".join(section["content"])
         else:
             content = "\n\n".join(section["content"])
@@ -326,7 +326,7 @@ class CodeParser(ContentParser):
         # Could be improved to split by functions/classes
         return [{
             "content": content,
-            "type": "code",
+            "type": "CODE",
             "url": url,
             "metadata": {
                 "language": language,

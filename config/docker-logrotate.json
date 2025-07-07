@@ -1,0 +1,10 @@
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "50m",
+    "max-file": "5",
+    "compress": "true",
+    "labels": "com.knowledgehub.service",
+    "env": "APP_ENV,SERVICE_NAME"
+  }
+}

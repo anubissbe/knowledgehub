@@ -1,0 +1,125 @@
+
+# Log aggregation services for KnowledgeHub
+# This extends the main docker-compose.yml file
+
+services:
+  # Loki - Log aggregation system
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: knowledgehub-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "0.0.0.0:3100:3100"
+    volumes:
+      - ./logs/loki:/loki
+      - ./config/loki.yaml:/etc/loki/local-config.yaml
+    networks:
+      - knowledgehub-network
+    restart: unless-stopped
+
+  # Promtail - Log collector/shipper
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: knowledgehub-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/promtail.yaml:/etc/promtail/config.yml
+      - ./logs/promtail:/tmp/positions
+    networks:
+      - knowledgehub-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Grafana - Visualization and querying
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: knowledgehub-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "0.0.0.0:3015:3000"
+    volumes:
+      - ./logs/grafana:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - knowledgehub-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Update existing services to use proper logging
+  api:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=api,component=knowledgehub"
+
+  scraper:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=scraper,component=knowledgehub"
+
+  rag-processor:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=rag-processor,component=knowledgehub"
+
+  scheduler:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=scheduler,component=knowledgehub"
+
+  # GPU Monitor - Continuous GPU monitoring and metrics
+  gpu-monitor:
+    image: python:3.11-slim
+    container_name: knowledgehub-gpu-monitor
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y curl procps &&
+      pip install --no-cache-dir requests &&
+      while true; do
+        echo '{\"timestamp\": \"'$$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'\", \"level\": \"INFO\", \"service\": \"gpu-monitor\", \"message\": \"GPU monitoring cycle started\"}';
+        python3 /app/gpu_monitor_simple.py 2>&1 | while read line; do
+          echo '{\"timestamp\": \"'$$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'\", \"level\": \"INFO\", \"service\": \"gpu-monitor\", \"message\": \"'$$line'\"}';
+        done;
+        sleep 300;
+      done
+      "
+    volumes:
+      - /opt/projects/knowledgehub/gpu_monitor_simple.py:/app/gpu_monitor_simple.py:ro
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
+      - /tmp:/tmp
+    networks:
+      - knowledgehub-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service=gpu-monitor,component=knowledgehub"
+
+networks:
+  knowledgehub-network:
+    external: true

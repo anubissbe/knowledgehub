@@ -1,0 +1,83 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker container logs
+  - job_name: knowledgehub_containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=knowledgehub"]
+    relabel_configs:
+      # Extract container name
+      - source_labels: ['__meta_docker_container_name']
+        target_label: 'container'
+        regex: '/(.*)'
+      # Extract service name from compose
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+      # Add compose project
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+      # Add container ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+      # Extract custom labels if present
+      - source_labels: ['__meta_docker_container_label_service']
+        target_label: 'service_name'
+      - source_labels: ['__meta_docker_container_label_component']
+        target_label: 'component'
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            module: module
+            extra: extra
+          drop_malformed: false
+      # Use timestamp from log if available
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+          fallback_formats:
+            - "2006-01-02T15:04:05.999999"
+            - "2006-01-02 15:04:05"
+          location: UTC
+      # Set log level as label
+      - labels:
+          level:
+      # Output final log line
+      - output:
+          source: message
+
+  # System logs (optional)
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\S+\s+\S+)\s+(?P<hostname>\S+)\s+(?P<program>\S+):\s+(?P<message>.*)$'
+      - timestamp:
+          source: timestamp
+          format: "Jan 2 15:04:05"
+          location: UTC
+      - labels:
+          hostname:
+          program:
+      - output:
+          source: message

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: nginx:alpine
+    container_name: knowledgehub-frontend
+    ports:
+      - "3100:80"
+    volumes:
+      - ./src/web-ui/dist:/usr/share/nginx/html:ro
+      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - knowledgehub-network
+    restart: unless-stopped
+
+networks:
+  knowledgehub-network:
+    external: true
+    name: knowledgehub_knowledgehub-network

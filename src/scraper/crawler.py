@@ -160,7 +160,8 @@ class WebCrawler:
         # Simple heuristic - can be improved
         js_indicators = [
             "react", "angular", "vue", "spa",
-            "/app", "/dashboard", "#!"
+            "/app", "/dashboard", "#!",
+            "stoplight.io"  # Stoplight uses React SPA
         ]
         
         url_lower = url.lower()
@@ -250,6 +251,16 @@ class WebCrawler:
                 except:
                     logger.debug("Main content selector not found, continuing anyway")
             
+            # Special handling for Stoplight documentation
+            if "stoplight.io" in url:
+                try:
+                    # Wait for Stoplight's content container
+                    await page.wait_for_selector("article, .sl-elements-article, [role='article']", timeout=15000)
+                    # Give React time to render
+                    await asyncio.sleep(2)
+                except:
+                    logger.debug("Stoplight content selector not found, continuing anyway")
+            
             # Extract content
             content = await page.content()
             title = await page.title()
@@ -330,6 +341,22 @@ class WebCrawler:
             # Parse and validate
             parsed = urlparse(absolute_url)
             if parsed.scheme not in ["http", "https"]:
+                return None
+            
+            # Skip non-content resources (CSS, images, fonts, etc.)
+            resource_extensions = {
+                '.css', '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp',
+                '.woff', '.woff2', '.ttf', '.eot', '.otf',
+                '.mp3', '.mp4', '.avi', '.mov', '.wmv',
+                '.zip', '.tar', '.gz', '.rar', '.7z',
+                '.pdf'  # Skip PDFs for now as they need special handling
+            }
+            path_lower = parsed.path.lower()
+            if any(path_lower.endswith(ext) for ext in resource_extensions):
+                return None
+            
+            # Skip common resource paths
+            if any(part in path_lower for part in ['/favicon', '/fonts/', '/images/', '/css/', '/js/', '/assets/']):
                 return None
             
             # Remove fragment

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard API Test</title>
+</head>
+<body>
+    <h1>KnowledgeHub Dashboard Stats Test</h1>
+    <div id="results"></div>
+    
+    <script>
+    async function testAPI() {
+        const resultsDiv = document.getElementById('results');
+        
+        try {
+            // Test sources endpoint
+            const sourcesResponse = await fetch('http://localhost:3000/api/v1/sources/');
+            const sourcesData = await sourcesResponse.json();
+            
+            // Test jobs endpoint
+            const jobsResponse = await fetch('http://localhost:3000/api/v1/jobs/');
+            const jobsData = await jobsResponse.json();
+            
+            // Calculate stats like the dashboard does
+            const stats = {
+                total_sources: sourcesData.total || 0,
+                active_sources: sourcesData.sources?.filter(s => s.status === 'active' || s.status === 'completed').length || 0,
+                total_documents: sourcesData.sources?.reduce((acc, s) => acc + (s.stats?.documents || 0), 0) || 0,
+                total_chunks: sourcesData.sources?.reduce((acc, s) => acc + (s.stats?.chunks || 0), 0) || 0,
+                running_jobs: jobsData.jobs?.filter(j => j.status === 'running').length || 0
+            };
+            
+            resultsDiv.innerHTML = `
+                <h2>API Results:</h2>
+                <p><strong>Total Sources:</strong> ${stats.total_sources}</p>
+                <p><strong>Active Sources:</strong> ${stats.active_sources}</p>
+                <p><strong>Total Documents:</strong> ${stats.total_documents}</p>
+                <p><strong>Total Chunks:</strong> ${stats.total_chunks}</p>
+                <p><strong>Running Jobs:</strong> ${stats.running_jobs}</p>
+                
+                <h3>Raw Data:</h3>
+                <pre>${JSON.stringify(sourcesData, null, 2)}</pre>
+            `;
+        } catch (error) {
+            resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
+    }
+    
+    testAPI();
+    </script>
+</body>
+</html>

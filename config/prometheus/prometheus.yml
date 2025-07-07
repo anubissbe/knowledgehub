@@ -1,0 +1,64 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # KnowledgeHub API
+  - job_name: 'knowledgehub-api'
+    static_configs:
+      - targets: ['knowledgehub-api:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # KnowledgeHub RAG Processor
+  - job_name: 'knowledgehub-rag'
+    static_configs:
+      - targets: ['knowledgehub-rag:3013']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # KnowledgeHub Scraper
+  - job_name: 'knowledgehub-scraper'
+    static_configs:
+      - targets: ['knowledgehub-scraper:3014']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # GPU metrics (if nvidia-smi available)
+  - job_name: 'gpu-metrics'
+    static_configs:
+      - targets: ['gpu-exporter:9445']

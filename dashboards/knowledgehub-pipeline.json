@@ -1,0 +1,115 @@
+{
+  "dashboard": {
+    "title": "KnowledgeHub Processing Pipeline",
+    "uid": "knowledgehub-pipeline",
+    "version": 1,
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Scraper Activity",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_network_transmit_bytes_total{name=~\"knowledgehub-scraper.*\"}[5m])",
+            "legendFormat": "{{name}} - Crawl Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "Bps",
+            "label": "Bytes/sec"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "RAG Processor Activity",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{name=\"knowledgehub-rag\"}[5m]) * 100",
+            "legendFormat": "CPU Usage %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "CPU %"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "API Response Times",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(container_network_receive_bytes_total{name=\"knowledgehub-api\"}[5m]))",
+            "legendFormat": "95th percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(container_network_receive_bytes_total{name=\"knowledgehub-api\"}[5m]))",
+            "legendFormat": "Median",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "title": "Processing Queue Depth",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{name=\"knowledgehub-redis\"} / 1024 / 1024",
+            "legendFormat": "Queue Size (MB)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "decmbytes",
+            "label": "Queue Size"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Service Memory Usage",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{name=~\"knowledgehub-(api|scraper.*|rag|scheduler)\"} / 1024 / 1024 / 1024",
+            "legendFormat": "{{name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "decbytes",
+            "label": "Memory (GB)"
+          },
+          {
+            "format": "short"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 37,
+    "tags": ["knowledgehub", "pipeline", "processing"]
+  },
+  "overwrite": true
+}

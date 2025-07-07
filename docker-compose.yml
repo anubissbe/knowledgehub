@@ -1,7 +1,7 @@
 services:
   # PostgreSQL for document metadata
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
     container_name: knowledgehub-postgres
     environment:
       POSTGRES_DB: knowledgehub
@@ -41,7 +41,7 @@ services:
     networks:
       - knowledgehub-network
 
-  # Weaviate vector database
+  # Weaviate vector database (without transformers for now)
   weaviate:
     image: semitechnologies/weaviate:1.22.4
     container_name: knowledgehub-weaviate
@@ -49,17 +49,14 @@ services:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      DEFAULT_VECTORIZER_MODULE: 'text2vec-transformers'
-      ENABLE_MODULES: 'text2vec-transformers'
-      TRANSFORMERS_INFERENCE_API: 'http://t2v-transformers:8080'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
       CLUSTER_HOSTNAME: 'weaviate'
     volumes:
       - ./data/weaviate:/var/lib/weaviate
     ports:
-      - "8090:8080"
-      - "50051:50051"
-    depends_on:
-      - t2v-transformers
+      - "0.0.0.0:8090:8080"
+      - "0.0.0.0:50051:50051"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v1/.well-known/ready"]
       interval: 10s
@@ -68,19 +65,19 @@ services:
     networks:
       - knowledgehub-network
 
-  # Transformer model for embeddings
-  t2v-transformers:
-    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
-    container_name: knowledgehub-transformers
-    environment:
-      ENABLE_CUDA: '0'
-      MODEL_NAME: sentence-transformers/all-MiniLM-L6-v2
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    networks:
-      - knowledgehub-network
+  # Transformer model for embeddings (commented out for now)
+  # t2v-transformers:
+  #   image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+  #   container_name: knowledgehub-transformers
+  #   environment:
+  #     ENABLE_CUDA: '0'
+  #     MODEL_NAME: sentence-transformers/all-MiniLM-L6-v2
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 2G
+  #   networks:
+  #     - knowledgehub-network
 
   # MinIO for blob storage (S3-compatible)
   minio:
@@ -109,6 +106,12 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     container_name: knowledgehub-api
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
     environment:
       - APP_ENV=development
       - DEBUG=true
@@ -117,9 +120,12 @@ services:
       - WEAVIATE_URL=http://knowledgehub-weaviate:8080
       - S3_ENDPOINT_URL=http://minio:9000
       - EMBEDDINGS_SERVICE_URL=http://embeddings-real:8100
+      - ACTUAL_STORAGE_TB=11
     volumes:
       - ./src/api:/app/src/api
       - ./src/shared:/app/src/shared
+      - ./src/web-ui:/app/src/web-ui:ro
+      - /opt:/opt:ro
     ports:
       - "0.0.0.0:3000:3000"
     depends_on:
@@ -134,27 +140,35 @@ services:
     networks:
       - knowledgehub-network
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 3000 --reload
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # MCP Server
   mcp-server:
-    build:
-      context: .
-      dockerfile: docker/mcp.Dockerfile
+    image: knowledgehub-mcp-server:fixed
     container_name: knowledgehub-mcp
     environment:
       - APP_ENV=development
       - API_URL=http://api:3000
       - MCP_SERVER_PORT=3002
     volumes:
-      - ./src/mcp-server:/app/src/mcp-server
-      - ./src/shared:/app/src/shared
+      - ./src/mcp_server:/app/mcp_server
+      - ./src/shared:/app/shared
     ports:
-      - "0.0.0.0:3002:3002"
+      - "0.0.0.0:3008:3002"
     depends_on:
       - api
     networks:
       - knowledgehub-network
-    command: python -m src.mcp_server.server
+    command: python -m mcp_server.start_with_health
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/tmp/health_check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Scraper Worker
   scraper:
@@ -162,6 +176,12 @@ services:
       context: .
       dockerfile: docker/scraper.Dockerfile
     container_name: knowledgehub-scraper
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
     environment:
       - APP_ENV=production
       - REDIS_URL=redis://redis:6379/0
@@ -169,8 +189,11 @@ services:
       - API_URL=http://api:3000
       - API_KEY=dev-api-key-123
       - PYTHONPATH=/app
+      - HEALTH_CHECK_PORT=3014
     volumes:
       - ./src:/app/src
+    ports:
+      - "0.0.0.0:3014:3014"
     depends_on:
       - redis
       - postgres
@@ -179,6 +202,43 @@ services:
       - knowledgehub-network
     command: ["sh", "-c", "cd /app && python -m src.scraper.main"]
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3014/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Scraper Worker 2 (for parallel crawling of different sources)
+  scraper2:
+    build:
+      context: .
+      dockerfile: docker/scraper.Dockerfile
+    container_name: knowledgehub-scraper2
+    environment:
+      - APP_ENV=production
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - API_URL=http://api:3000
+      - API_KEY=dev-api-key-123
+      - PYTHONPATH=/app
+      - HEALTH_CHECK_PORT=3015
+    volumes:
+      - ./src:/app/src
+    ports:
+      - "0.0.0.0:3015:3015"
+    depends_on:
+      - redis
+      - postgres
+      - api
+    networks:
+      - knowledgehub-network
+    command: ["sh", "-c", "cd /app && python -m src.scraper.main"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3015/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # RAG Processor
   rag-processor:
@@ -186,6 +246,12 @@ services:
       context: .
       dockerfile: docker/rag.Dockerfile
     container_name: knowledgehub-rag
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
     environment:
       - APP_ENV=production
       - REDIS_URL=redis://redis:6379/0
@@ -194,9 +260,15 @@ services:
       - API_URL=http://api:3000
       - API_KEY=dev-api-key-123
       - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      - EMBEDDINGS_SERVICE_URL=http://host.docker.internal:8100
+      - HEALTH_CHECK_PORT=3013
     volumes:
       - ./src/rag_processor:/app/src/rag_processor
       - ./src/shared:/app/src/shared
+    ports:
+      - "0.0.0.0:3013:3013"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - redis
       - postgres
@@ -206,6 +278,11 @@ services:
       - knowledgehub-network
     command: python -m src.rag_processor.main
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/bash", "/tmp/health_check.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Web UI (development)
   web-ui:
@@ -221,11 +298,16 @@ services:
       - ./src/web-ui:/app
       - /app/node_modules
     ports:
-      - "0.0.0.0:3101:80"
+      - "0.0.0.0:3102:80"
     depends_on:
       - api
     networks:
       - knowledgehub-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Scheduler Service
   scheduler:
@@ -248,6 +330,11 @@ services:
     networks:
       - knowledgehub-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   knowledgehub-network:

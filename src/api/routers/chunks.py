@@ -30,7 +30,7 @@ async def create_chunk(
         document_id = chunk_data.get("document_id")
         source_id = chunk_data.get("source_id")  # Optional, for backward compatibility
         content = chunk_data.get("content")
-        chunk_type = chunk_data.get("chunk_type", "TEXT")
+        chunk_type = chunk_data.get("chunk_type", "text")
         chunk_index = chunk_data.get("chunk_index", 0)
         metadata = chunk_data.get("metadata", {})
         embedding_id = chunk_data.get("embedding_id")
@@ -128,7 +128,7 @@ async def create_chunk(
                 content=content,
                 chunk_type=chunk_type_enum,
                 chunk_index=chunk_index,
-                metadata=metadata,
+                chunk_metadata=metadata,
                 embedding_id=embedding_id,
                 parent_heading=parent_heading,
                 created_at=datetime.utcnow()
@@ -185,7 +185,7 @@ async def create_chunks_batch(
             document_id = chunk_data.get("document_id")
             source_id = chunk_data.get("source_id")
             content = chunk_data.get("content")
-            chunk_type = chunk_data.get("chunk_type", "TEXT")
+            chunk_type = chunk_data.get("chunk_type", "text")
             chunk_index = chunk_data.get("chunk_index", 0)
             metadata = chunk_data.get("metadata", {})
             embedding_id = chunk_data.get("embedding_id")
@@ -259,7 +259,7 @@ async def create_chunks_batch(
                 # Update existing chunk
                 existing_chunk.content = content
                 existing_chunk.chunk_type = chunk_type_enum
-                existing_chunk.metadata = metadata
+                existing_chunk.chunk_metadata = metadata
                 existing_chunk.embedding_id = embedding_id
                 existing_chunk.parent_heading = parent_heading
                 existing_chunk.updated_at = datetime.utcnow()
@@ -271,7 +271,7 @@ async def create_chunks_batch(
                     content=content,
                     chunk_type=chunk_type_enum,
                     chunk_index=chunk_index,
-                    metadata=metadata,
+                    chunk_metadata=metadata,
                     embedding_id=embedding_id,
                     parent_heading=parent_heading,
                     created_at=datetime.utcnow()

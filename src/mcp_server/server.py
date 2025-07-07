@@ -9,6 +9,7 @@ from datetime import datetime
 
 import websockets
 from websockets.server import WebSocketServerProtocol
+from aiohttp import web
 
 from .protocol import MCPProtocol
 from .tools import KnowledgeTools
@@ -28,6 +29,7 @@ class KnowledgeHubMCPServer:
     def __init__(self, knowledge_api_url: Optional[str] = None, port: Optional[int] = None):
         self.api_url = knowledge_api_url or os.getenv("API_URL", "http://localhost:3000")
         self.port = port if port is not None else int(os.getenv("MCP_SERVER_PORT", "3002"))
+        self.health_port = self.port + 1000  # Health server on port 4002
         self.protocol = MCPProtocol()
         self.tools = KnowledgeTools(self.api_url)
         self.resources = KnowledgeResources(self.api_url)
@@ -301,9 +303,40 @@ class KnowledgeHubMCPServer:
         finally:
             del self.clients[client_id]
     
+    async def health_handler(self, request):
+        """Health check endpoint"""
+        return web.json_response({
+            "status": "healthy",
+            "service": "mcp-server",
+            "websocket_port": self.port,
+            "clients_connected": len(self.clients),
+            "timestamp": asyncio.get_event_loop().time()
+        })
+    
     async def start(self):
         """Start the MCP server"""
         logger.info(f"Starting MCP server on port {self.port}")
+        logger.info("About to write health file...")
+        
+        # Write health file
+        try:
+            with open('/tmp/mcp_healthy', 'w') as f:
+                f.write('healthy')
+            logger.info("Health file created")
+        except Exception as e:
+            logger.error(f"Failed to create health file: {e}")
+        
+        # Try to create health check server
+        try:
+            health_app = web.Application()
+            health_app.router.add_get('/health', self.health_handler)
+            health_runner = web.AppRunner(health_app)
+            await health_runner.setup()
+            health_site = web.TCPSite(health_runner, '0.0.0.0', self.health_port)
+            await health_site.start()
+            logger.info(f"Health server started on port {self.health_port}")
+        except Exception as e:
+            logger.error(f"Failed to start health server: {e}")
         
         # Start WebSocket server
         async with websockets.serve(self.handle_client, "0.0.0.0", self.port):

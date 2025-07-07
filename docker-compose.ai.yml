@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  ai-service:
+    build:
+      context: ./src/ai_service
+      dockerfile: Dockerfile
+    container_name: knowledgehub-ai
+    ports:
+      - "8002:8000"
+    environment:
+      - DB_HOST=knowledgehub-postgres
+      - DB_PORT=5432
+      - DB_NAME=knowledgehub
+      - DB_USER=khuser
+      - DB_PASSWORD=khpassword
+    volumes:
+      - ./data/ai_models:/app/models
+    restart: unless-stopped
+    networks:
+      - knowledgehub_default
+    healthcheck:
+      test: ["CMD", "python3", "/tmp/health_check.py"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+
+networks:
+  knowledgehub_default:
+    external: true
+    name: knowledgehub_knowledgehub-network
