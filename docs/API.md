@@ -1,5 +1,144 @@
 # KnowledgeHub API Documentation
 
+## Memory System API
+
+The KnowledgeHub now includes a comprehensive memory system for persistent context storage across Claude-Code sessions.
+
+### Session Management Endpoints
+
+#### Create Session
+```http
+POST /api/memory/session/start
+Content-Type: application/json
+X-API-Key: your-api-key
+
+{
+  "user_id": "user@example.com",
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "metadata": {
+    "client": "claude-code",
+    "version": "1.0.0"
+  },
+  "tags": ["development", "feature-x"]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "3ec4c885-263c-49ef-a9a4-b5383e61ab81",
+  "user_id": "user@example.com",
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "metadata": {"client": "claude-code", "version": "1.0.0"},
+  "tags": ["development", "feature-x"],
+  "started_at": "2025-07-07T19:45:00Z",
+  "ended_at": null,
+  "parent_session_id": null,
+  "created_at": "2025-07-07T19:45:00Z",
+  "updated_at": "2025-07-07T19:45:00Z",
+  "duration": null,
+  "is_active": true,
+  "memory_count": 0
+}
+```
+
+#### Get Session
+```http
+GET /api/memory/session/{session_id}
+```
+
+#### End Session
+```http
+POST /api/memory/session/{session_id}/end
+```
+
+#### Get User Sessions
+```http
+GET /api/memory/session/user/{user_id}?project_id={uuid}&active_only=false&limit=10
+```
+
+### Memory Management Endpoints
+
+#### Create Memory
+```http
+POST /api/memory/memories/
+Content-Type: application/json
+
+{
+  "session_id": "3ec4c885-263c-49ef-a9a4-b5383e61ab81",
+  "content": "User prefers TypeScript over JavaScript for type safety",
+  "summary": "TypeScript preference",
+  "memory_type": "preference",
+  "importance": 0.8,
+  "confidence": 0.9,
+  "entities": ["TypeScript", "JavaScript", "type safety"],
+  "metadata": {
+    "source": "conversation",
+    "context": "discussing frontend framework choices"
+  }
+}
+```
+
+**Memory Types:**
+- `fact` - Factual information
+- `preference` - User preferences
+- `code` - Code snippets or patterns
+- `decision` - Decisions made
+- `error` - Errors encountered
+- `pattern` - Recognized patterns
+- `entity` - Entity information
+
+#### Get Memory
+```http
+GET /api/memory/memories/{memory_id}
+```
+
+#### Get Session Memories
+```http
+GET /api/memory/memories/session/{session_id}?memory_type=preference&min_importance=0.5&limit=50
+```
+
+#### Search Memories
+```http
+POST /api/memory/memories/search
+Content-Type: application/json
+
+{
+  "query": "TypeScript",
+  "user_id": "user@example.com",
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "memory_types": ["preference", "decision"],
+  "min_importance": 0.5,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "memory-uuid",
+      "session_id": "session-uuid",
+      "content": "User prefers TypeScript...",
+      "memory_type": "preference",
+      "importance": 0.8,
+      "confidence": 0.9,
+      "entities": ["TypeScript"],
+      "created_at": "2025-07-07T19:45:00Z",
+      "relevance_score": 0.85
+    }
+  ],
+  "total": 5,
+  "query": "TypeScript",
+  "limit": 20,
+  "offset": 0
+}
+```
+
+---
+
 ## Overview
 
 The KnowledgeHub API is a comprehensive REST API built with FastAPI that provides full access to all system functionality. It features automatic OpenAPI documentation, input validation, and real-time capabilities via WebSocket.
