@@ -19,6 +19,7 @@ except ImportError:
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import AuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
+from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
 from .config import settings
 
 # Configure logging
@@ -65,7 +66,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add custom middleware
+# Add custom middleware (order matters - last added runs first)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(ContentValidationMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
 app.add_middleware(AuthMiddleware)
 
