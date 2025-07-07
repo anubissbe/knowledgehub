@@ -4,6 +4,12 @@ from pydantic_settings import BaseSettings
 from typing import List, Optional
 import os
 
+# Import Vault integration to load credentials
+try:
+    from .services.vault import vault_config
+except ImportError:
+    vault_config = {}
+
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""

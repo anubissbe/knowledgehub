@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: knowledgehub
       POSTGRES_USER: khuser
-      POSTGRES_PASSWORD: khpassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./src/api/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
@@ -86,7 +86,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ./data/minio:/data
     ports:
@@ -115,12 +115,16 @@ services:
     environment:
       - APP_ENV=development
       - DEBUG=true
-      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - DATABASE_URL=postgresql://khuser:${POSTGRES_PASSWORD}@postgres:5432/knowledgehub
       - REDIS_URL=redis://redis:6379/0
       - WEAVIATE_URL=http://knowledgehub-weaviate:8080
       - S3_ENDPOINT_URL=http://minio:9000
       - EMBEDDINGS_SERVICE_URL=http://embeddings-real:8100
       - ACTUAL_STORAGE_TB=11
+      - VAULT_ADDR=${VAULT_ADDR:-http://192.168.1.24:8200}
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - SECRET_KEY=${SECRET_KEY}
+      - API_KEY=${API_KEY}
     volumes:
       - ./src/api:/app/src/api
       - ./src/shared:/app/src/shared
@@ -185,9 +189,9 @@ services:
     environment:
       - APP_ENV=production
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - DATABASE_URL=postgresql://khuser:${POSTGRES_PASSWORD}@postgres:5432/knowledgehub
       - API_URL=http://api:3000
-      - API_KEY=dev-api-key-123
+      - API_KEY=${API_KEY}
       - PYTHONPATH=/app
       - HEALTH_CHECK_PORT=3014
     volumes:
@@ -217,9 +221,9 @@ services:
     environment:
       - APP_ENV=production
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - DATABASE_URL=postgresql://khuser:${POSTGRES_PASSWORD}@postgres:5432/knowledgehub
       - API_URL=http://api:3000
-      - API_KEY=dev-api-key-123
+      - API_KEY=${API_KEY}
       - PYTHONPATH=/app
       - HEALTH_CHECK_PORT=3015
     volumes:
@@ -255,10 +259,10 @@ services:
     environment:
       - APP_ENV=production
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://khuser:khpassword@postgres:5432/knowledgehub
+      - DATABASE_URL=postgresql://khuser:${POSTGRES_PASSWORD}@postgres:5432/knowledgehub
       - WEAVIATE_URL=http://knowledgehub-weaviate:8080
       - API_URL=http://api:3000
-      - API_KEY=dev-api-key-123
+      - API_KEY=${API_KEY}
       - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
       - EMBEDDINGS_SERVICE_URL=http://host.docker.internal:8100
       - HEALTH_CHECK_PORT=3013

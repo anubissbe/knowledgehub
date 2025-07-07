@@ -182,7 +182,8 @@ graph TB
 2. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # IMPORTANT: Edit .env with your secure credentials
+   # Generate strong passwords for POSTGRES_PASSWORD, MINIO_ROOT_PASSWORD, etc.
    ```
 
 3. **Start all services**
@@ -339,11 +340,23 @@ Based on real-world testing:
 
 ## 🔒 Security
 
-- API key authentication for all endpoints
-- Rate limiting to prevent abuse
-- Secure credential storage with environment variables
-- Input validation and sanitization
-- CORS configuration for web security
+- **Authentication**: API key authentication for all endpoints
+- **Rate Limiting**: Protection against abuse and DDoS attacks
+- **Credential Management**: Secure storage with HashiCorp Vault integration
+- **Input Protection**: XSS prevention with input sanitization and output encoding
+- **Security Headers**: Content Security Policy, X-Frame-Options, X-XSS-Protection
+- **Environment Isolation**: Sensitive data stored in .env files (never committed to git)
+- **CORS Configuration**: Secure cross-origin resource sharing policies
+
+### Security Best Practices
+
+⚠️ **IMPORTANT**: Always generate strong, unique passwords for:
+- `POSTGRES_PASSWORD`: Database access
+- `MINIO_ROOT_PASSWORD`: Object storage access  
+- `SECRET_KEY`: JWT token signing
+- `API_KEY`: API authentication
+
+🔐 **Never commit credentials to git** - all sensitive data should be in `.env` files only.
 
 ---
 
