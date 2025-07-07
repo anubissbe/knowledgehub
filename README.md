@@ -161,6 +161,44 @@ graph TB
 
 ---
 
+## 🧠 Memory System (NEW!)
+
+KnowledgeHub now includes a persistent memory system for Claude-Code sessions! This allows Claude to maintain context across multiple sessions.
+
+### Memory System Quick Start
+
+```bash
+# 1. Setup database tables
+docker cp src/api/database/memory_schema.sql knowledgehub-postgres:/tmp/
+docker exec knowledgehub-postgres psql -U khuser -d knowledgehub -f /tmp/memory_schema.sql
+
+# 2. Start a session
+curl -X POST http://localhost:3000/api/memory/session/start \
+  -d '{"user_id": "you@example.com"}'
+
+# 3. Store memories
+curl -X POST http://localhost:3000/api/memory/memories/ \
+  -d '{
+    "session_id": "SESSION_ID",
+    "content": "User prefers React hooks over class components",
+    "memory_type": "preference",
+    "importance": 0.8
+  }'
+
+# 4. Search memories
+curl -X POST http://localhost:3000/api/memory/memories/search \
+  -d '{"query": "React", "user_id": "you@example.com"}'
+```
+
+### Memory Types
+- `fact` - Factual information about the project
+- `preference` - User coding preferences
+- `code` - Important code snippets
+- `decision` - Technical decisions made
+- `error` - Errors and solutions
+- `pattern` - Recognized patterns
+- `entity` - Important entities (components, services, etc.)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
