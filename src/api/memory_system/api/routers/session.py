@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from ....api.dependencies import get_db
+from ....dependencies import get_db
 from ...models import MemorySession
 from ...core.session_manager import SessionManager
 from ..schemas import (
@@ -17,22 +17,41 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def session_to_response(session: MemorySession) -> SessionResponse:
+    """Convert SQLAlchemy model to response schema"""
+    return SessionResponse(
+        id=session.id,
+        user_id=session.user_id,
+        project_id=session.project_id,
+        metadata=session.session_metadata or {},
+        tags=session.tags or [],
+        started_at=session.started_at,
+        ended_at=session.ended_at,
+        parent_session_id=session.parent_session_id,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        duration=session.duration,
+        is_active=session.is_active,
+        memory_count=session.memory_count
+    )
+
+
 @router.post("/start", response_model=SessionResponse)
 async def start_session(
     session_data: SessionCreate,
     db: Session = Depends(get_db)
-) -> MemorySession:
+) -> SessionResponse:
     """Start a new Claude-Code session"""
     manager = SessionManager(db)
     session = await manager.create_session(session_data)
-    return session
+    return session_to_response(session)
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: UUID,
     db: Session = Depends(get_db)
-) -> MemorySession:
+):
     """Get session details"""
     manager = SessionManager(db)
     session = await manager.get_session(session_id)
@@ -40,7 +59,7 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    return session
+    return session_to_response(session)
 
 
 @router.patch("/{session_id}", response_model=SessionResponse)
@@ -48,7 +67,7 @@ async def update_session(
     session_id: UUID,
     update_data: SessionUpdate,
     db: Session = Depends(get_db)
-) -> MemorySession:
+):
     """Update session metadata"""
     manager = SessionManager(db)
     session = await manager.update_session(session_id, update_data)
@@ -56,14 +75,14 @@ async def update_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    return session
+    return session_to_response(session)
 
 
 @router.post("/{session_id}/end", response_model=SessionResponse)
 async def end_session(
     session_id: UUID,
     db: Session = Depends(get_db)
-) -> MemorySession:
+):
     """End a session"""
     manager = SessionManager(db)
     session = await manager.end_session(session_id)
@@ -71,7 +90,7 @@ async def end_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    return session
+    return session_to_response(session)
 
 
 @router.get("/user/{user_id}", response_model=List[SessionSummary])
@@ -81,7 +100,7 @@ async def get_user_sessions(
     active_only: bool = Query(False, description="Only active sessions"),
     limit: int = Query(10, gt=0, le=50, description="Maximum results"),
     db: Session = Depends(get_db)
-) -> List[MemorySession]:
+):
     """Get sessions for a user"""
     manager = SessionManager(db)
     sessions = await manager.get_user_sessions(
@@ -111,7 +130,7 @@ async def get_user_sessions(
 async def get_session_chain(
     session_id: UUID,
     db: Session = Depends(get_db)
-) -> List[MemorySession]:
+):
     """Get all sessions in a conversation chain"""
     manager = SessionManager(db)
     chain = await manager.get_session_chain(session_id)
@@ -119,7 +138,7 @@ async def get_session_chain(
     if not chain:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    return chain
+    return [session_to_response(s) for s in chain]
 
 
 @router.post("/cleanup")

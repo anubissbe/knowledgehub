@@ -80,7 +80,7 @@ class SeedDataGenerator:
                     days=random.randint(0, 30),
                     hours=random.randint(0, 23)
                 ),
-                metadata={
+                session_metadata={
                     "client": "claude-code",
                     "version": "1.0.0",
                     "environment": random.choice(["development", "staging", "production"])

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
-from ....api.dependencies import get_db
+from ....dependencies import get_db
 from ...models import Memory, MemoryType
 from ..schemas import (
     MemoryCreate, MemoryUpdate, MemoryResponse,
@@ -19,11 +19,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def memory_to_response(memory: Memory) -> MemoryResponse:
+    """Convert SQLAlchemy model to response schema"""
+    return MemoryResponse(
+        id=memory.id,
+        session_id=memory.session_id,
+        content=memory.content,
+        summary=memory.summary,
+        memory_type=memory.memory_type,
+        importance=memory.importance,
+        confidence=memory.confidence,
+        entities=memory.entities or [],
+        related_memories=memory.related_memories or [],
+        metadata=memory.memory_metadata or {},
+        access_count=memory.access_count,
+        last_accessed=memory.last_accessed,
+        created_at=memory.created_at,
+        updated_at=memory.updated_at,
+        has_embedding=memory.embedding is not None,
+        age_days=memory.age_days,
+        relevance_score=memory.relevance_score,
+        is_recent=memory.is_recent,
+        is_high_importance=memory.is_high_importance
+    )
+
+
 @router.post("/", response_model=MemoryResponse)
 async def create_memory(
     memory_data: MemoryCreate,
     db: Session = Depends(get_db)
-) -> Memory:
+):
     """Create a new memory"""
     try:
         # Validate session exists
@@ -33,15 +58,18 @@ async def create_memory(
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Create memory
+        # Convert the Pydantic enum to the SQLAlchemy enum
+        from ...models import MemoryType as SQLMemoryType
+        
         memory = Memory(
             session_id=memory_data.session_id,
             content=memory_data.content,
             summary=memory_data.summary,
-            memory_type=MemoryType(memory_data.memory_type.value),
+            memory_type=memory_data.memory_type.value,  # Use the string value directly
             importance=memory_data.importance,
             confidence=memory_data.confidence,
             entities=memory_data.entities or [],
-            metadata=memory_data.metadata or {}
+            memory_metadata=memory_data.metadata or {}
         )
         
         # Add related memories
@@ -54,7 +82,7 @@ async def create_memory(
         db.refresh(memory)
         
         logger.info(f"Created memory {memory.id} for session {session.id}")
-        return memory
+        return memory_to_response(memory)
         
     except HTTPException:
         raise
@@ -68,7 +96,7 @@ async def create_memory(
 async def get_memory(
     memory_id: UUID,
     db: Session = Depends(get_db)
-) -> Memory:
+):
     """Get a specific memory"""
     memory = db.query(Memory).filter_by(id=memory_id).first()
     if not memory:
@@ -78,7 +106,7 @@ async def get_memory(
     memory.update_access()
     db.commit()
     
-    return memory
+    return memory_to_response(memory)
 
 
 @router.patch("/{memory_id}", response_model=MemoryResponse)
@@ -86,7 +114,7 @@ async def update_memory(
     memory_id: UUID,
     update_data: MemoryUpdate,
     db: Session = Depends(get_db)
-) -> Memory:
+):
     """Update a memory"""
     memory = db.query(Memory).filter_by(id=memory_id).first()
     if not memory:
@@ -104,13 +132,13 @@ async def update_memory(
             memory.entities = update_data.entities
         
         if update_data.metadata is not None:
-            memory.metadata.update(update_data.metadata)
+            memory.memory_metadata.update(update_data.metadata)
         
         db.commit()
         db.refresh(memory)
         
         logger.info(f"Updated memory {memory_id}")
-        return memory
+        return memory_to_response(memory)
         
     except Exception as e:
         logger.error(f"Failed to update memory: {e}")
@@ -149,14 +177,13 @@ async def get_session_memories(
     limit: int = Query(50, gt=0, le=200, description="Maximum results"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     db: Session = Depends(get_db)
-) -> List[Memory]:
+):
     """Get all memories for a session"""
     query = db.query(Memory).filter_by(session_id=session_id)
     
     if memory_type:
         try:
-            type_enum = MemoryType(memory_type)
-            query = query.filter_by(memory_type=type_enum)
+            query = query.filter(Memory.memory_type == memory_type)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid memory type")
     
@@ -165,7 +192,7 @@ async def get_session_memories(
     
     memories = query.order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
     
-    return memories
+    return [memory_to_response(m) for m in memories]
 
 
 @router.post("/batch", response_model=MemoryBatchResponse)
@@ -190,11 +217,11 @@ async def create_memories_batch(
                 session_id=batch_data.session_id,
                 content=memory_data.content,
                 summary=memory_data.summary,
-                memory_type=MemoryType(memory_data.memory_type.value),
+                memory_type=memory_data.memory_type.value,
                 importance=memory_data.importance,
                 confidence=memory_data.confidence,
                 entities=memory_data.entities or [],
-                metadata=memory_data.metadata or {}
+                memory_metadata=memory_data.metadata or {}
             )
             db.add(memory)
             created_memories.append(memory)
@@ -218,7 +245,7 @@ async def create_memories_batch(
         return MemoryBatchResponse(
             created=len(created_memories),
             failed=failed_count,
-            memories=[MemoryResponse.model_validate(m) for m in created_memories],
+            memories=[memory_to_response(m) for m in created_memories],
             errors=errors if errors else None
         )
         
@@ -247,8 +274,8 @@ async def search_memories(
         query = query.filter(MemorySession.project_id == search_request.project_id)
     
     if search_request.memory_types:
-        type_enums = [MemoryType(t.value) for t in search_request.memory_types]
-        query = query.filter(Memory.memory_type.in_(type_enums))
+        type_values = [t.value for t in search_request.memory_types]
+        query = query.filter(Memory.memory_type.in_(type_values))
     
     if search_request.min_importance > 0:
         query = query.filter(Memory.importance >= search_request.min_importance)
@@ -267,12 +294,14 @@ async def search_memories(
     total = query.count()
     
     # Apply pagination and ordering
-    memories = query.order_by(desc(Memory.relevance_score)).offset(
-        search_request.offset
-    ).limit(search_request.limit).all()
+    # Order by importance and creation date instead of computed relevance_score
+    memories = query.order_by(
+        desc(Memory.importance),
+        desc(Memory.created_at)
+    ).offset(search_request.offset).limit(search_request.limit).all()
     
     return MemorySearchResponse(
-        results=[MemoryResponse.model_validate(m) for m in memories],
+        results=[memory_to_response(m) for m in memories],
         total=total,
         query=search_request.query,
         limit=search_request.limit,

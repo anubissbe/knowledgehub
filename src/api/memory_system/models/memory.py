@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from ...api.models import Base
+from ...models import Base
 
 
 class MemoryType(PyEnum):
@@ -70,8 +70,8 @@ class Memory(Base):
                            comment='Last time this memory was accessed')
     
     # Metadata
-    metadata = Column(JSONB, nullable=True, default=dict,
-                      comment='Additional flexible metadata')
+    memory_metadata = Column('metadata', JSONB, nullable=True, default=dict,
+                             comment='Additional flexible metadata')
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), nullable=False,
@@ -167,7 +167,7 @@ class Memory(Base):
             'has_embedding': self.embedding is not None,
             'access_count': self.access_count,
             'last_accessed': self.last_accessed.isoformat() if self.last_accessed else None,
-            'metadata': self.metadata or {},
+            'metadata': self.memory_metadata or {},
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'age_days': self.age_days,

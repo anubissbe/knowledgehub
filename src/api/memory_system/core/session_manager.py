@@ -9,7 +9,7 @@ from sqlalchemy import and_, or_, desc
 
 from ..models import MemorySession, Memory
 from ..api.schemas import SessionCreate, SessionUpdate, SessionResponse
-from ...api.services.cache import redis_client
+from ...services.cache import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class SessionManager:
                 user_id=session_data.user_id,
                 project_id=session_data.project_id,
                 parent_session_id=session_data.parent_session_id,
-                metadata=session_data.metadata or {},
+                session_metadata=session_data.metadata or {},
                 tags=session_data.tags or []
             )
             
@@ -89,7 +89,7 @@ class SessionManager:
         try:
             # Update fields
             if update_data.metadata is not None:
-                session.metadata.update(update_data.metadata)
+                session.session_metadata.update(update_data.metadata)
             
             if update_data.tags is not None:
                 for tag in update_data.tags:

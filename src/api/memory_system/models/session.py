@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from ...api.models import Base
+from ...models import Base
 
 
 class MemorySession(Base):
@@ -33,8 +33,8 @@ class MemorySession(Base):
                       comment='When the session ended')
     
     # Session metadata
-    metadata = Column(JSONB, nullable=True, default=dict,
-                      comment='Flexible metadata storage')
+    session_metadata = Column('metadata', JSONB, nullable=True, default=dict,
+                              comment='Flexible metadata storage')
     tags = Column(ARRAY(Text), nullable=True, default=list,
                   comment='Session tags for categorization')
     
@@ -95,9 +95,9 @@ class MemorySession(Base):
     
     def add_metadata(self, key: str, value: Any) -> None:
         """Add or update metadata"""
-        if self.metadata is None:
-            self.metadata = {}
-        self.metadata[key] = value
+        if self.session_metadata is None:
+            self.session_metadata = {}
+        self.session_metadata[key] = value
     
     def get_context_summary(self) -> Dict[str, Any]:
         """Get a summary of session context"""
@@ -121,7 +121,7 @@ class MemorySession(Base):
             'project_id': str(self.project_id) if self.project_id else None,
             'started_at': self.started_at.isoformat(),
             'ended_at': self.ended_at.isoformat() if self.ended_at else None,
-            'metadata': self.metadata or {},
+            'metadata': self.session_metadata or {},
             'tags': self.tags or [],
             'parent_session_id': str(self.parent_session_id) if self.parent_session_id else None,
             'created_at': self.created_at.isoformat(),
