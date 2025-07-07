@@ -13,7 +13,7 @@
 
 **An intelligent, production-ready knowledge management system powered by AI**
 
-[🚀 Quick Start](#quick-start) • [📖 Documentation](#documentation) • [🏗️ Architecture](#architecture) • [🤝 Contributing](#contributing)
+[🚀 Quick Start](docs/QUICK_START.md) • [📖 User Guide](docs/USER_GUIDE.md) • [👨‍💼 Admin Guide](docs/ADMIN_GUIDE.md) • [🏗️ Architecture](docs/ARCHITECTURE.md) • [⚙️ Deployment](docs/DEPLOYMENT_PIPELINE.md)
 
 </div>
 
@@ -259,12 +259,14 @@ graph TB
 
 ### Core Documentation
 
-- 📘 [**User Guide**](docs/wiki/User-Guide.md) - Getting started and basic usage
-- 🏗️ [**Architecture Overview**](docs/wiki/Architecture.md) - System design and components
-- 🔌 [**API Reference**](docs/wiki/API-Reference.md) - REST API endpoints and examples
-- 🚀 [**Deployment Guide**](docs/wiki/Deployment.md) - Production deployment instructions
-- 🔧 [**Configuration Guide**](docs/wiki/Configuration.md) - Environment variables and settings
-- 🐛 [**Troubleshooting**](docs/wiki/Troubleshooting.md) - Common issues and solutions
+- 🚀 [**Quick Start Guide**](docs/QUICK_START.md) - Get running in 5 minutes
+- 📘 [**User Guide**](docs/USER_GUIDE.md) - Complete user documentation
+- 👨‍💼 [**Administrator Guide**](docs/ADMIN_GUIDE.md) - System administration
+- 🏗️ [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and components
+- 🔌 [**API Reference**](http://localhost:3000/docs) - Interactive API documentation
+- 🚀 [**Deployment Guide**](docs/DEPLOYMENT_PIPELINE.md) - Production deployment instructions
+- 🔧 [**Configuration Guide**](docs/CONFIGURATION.md) - Environment variables and settings
+- 🐛 [**Troubleshooting**](docs/USER_GUIDE.md#troubleshooting) - Common issues and solutions
 
 ### Feature Documentation
 

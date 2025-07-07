@@ -10,7 +10,7 @@ import time
 import os
 from typing import Dict, Any
 
-from .routers import sources, search, jobs, websocket, memories, chunks, documents
+from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler
 try:
     from .routes import analytics_simple as analytics
 except ImportError:
@@ -108,8 +108,9 @@ app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
+app.include_router(scheduler.router, prefix="/api/v1/scheduler", tags=["scheduler"])
 app.include_router(analytics.router)
-# Scheduler router removed - scheduler runs as separate service
+# WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
 

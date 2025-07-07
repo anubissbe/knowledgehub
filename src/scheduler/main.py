@@ -10,6 +10,8 @@ from apscheduler.triggers.cron import CronTrigger
 import os
 import json
 
+from .http_server import SchedulerHTTPServer
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +34,8 @@ class SourceScheduler:
             base_url=API_BASE_URL,
             timeout=30.0
         )
+        self.http_server = SchedulerHTTPServer(self)
+        self.server_runner = None
         
     async def get_sources(self) -> List[Dict[str, Any]]:
         """Fetch all sources from the API"""
@@ -128,11 +132,18 @@ class SourceScheduler:
             await self.refresh_all_sources()
             return {"success": True, "message": "All sources refresh initiated"}
     
-    def start(self):
-        """Start the scheduler"""
+    async def start(self):
+        """Start the scheduler and HTTP server"""
         if not SCHEDULER_ENABLED:
             logger.info("Scheduler is disabled via SCHEDULER_ENABLED=false")
             return
+        
+        # Start HTTP server first
+        try:
+            self.server_runner = await self.http_server.start_server()
+            logger.info("Scheduler HTTP server started")
+        except Exception as e:
+            logger.error(f"Failed to start HTTP server: {e}")
         
         # Add the weekly refresh job
         self.scheduler.add_job(
@@ -159,6 +170,11 @@ class SourceScheduler:
         """Stop the scheduler and cleanup"""
         self.scheduler.shutdown()
         await self.api_client.aclose()
+        
+        # Stop HTTP server
+        if self.server_runner:
+            await self.http_server.stop_server(self.server_runner)
+        
         logger.info("Scheduler stopped")
 
 
@@ -177,8 +193,8 @@ async def main():
     """Main entry point"""
     scheduler = SourceScheduler()
     
-    # Start scheduler
-    scheduler.start()
+    # Start scheduler and HTTP server
+    await scheduler.start()
     
     # Optional: Run an immediate refresh on startup (useful for testing)
     if os.getenv("REFRESH_ON_STARTUP", "false").lower() == "true":
@@ -191,7 +207,7 @@ async def main():
             await asyncio.sleep(60)  # Check every minute
             
             # Optional: Log scheduler status
-            if scheduler.scheduler.running:
+            if scheduler.scheduler and scheduler.scheduler.running:
                 jobs = scheduler.scheduler.get_jobs()
                 for job in jobs:
                     logger.debug(f"Job {job.id}: Next run at {job.next_run_time}")

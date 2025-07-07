@@ -14,6 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir \
     httpx==0.25.2 \
     apscheduler==3.10.4 \
+    aiohttp==3.8.6 \
     asyncio
 
 # Copy application code
@@ -28,7 +29,12 @@ ENV REFRESH_SCHEDULE="0 2 * * 0"
 ENV REFRESH_BATCH_SIZE=2
 ENV REFRESH_DELAY_SECONDS=300
 
-# No health check endpoint for scheduler
+# Expose HTTP management port
+EXPOSE 8080
+
+# Health check via HTTP endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the scheduler
 CMD ["python", "-m", "main"]

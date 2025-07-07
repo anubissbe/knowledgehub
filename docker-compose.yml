@@ -325,13 +325,15 @@ services:
     volumes:
       - ./src/scheduler:/app
       - ./src/shared:/app/shared
+    ports:
+      - "0.0.0.0:8080:8080"
     depends_on:
       - api
     networks:
       - knowledgehub-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
