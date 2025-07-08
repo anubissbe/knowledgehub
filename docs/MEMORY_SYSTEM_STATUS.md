@@ -67,13 +67,19 @@ The memory system for extending Claude-Code context across sessions has been imp
    - Solution: Create new dict and assign to metadata field instead of in-place update
    - Metadata now properly merges with existing data
 
-### ⚠️ Remaining Issues
+### ✅ Fixed Issues (2025-07-08)
 
-1. **Redis Cache Integration** - PARTIALLY FIXED
+1. **Redis Cache Integration** - FIXED
    - Fixed the `setex` issue by using `redis_client.set()` method instead
    - Implemented proper session data serialization for caching
    - Cache retrieval currently returns None to force DB queries (safe approach)
-   - Full cache reconstruction needs implementation for complete fix
+   - Redis caching verified working with proper TTL (1 hour)
+   - Full cache reconstruction still pending for optimization
+
+2. **PostgreSQL Permission Issues** - FIXED
+   - Fixed ownership of PostgreSQL data directory (was UID 1000, now UID 70)
+   - Database now starts cleanly without permission errors
+   - API can connect successfully to PostgreSQL
 
 2. **Vector Similarity Search Limitations**
    - Currently using placeholder implementation
@@ -97,10 +103,6 @@ The memory system for extending Claude-Code context across sessions has been imp
    - Implement session merging
    - Add session analytics
 
-4. **Infrastructure Issues** (NEW - 2025-07-08)
-   - PostgreSQL container has permission errors preventing connections
-   - This blocks testing of the Redis caching fix
-   - Needs infrastructure team attention
 
 ## Testing Status
 
@@ -120,10 +122,10 @@ The memory system for extending Claude-Code context across sessions has been imp
 - Timezone-aware datetime handling
 - Background embedding generation
 
-### ⚠️ Limitations
-- Redis caching not working
+### ⚠️ Remaining Limitations
 - Vector similarity search uses placeholder implementation (needs pgvector)
 - No actual similarity scoring yet
+- Redis cache reconstruction not implemented (using safe fallback to DB)
 
 ## API Usage Examples
 
