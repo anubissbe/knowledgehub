@@ -127,6 +127,7 @@ try:
     from .memory_system.api.routers import session_admin
     from .memory_system.api.routers import session_linking
     from .memory_system.api.routers import text_processing
+    from .memory_system.api.routers import entity_extraction
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
@@ -134,7 +135,8 @@ try:
     app.include_router(session_admin.router, prefix="/api/memory/admin", tags=["memory-admin"])
     app.include_router(session_linking.router, prefix="/api/memory/linking", tags=["memory-linking"])
     app.include_router(text_processing.router, prefix="/api/memory/text", tags=["memory-text"])
-    logger.info("Memory system with context injection and text processing integrated successfully")
+    app.include_router(entity_extraction.router, prefix="/api/memory/entities", tags=["memory-entities"])
+    logger.info("Memory system with context injection, text processing and entity extraction integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
@@ -163,7 +165,8 @@ async def root() -> Dict[str, Any]:
                 "context_injection": "/api/memory/context",
                 "administration": "/api/memory/admin",
                 "session_linking": "/api/memory/linking",
-                "text_processing": "/api/memory/text"
+                "text_processing": "/api/memory/text",
+                "entity_extraction": "/api/memory/entities"
             }
         }
     }
