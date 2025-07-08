@@ -588,6 +588,36 @@ def chunk_conversation_text(text: str, context: Dict[str, Any] = None) -> List[T
     return text_chunker.chunk_conversation(text, context)
 
 
+def map_chunk_type_to_memory_type(chunk_type: ChunkType) -> str:
+    """
+    Map ChunkType to memory system MemoryTypeEnum values.
+    
+    Maps text chunking types to memory storage types:
+    - code_block -> code
+    - command -> code  
+    - error_message -> error
+    - question -> fact (questions become factual inquiries)
+    - answer -> fact
+    - instruction -> pattern (instructions are behavioral patterns)
+    - fact -> fact
+    - decision -> decision
+    - conversation -> fact (general conversation becomes factual content)
+    """
+    chunk_to_memory_mapping = {
+        ChunkType.CODE_BLOCK: "code",
+        ChunkType.COMMAND: "code",
+        ChunkType.ERROR_MESSAGE: "error", 
+        ChunkType.QUESTION: "fact",
+        ChunkType.ANSWER: "fact",
+        ChunkType.INSTRUCTION: "pattern",
+        ChunkType.FACT: "fact",
+        ChunkType.DECISION: "decision",
+        ChunkType.CONVERSATION: "fact"
+    }
+    
+    return chunk_to_memory_mapping.get(chunk_type, "fact")
+
+
 async def process_conversation_chunks(text: str, session_id: str, user_id: str) -> List[Dict[str, Any]]:
     """
     Process conversation text into chunks and return serializable format.
@@ -608,12 +638,13 @@ async def process_conversation_chunks(text: str, session_id: str, user_id: str) 
     
     chunks = chunk_conversation_text(text, context)
     
-    # Convert to serializable format
+    # Convert to serializable format with proper memory types
     serializable_chunks = []
     for chunk in chunks:
         chunk_dict = {
             'content': chunk.content,
-            'chunk_type': chunk.chunk_type.value,
+            'chunk_type': chunk.chunk_type.value,  # Original chunk type for reference
+            'memory_type': map_chunk_type_to_memory_type(chunk.chunk_type),  # Mapped memory type
             'start_index': chunk.start_index,
             'end_index': chunk.end_index,
             'metadata': chunk.metadata,
