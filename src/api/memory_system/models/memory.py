@@ -1,6 +1,6 @@
 """Memory model for storing extracted information"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 from enum import Enum as PyEnum
@@ -44,7 +44,9 @@ class Memory(Base):
                      comment='Condensed version for quick reference')
     
     # Memory classification
-    memory_type = Column(Enum(MemoryType), nullable=False, index=True,
+    memory_type = Column(Enum('fact', 'preference', 'code', 'decision', 'error', 'pattern', 'entity', 
+                              name='memory_type', create_type=False), 
+                         nullable=False, index=True,
                          comment='Type of memory for categorization')
     
     # Importance and relevance
@@ -75,9 +77,10 @@ class Memory(Base):
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), nullable=False,
-                        default=datetime.utcnow, index=True)
+                        default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = Column(DateTime(timezone=True), nullable=False,
-                        default=datetime.utcnow, onupdate=datetime.utcnow)
+                        default=lambda: datetime.now(timezone.utc), 
+                        onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     session = relationship('MemorySession', back_populates='memories')
@@ -86,7 +89,7 @@ class Memory(Base):
     @hybrid_property
     def age_days(self) -> float:
         """Calculate age of memory in days"""
-        return (datetime.utcnow() - self.created_at).total_seconds() / 86400
+        return (datetime.now(timezone.utc) - self.created_at).total_seconds() / 86400
     
     @hybrid_property
     def relevance_score(self) -> float:
@@ -110,7 +113,7 @@ class Memory(Base):
     def update_access(self) -> None:
         """Update access count and timestamp"""
         self.access_count += 1
-        self.last_accessed = datetime.utcnow()
+        self.last_accessed = datetime.now(timezone.utc)
     
     def add_entity(self, entity: str) -> None:
         """Add an entity to this memory"""
@@ -133,13 +136,13 @@ class Memory(Base):
     def to_context_string(self) -> str:
         """Convert to a string suitable for context injection"""
         type_prefix = {
-            MemoryType.FACT: "📌 Fact:",
-            MemoryType.PREFERENCE: "⚙️ Preference:",
-            MemoryType.CODE: "💻 Code:",
-            MemoryType.DECISION: "🎯 Decision:",
-            MemoryType.ERROR: "❌ Error:",
-            MemoryType.PATTERN: "🔄 Pattern:",
-            MemoryType.ENTITY: "🏷️ Entity:"
+            "fact": "📌 Fact:",
+            "preference": "⚙️ Preference:",
+            "code": "💻 Code:",
+            "decision": "🎯 Decision:",
+            "error": "❌ Error:",
+            "pattern": "🔄 Pattern:",
+            "entity": "🏷️ Entity:"
         }
         
         prefix = type_prefix.get(self.memory_type, "📝 Memory:")
@@ -159,7 +162,7 @@ class Memory(Base):
             'session_id': str(self.session_id),
             'content': self.content,
             'summary': self.summary,
-            'memory_type': self.memory_type.value,
+            'memory_type': self.memory_type,
             'importance': self.importance,
             'confidence': self.confidence,
             'entities': self.entities or [],
@@ -177,5 +180,5 @@ class Memory(Base):
         }
     
     def __repr__(self) -> str:
-        return (f"<Memory(id={self.id}, type={self.memory_type.value}, "
+        return (f"<Memory(id={self.id}, type={self.memory_type}, "
                 f"importance={self.importance}, session={self.session_id})>")

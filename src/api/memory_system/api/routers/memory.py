@@ -58,14 +58,11 @@ async def create_memory(
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Create memory
-        # Convert the Pydantic enum to the SQLAlchemy enum
-        from ...models import MemoryType as SQLMemoryType
-        
         memory = Memory(
             session_id=memory_data.session_id,
             content=memory_data.content,
             summary=memory_data.summary,
-            memory_type=memory_data.memory_type.value,  # Use the string value directly
+            memory_type=memory_data.memory_type.value,  # Use string value directly
             importance=memory_data.importance,
             confidence=memory_data.confidence,
             entities=memory_data.entities or [],
