@@ -36,6 +36,22 @@ def session_to_response(session: MemorySession) -> SessionResponse:
     )
 
 
+@router.get("/health")
+async def session_health():
+    """Health check for session management"""
+    return {
+        "status": "healthy",
+        "service": "session_management",
+        "features": [
+            "session_creation",
+            "session_management", 
+            "session_linking",
+            "session_cleanup",
+            "redis_caching"
+        ]
+    }
+
+
 @router.post("/start", response_model=SessionResponse)
 async def start_session(
     session_data: SessionCreate,
