@@ -30,7 +30,8 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/openapi.json",
         "/metrics",
         "/api/auth/status",
-        "/api/security/monitoring/health"  # Security monitoring health check
+        "/api/security/monitoring/health",  # Security monitoring health check
+        "/api/security/headers/health"      # Security headers health check
     ]
     
     # Development paths (only exempt in development mode)

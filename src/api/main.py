@@ -16,11 +16,12 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
-from .routes import auth, cors_security, security_monitoring
+from .routes import auth, cors_security, security_monitoring, security_headers
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
-from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
+from .middleware.security import ContentValidationMiddleware
+from .middleware.security_headers import SecurityHeadersMiddleware as SecureHeadersMiddleware
 from .middleware.session_tracking import SessionTrackingMiddleware
 from .middleware.security_monitoring import SecurityMonitoringMiddleware
 from .middleware.validation import ValidationMiddleware
@@ -86,7 +87,7 @@ app.add_middleware(
 )
 
 # Add custom middleware (order matters - last added runs first)
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SecureHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
 app.add_middleware(SecureAuthMiddleware)
@@ -101,6 +102,11 @@ app.add_middleware(SecurityMonitoringMiddleware, environment=settings.APP_ENV)
 from .security.validation import ValidationLevel
 validation_level = ValidationLevel.STRICT if settings.APP_ENV == "production" else ValidationLevel.MODERATE
 app.add_middleware(ValidationMiddleware, validation_level=validation_level)
+
+# Add security headers middleware
+from .security.headers import SecurityHeaderLevel
+security_level = SecurityHeaderLevel.STRICT if settings.APP_ENV == "production" else SecurityHeaderLevel.MODERATE
+app.add_middleware(SecureHeadersMiddleware, security_level=security_level, csrf_enabled=True, environment=settings.APP_ENV)
 
 # Initialize session tracking middleware
 try:
@@ -155,6 +161,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(auth.router)  # Authentication endpoints
 app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])  # CORS security management
 app.include_router(security_monitoring.router, prefix="/api", tags=["security"])  # Security monitoring
+app.include_router(security_headers.router, prefix="/api", tags=["security"])  # Security headers
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
@@ -242,7 +249,10 @@ async def root() -> Dict[str, Any]:
                 "cors_health": "/api/security/cors/health",
                 "monitoring_stats": "/api/security/monitoring/stats",
                 "monitoring_events": "/api/security/monitoring/events",
-                "monitoring_health": "/api/security/monitoring/health"
+                "monitoring_health": "/api/security/monitoring/health",
+                "headers_status": "/api/security/headers/status",
+                "csrf_token": "/api/security/headers/csrf/token",
+                "headers_health": "/api/security/headers/health"
             }
         }
     }
