@@ -1,0 +1,331 @@
+name: Security Dependency Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  python-security:
+    name: Python Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit bandit
+
+      - name: Run Safety check
+        continue-on-error: true
+        run: |
+          safety check --json --output safety-report.json || true
+          echo "## Safety Security Report" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat safety-report.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run pip-audit
+        continue-on-error: true
+        run: |
+          pip-audit --format json --desc --output pip-audit-report.json || true
+          echo "## Pip Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat pip-audit-report.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Bandit security linter
+        continue-on-error: true
+        run: |
+          bandit -r src/ -f json -o bandit-report.json || true
+          echo "## Bandit Security Report" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat bandit-report.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Python security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: python-security-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+            bandit-report.json
+
+  javascript-security:
+    name: JavaScript Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Find and audit JavaScript projects
+        run: |
+          echo "## JavaScript Security Audit" >> $GITHUB_STEP_SUMMARY
+          
+          # Find all package.json files (excluding node_modules)
+          find . -name "package.json" -not -path "*/node_modules/*" | while read -r package_file; do
+            dir=$(dirname "$package_file")
+            echo "### Scanning $dir" >> $GITHUB_STEP_SUMMARY
+            
+            cd "$dir"
+            
+            # Run npm audit
+            if [ -f "package-lock.json" ]; then
+              npm audit --json > npm-audit-report.json || true
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat npm-audit-report.json >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Run yarn audit if yarn.lock exists
+            if [ -f "yarn.lock" ]; then
+              yarn audit --json > yarn-audit-report.json || true
+              echo '```json' >> $GITHUB_STEP_SUMMARY
+              cat yarn-audit-report.json >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            cd - > /dev/null
+          done
+
+      - name: Upload JavaScript security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: javascript-security-reports
+          path: |
+            **/npm-audit-report.json
+            **/yarn-audit-report.json
+
+  docker-security:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy SARIF results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy on Dockerfiles
+        run: |
+          echo "## Docker Security Scan" >> $GITHUB_STEP_SUMMARY
+          
+          # Install Trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+          
+          # Scan Dockerfiles
+          find . -name "Dockerfile*" -not -path "*/node_modules/*" | while read -r dockerfile; do
+            echo "### Scanning $dockerfile" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract base images and scan
+            grep "^FROM" "$dockerfile" | awk '{print $2}' | while read -r image; do
+              echo "Scanning image: $image" >> $GITHUB_STEP_SUMMARY
+              trivy image --severity HIGH,CRITICAL "$image" >> $GITHUB_STEP_SUMMARY || true
+            done
+          done
+
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'KnowledgeHub'
+          path: '.'
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+
+      - name: Upload OWASP reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: owasp-dependency-check-reports
+          path: reports/
+
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check Python licenses
+        run: |
+          pip install pip-licenses
+          echo "## Python License Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          pip-licenses --format=markdown --with-urls >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Check for problematic licenses
+          problematic=$(pip-licenses --format=json | jq -r '.[] | select(.License | test("GPL|AGPL|LGPL")) | .Name + " (" + .License + ")"')
+          
+          if [ ! -z "$problematic" ]; then
+            echo "⚠️ **Potentially problematic licenses found:**" >> $GITHUB_STEP_SUMMARY
+            echo "$problematic" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check JavaScript licenses
+        run: |
+          npm install -g license-checker
+          
+          find . -name "package.json" -not -path "*/node_modules/*" | while read -r package_file; do
+            dir=$(dirname "$package_file")
+            echo "### JavaScript Licenses in $dir" >> $GITHUB_STEP_SUMMARY
+            
+            cd "$dir"
+            if [ -f "package-lock.json" ] || [ -f "yarn.lock" ]; then
+              npm install --production
+              license-checker --summary >> $GITHUB_STEP_SUMMARY || true
+            fi
+            cd - > /dev/null
+          done
+
+  snyk-security:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/python@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json-file-output=snyk-report.json
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: snyk-report
+          path: snyk-report.json
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [python-security, javascript-security, docker-security, dependency-check, license-check]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate consolidated report
+        run: |
+          echo "# 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for critical issues
+          critical_found=false
+          
+          # Process Python results
+          if [ -f "python-security-reports/safety-report.json" ]; then
+            critical_count=$(jq -r '. | length' python-security-reports/safety-report.json 2>/dev/null || echo "0")
+            if [ "$critical_count" -gt 0 ]; then
+              echo "❌ **Python Security:** Found $critical_count vulnerabilities" >> $GITHUB_STEP_SUMMARY
+              critical_found=true
+            else
+              echo "✅ **Python Security:** No critical vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          # Summary table
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Scanner | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Safety | ${{ needs.python-security.result }} | Python dependency vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bandit | ${{ needs.python-security.result }} | Python code security issues |" >> $GITHUB_STEP_SUMMARY
+          echo "| NPM Audit | ${{ needs.javascript-security.result }} | JavaScript dependency vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trivy | ${{ needs.docker-security.result }} | Container and IaC vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          echo "| License Check | ${{ needs.license-check.result }} | License compliance |" >> $GITHUB_STEP_SUMMARY
+          
+          # Create issue if critical vulnerabilities found
+          if [ "$critical_found" = true ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "::error::Critical security vulnerabilities found!"
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `## 🔒 Security Scan Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Python Security | ${{ needs.python-security.result }} |
+            | JavaScript Security | ${{ needs.javascript-security.result }} |
+            | Docker Security | ${{ needs.docker-security.result }} |
+            | License Compliance | ${{ needs.license-check.result }} |
+            
+            View the full report in the [Actions summary](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

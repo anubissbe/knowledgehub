@@ -1,0 +1,37 @@
+# Security scanning dependencies
+# These are development dependencies for security scanning
+
+# Python security scanners
+safety==3.0.1          # Check Python dependencies for known vulnerabilities
+pip-audit==2.6.3       # Audit Python packages for known vulnerabilities
+bandit==1.7.6          # Security linter for Python code
+semgrep==1.45.0        # Static analysis tool for finding bugs
+
+# License compliance
+pip-licenses==4.3.4    # Check licenses of installed packages
+
+# Code quality and security
+pylint==3.0.3          # Python code analysis
+mypy==1.8.0            # Static type checker
+black==23.12.1         # Code formatter (security through consistency)
+flake8==7.0.0          # Style guide enforcement
+
+# Vulnerability database tools
+vulners==2.1.0         # Vulners.com API for vulnerability data
+cve-bin-tool==3.3      # CVE scanning tool
+
+# SBOM (Software Bill of Materials) generation
+cyclonedx-bom==4.0.0   # Generate CycloneDX SBOMs
+pip-audit-sbom==0.1.0  # SBOM generation with vulnerability info
+
+# Secret scanning
+detect-secrets==1.4.0  # Detect secrets in codebase
+truffleHog==2.2.1      # Search for secrets in git history
+
+# Container scanning support
+docker==7.0.0          # Docker SDK for container analysis
+
+# Additional security tools
+cryptography>=41.0.7   # For secure operations
+certifi>=2023.11.17    # Updated SSL certificates
+requests>=2.31.0       # HTTP library with security fixes
