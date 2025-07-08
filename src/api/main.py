@@ -23,6 +23,7 @@ from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
 from .middleware.session_tracking import SessionTrackingMiddleware
 from .middleware.security_monitoring import SecurityMonitoringMiddleware
+from .middleware.validation import ValidationMiddleware
 from .config import settings
 
 # Configure logging
@@ -95,6 +96,11 @@ app.add_middleware(CORSSecurityMiddleware, environment=settings.APP_ENV)
 
 # Add security monitoring middleware
 app.add_middleware(SecurityMonitoringMiddleware, environment=settings.APP_ENV)
+
+# Add input validation middleware
+from .security.validation import ValidationLevel
+validation_level = ValidationLevel.STRICT if settings.APP_ENV == "production" else ValidationLevel.MODERATE
+app.add_middleware(ValidationMiddleware, validation_level=validation_level)
 
 # Initialize session tracking middleware
 try:
