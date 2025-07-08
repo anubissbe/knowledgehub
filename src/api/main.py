@@ -16,7 +16,7 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
-from .routes import auth, cors_security, security_monitoring, security_headers, rate_limiting
+from .routes import auth, cors_security, security_monitoring, security_headers, rate_limiting, persistent_context_simple
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.advanced_rate_limit import AdvancedRateLimitMiddleware, DDoSProtectionMiddleware
@@ -182,6 +182,7 @@ app.include_router(cors_security.router, prefix="/api/security/cors", tags=["sec
 app.include_router(security_monitoring.router, prefix="/api", tags=["security"])  # Security monitoring
 app.include_router(security_headers.router, prefix="/api", tags=["security"])  # Security headers
 app.include_router(rate_limiting.router, prefix="/api", tags=["security"])  # Rate limiting and DDoS protection
+app.include_router(persistent_context_simple.router, prefix="/api/persistent-context", tags=["memory"])  # Persistent context
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
@@ -215,6 +216,7 @@ try:
     from .memory_system.api.routers import fact_extraction
     from .memory_system.api.routers import importance_scoring
     from .memory_system.api.routers import context_compression
+    from .memory_system.api.routers import persistent_context
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
@@ -227,7 +229,8 @@ try:
     app.include_router(fact_extraction.router, prefix="/api/memory/facts", tags=["memory-facts"])
     app.include_router(importance_scoring.router, prefix="/api/memory/importance", tags=["memory-importance"])
     app.include_router(context_compression.router, prefix="/api/memory/compression", tags=["memory-compression"])
-    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction, importance scoring and context compression integrated successfully")
+    app.include_router(persistent_context.router, prefix="/api/memory/persistent", tags=["memory-persistent"])
+    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction, importance scoring, context compression and persistent context integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
@@ -261,7 +264,13 @@ async def root() -> Dict[str, Any]:
                 "text_processing": "/api/memory/text",
                 "entity_extraction": "/api/memory/entities",
                 "fact_extraction": "/api/memory/facts",
-                "importance_scoring": "/api/memory/importance"
+                "importance_scoring": "/api/memory/importance",
+                "persistent_context": "/api/memory/persistent",
+                "context_query": "/api/memory/persistent/context/query",
+                "context_summary": "/api/memory/persistent/context/summary",
+                "context_analytics": "/api/memory/persistent/context/analytics",
+                "persistent_context_health": "/api/persistent-context/health",
+                "persistent_context_status": "/api/persistent-context/status"
             },
             "security": {
                 "cors_config": "/api/security/cors/config",
