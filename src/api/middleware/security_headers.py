@@ -161,8 +161,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         
         # Skip CSRF for JSON API requests with proper headers
         content_type = request.headers.get("content-type", "").lower()
+        x_requested_with = request.headers.get("X-Requested-With")
+        
+        # Debug logging for CSRF checks
+        if self.environment == "development":
+            logger.debug(f"CSRF Check - Path: {path}, Method: {request.method}")
+            logger.debug(f"CSRF Check - Content-Type: {content_type}")
+            logger.debug(f"CSRF Check - X-Requested-With: {x_requested_with}")
+        
         if (content_type.startswith("application/json") and 
-            request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+            x_requested_with == "XMLHttpRequest"):
             return False
         
         # Require CSRF for state-changing requests
@@ -216,6 +224,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         source_ip = self._get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
         
+        # Log detailed information about the failed request
+        logger.warning(f"CSRF validation failed for {request.method} {request.url.path}")
+        logger.warning(f"Headers: Content-Type={request.headers.get('content-type')}, X-Requested-With={request.headers.get('X-Requested-With')}")
+        logger.warning(f"Origin: {request.headers.get('origin')}, Referer: {request.headers.get('referer')}")
+        
         await log_security_event(
             SecurityEventType.CORS_VIOLATION,  # Using CORS_VIOLATION for now, could add CSRF_VIOLATION
             ThreatLevel.MEDIUM,
@@ -223,7 +236,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             user_agent,
             str(request.url.path),
             request.method,
-            "CSRF token validation failed"
+            "CSRF token validation failed",
+            origin=request.headers.get("origin")
         )
     
     def _create_csrf_error_response(self) -> JSONResponse:

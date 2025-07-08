@@ -391,7 +391,8 @@ class SecurityHeadersManager:
         
         # Skip CSRF for certain content types (API calls)
         content_type = request.headers.get("content-type", "").lower()
-        if content_type.startswith("application/json") and "X-Requested-With" in request.headers:
+        if (content_type.startswith("application/json") and 
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"):
             return False
         
         return True

@@ -88,7 +88,8 @@ app.add_middleware(
 )
 
 # Add custom middleware (order matters - last added runs first)
-app.add_middleware(SecureHeadersMiddleware)
+# Remove duplicate SecureHeadersMiddleware - it's added again below with proper config
+# app.add_middleware(SecureHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
 # Add advanced rate limiting and DDoS protection middleware
 app.add_middleware(
