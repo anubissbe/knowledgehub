@@ -16,7 +16,7 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
-from .routes import auth
+from .routes import auth, cors_security
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
@@ -59,13 +59,28 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# Configure CORS
+# Configure Secure CORS
+from .cors_config import get_cors_config, log_cors_security_info
+from .middleware.cors_security import CORSSecurityMiddleware
+
+# Log CORS security configuration
+log_cors_security_info()
+
+# Get secure CORS configuration
+cors_config = get_cors_config(
+    environment=settings.APP_ENV,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS
+)
+
+# Add FastAPI CORS middleware with secure configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=cors_config["allow_origins"],
+    allow_credentials=cors_config["allow_credentials"],
+    allow_methods=cors_config["allow_methods"],
+    allow_headers=cors_config["allow_headers"],
+    expose_headers=cors_config["expose_headers"],
+    max_age=cors_config["max_age"]
 )
 
 # Add custom middleware (order matters - last added runs first)
@@ -73,6 +88,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
 app.add_middleware(SecureAuthMiddleware)
+
+# Add enhanced CORS security middleware
+app.add_middleware(CORSSecurityMiddleware, environment=settings.APP_ENV)
 
 # Initialize session tracking middleware
 try:
@@ -125,6 +143,7 @@ async def log_requests(request: Request, call_next):
 
 # Include routers
 app.include_router(auth.router)  # Authentication endpoints
+app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])  # CORS security management
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
@@ -205,6 +224,11 @@ async def root() -> Dict[str, Any]:
                 "entity_extraction": "/api/memory/entities",
                 "fact_extraction": "/api/memory/facts",
                 "importance_scoring": "/api/memory/importance"
+            },
+            "security": {
+                "cors_config": "/api/security/cors/config",
+                "cors_stats": "/api/security/cors/security/stats",
+                "cors_health": "/api/security/cors/health"
             }
         }
     }
