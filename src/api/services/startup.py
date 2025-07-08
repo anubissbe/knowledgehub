@@ -48,6 +48,18 @@ async def initialize_services():
         logger.error(f"Failed to initialize message queue: {e}")
         raise
     
+    # Initialize session cleanup service
+    try:
+        from ..memory_system.services.session_cleanup import session_cleanup_service
+        await session_cleanup_service.start()
+        logger.info("Session cleanup service started")
+    except ImportError:
+        logger.info("Memory system not available, skipping session cleanup service")
+    except Exception as e:
+        logger.error(f"Failed to start session cleanup service: {e}")
+        # Don't fail startup if cleanup service fails
+        logger.warning("Continuing without session cleanup service")
+    
     logger.info("All services initialized successfully")
 
 
@@ -75,5 +87,15 @@ async def shutdown_services():
         logger.info("Message queue closed")
     except Exception as e:
         logger.error(f"Error closing message queue: {e}")
+    
+    # Stop session cleanup service
+    try:
+        from ..memory_system.services.session_cleanup import session_cleanup_service
+        await session_cleanup_service.stop()
+        logger.info("Session cleanup service stopped")
+    except ImportError:
+        pass  # Memory system not available
+    except Exception as e:
+        logger.error(f"Error stopping session cleanup service: {e}")
     
     logger.info("All services shut down")

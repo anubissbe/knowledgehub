@@ -124,10 +124,14 @@ try:
     from .memory_system.api.routers import memory as memory_router
     from .memory_system.api.routers import vector_search
     from .memory_system.api.routers import context as context_router
+    from .memory_system.api.routers import session_admin
+    from .memory_system.api.routers import session_linking
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
     app.include_router(context_router.router, prefix="/api/memory/context", tags=["memory-context"])
+    app.include_router(session_admin.router, prefix="/api/memory/admin", tags=["memory-admin"])
+    app.include_router(session_linking.router, prefix="/api/memory/linking", tags=["memory-linking"])
     logger.info("Memory system with context injection integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
@@ -154,7 +158,9 @@ async def root() -> Dict[str, Any]:
                 "sessions": "/api/memory/session",
                 "memory_storage": "/api/memory/memories",
                 "vector_search": "/api/memory/vector",
-                "context_injection": "/api/memory/context"
+                "context_injection": "/api/memory/context",
+                "administration": "/api/memory/admin",
+                "session_linking": "/api/memory/linking"
             }
         }
     }

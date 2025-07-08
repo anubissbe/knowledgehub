@@ -1,7 +1,7 @@
 """Session management for memory system"""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -87,9 +87,16 @@ class SessionManager:
             return None
         
         try:
+            # Ensure session is attached to database session (in case it came from cache)
+            if session not in self.db:
+                # If session came from cache, merge it back into the DB session
+                session = self.db.merge(session)
             # Update fields
             if update_data.metadata is not None:
-                session.session_metadata.update(update_data.metadata)
+                # Create new dict and assign to ensure SQLAlchemy detects change
+                new_metadata = dict(session.session_metadata or {})
+                new_metadata.update(update_data.metadata)
+                session.session_metadata = new_metadata
             
             if update_data.tags is not None:
                 for tag in update_data.tags:
@@ -185,7 +192,7 @@ class SessionManager:
     
     async def cleanup_stale_sessions(self, hours: int = 24):
         """Clean up sessions that have been inactive for too long"""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         
         stale_sessions = self.db.query(MemorySession).filter(
             and_(
@@ -210,7 +217,7 @@ class SessionManager:
                                    project_id: Optional[UUID],
                                    window_minutes: int = 30) -> Optional[MemorySession]:
         """Find recent session to potentially link to"""
-        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
         
         query = self.db.query(MemorySession).filter(
             and_(
@@ -275,11 +282,37 @@ class SessionManager:
             key = f"session:{session_id}"
             data = await redis_client.get(key)
             if data:
-                # For now, return None to force DB query
-                # Full implementation would reconstruct the session object
-                # This avoids issues with ORM relationships and session state
-                return None
+                # Reconstruct session object from cached data
+                return self._reconstruct_session_from_cache(data)
         except Exception as e:
             logger.warning(f"Failed to get cached session: {e}")
         
         return None
+    
+    def _reconstruct_session_from_cache(self, cached_data: Dict[str, Any]) -> MemorySession:
+        """Reconstruct MemorySession object from cached data"""
+        
+        # Create a new MemorySession instance without going through __init__
+        session = MemorySession.__new__(MemorySession)
+        
+        # Set the basic attributes
+        session.id = UUID(cached_data['id'])
+        session.user_id = cached_data['user_id']
+        session.project_id = UUID(cached_data['project_id']) if cached_data['project_id'] else None
+        session.parent_session_id = UUID(cached_data['parent_session_id']) if cached_data['parent_session_id'] else None
+        session.session_metadata = cached_data['session_metadata'] or {}
+        session.tags = cached_data['tags'] or []
+        
+        # Parse datetime fields
+        session.started_at = datetime.fromisoformat(cached_data['started_at']) if cached_data['started_at'] else None
+        session.ended_at = datetime.fromisoformat(cached_data['ended_at']) if cached_data['ended_at'] else None
+        session.created_at = datetime.fromisoformat(cached_data['created_at']) if cached_data['created_at'] else None
+        session.updated_at = datetime.fromisoformat(cached_data['updated_at']) if cached_data['updated_at'] else None
+        
+        # Set SQLAlchemy state attributes to make it behave like a fresh DB object
+        # This is important for proper session tracking and updates
+        session._sa_class_manager = MemorySession.__mapper__.class_manager
+        session._sa_instance_state = None  # Will be set when added to session
+        
+        logger.debug(f"Reconstructed session {session.id} from cache")
+        return session
