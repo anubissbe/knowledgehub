@@ -123,10 +123,12 @@ try:
     from .memory_system.api.routers import session as memory_session
     from .memory_system.api.routers import memory as memory_router
     from .memory_system.api.routers import vector_search
+    from .memory_system.api.routers import context as context_router
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
-    logger.info("Memory system integrated successfully")
+    app.include_router(context_router.router, prefix="/api/memory/context", tags=["memory-context"])
+    logger.info("Memory system with context injection integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
@@ -150,7 +152,9 @@ async def root() -> Dict[str, Any]:
             "websocket": "/ws",
             "memory_system": {
                 "sessions": "/api/memory/session",
-                "memory_storage": "/api/memory/memories"
+                "memory_storage": "/api/memory/memories",
+                "vector_search": "/api/memory/vector",
+                "context_injection": "/api/memory/context"
             }
         }
     }
