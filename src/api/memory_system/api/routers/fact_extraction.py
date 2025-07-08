@@ -404,59 +404,111 @@ async def extract_facts_from_chunks(chunks: List[Dict[str, Any]]):
         raise HTTPException(status_code=500, detail=f"Chunk fact extraction failed: {str(e)}")
 
 
+class FactImportanceRequest(BaseModel):
+    """Request for fact importance calculation"""
+    facts: List[str] = Field(..., description="List of fact statements to rank")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
+
+
 @router.post("/fact-importance")
-async def calculate_fact_importance(
-    facts: List[str], 
-    context: Optional[Dict[str, Any]] = None
-):
+async def calculate_fact_importance(request: FactImportanceRequest):
     """
     Calculate importance scores for a list of fact statements.
     
-    This endpoint can be used to rank facts by importance without full extraction.
+    This endpoint uses the intelligent importance scoring algorithm
+    to rank facts by importance with detailed factor analysis.
     """
     try:
+        from ...services.importance_scoring import calculate_content_importance
         from ...services.fact_extraction import IntelligentFactExtractor
         
         extractor = IntelligentFactExtractor()
         results = []
         
-        for fact_text in facts:
-            # Create a simple fact object for importance calculation
-            temp_facts = await extractor.extract_facts(fact_text, context or {})
+        for fact_text in request.facts:
+            # Get importance score using the intelligent scoring algorithm
+            importance_score = await calculate_content_importance(
+                content=fact_text,
+                context=request.context
+            )
+            
+            # Also extract fact information for type detection
+            temp_facts = await extractor.extract_facts(fact_text, request.context or {})
             
             if temp_facts:
-                # Take the most important fact found
+                # Use detected fact type and combine with importance score
                 best_fact = max(temp_facts, key=lambda f: f.importance)
-                results.append({
-                    "fact": fact_text,
-                    "importance": best_fact.importance,
-                    "confidence": best_fact.confidence,
-                    "fact_type": best_fact.fact_type.value
-                })
+                fact_type = best_fact.fact_type.value
+                extraction_confidence = best_fact.confidence
             else:
-                # Fallback scoring for facts that don't match patterns
-                base_importance = 0.3
+                # Fallback fact type detection
+                fact_type = "statement"
                 if any(keyword in fact_text.lower() for keyword in ['decision', 'decided', 'chose']):
-                    base_importance = 0.8
-                elif any(keyword in fact_text.lower() for keyword in ['need', 'must', 'should']):
-                    base_importance = 0.7
+                    fact_type = "decision"
+                elif any(keyword in fact_text.lower() for keyword in ['need', 'must', 'should', 'todo']):
+                    fact_type = "action_item"
+                elif any(keyword in fact_text.lower() for keyword in ['prefer', 'like', 'think']):
+                    fact_type = "preference"
                 
-                results.append({
-                    "fact": fact_text,
-                    "importance": base_importance,
-                    "confidence": 0.5,
-                    "fact_type": "statement"
-                })
+                extraction_confidence = 0.5
+            
+            results.append({
+                "fact": fact_text,
+                "importance": importance_score.normalized_score,
+                "confidence": importance_score.confidence,
+                "extraction_confidence": extraction_confidence,
+                "fact_type": fact_type,
+                "factor_breakdown": {
+                    factor.value: score for factor, score in importance_score.factor_scores.items()
+                },
+                "reasoning": importance_score.reasoning[:3],  # Top 3 reasons
+                "metadata": {
+                    "total_score": importance_score.total_score,
+                    "content_length": len(fact_text),
+                    "word_count": len(fact_text.split())
+                }
+            })
         
-        # Sort by importance
+        # Sort by importance score
         results.sort(key=lambda x: x['importance'], reverse=True)
+        
+        # Calculate enhanced statistics
+        importance_scores = [r['importance'] for r in results]
+        confidences = [r['confidence'] for r in results]
+        
+        # Factor contribution analysis
+        all_factors = {}
+        for result in results:
+            for factor, score in result['factor_breakdown'].items():
+                if factor not in all_factors:
+                    all_factors[factor] = []
+                all_factors[factor].append(score)
+        
+        factor_stats = {}
+        for factor, scores in all_factors.items():
+            if scores:
+                factor_stats[factor] = {
+                    "avg_contribution": sum(scores) / len(scores),
+                    "max_contribution": max(scores),
+                    "active_facts": sum(1 for s in scores if s > 0)
+                }
         
         return {
             "ranked_facts": results,
             "total_facts": len(results),
-            "avg_importance": sum(r['importance'] for r in results) / len(results) if results else 0
+            "statistics": {
+                "avg_importance": sum(importance_scores) / len(importance_scores) if importance_scores else 0,
+                "max_importance": max(importance_scores) if importance_scores else 0,
+                "min_importance": min(importance_scores) if importance_scores else 0,
+                "avg_confidence": sum(confidences) / len(confidences) if confidences else 0,
+                "high_importance_facts": sum(1 for s in importance_scores if s >= 0.8),
+                "medium_importance_facts": sum(1 for s in importance_scores if 0.5 <= s < 0.8),
+                "low_importance_facts": sum(1 for s in importance_scores if s < 0.5)
+            },
+            "factor_analysis": factor_stats,
+            "top_factors": sorted(factor_stats.items(), key=lambda x: x[1]["avg_contribution"], reverse=True)[:5]
         }
         
     except Exception as e:
-        logger.error(f"Fact importance calculation failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Fact importance calculation failed: {str(e)}")
+        logger.error(f"Enhanced fact importance calculation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Enhanced fact importance calculation failed: {str(e)}")

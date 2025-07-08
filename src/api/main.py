@@ -129,6 +129,7 @@ try:
     from .memory_system.api.routers import text_processing
     from .memory_system.api.routers import entity_extraction
     from .memory_system.api.routers import fact_extraction
+    from .memory_system.api.routers import importance_scoring
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
@@ -138,7 +139,8 @@ try:
     app.include_router(text_processing.router, prefix="/api/memory/text", tags=["memory-text"])
     app.include_router(entity_extraction.router, prefix="/api/memory/entities", tags=["memory-entities"])
     app.include_router(fact_extraction.router, prefix="/api/memory/facts", tags=["memory-facts"])
-    logger.info("Memory system with context injection, text processing, entity extraction and fact extraction integrated successfully")
+    app.include_router(importance_scoring.router, prefix="/api/memory/importance", tags=["memory-importance"])
+    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction and importance scoring integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
@@ -169,7 +171,8 @@ async def root() -> Dict[str, Any]:
                 "session_linking": "/api/memory/linking",
                 "text_processing": "/api/memory/text",
                 "entity_extraction": "/api/memory/entities",
-                "fact_extraction": "/api/memory/facts"
+                "fact_extraction": "/api/memory/facts",
+                "importance_scoring": "/api/memory/importance"
             }
         }
     }
