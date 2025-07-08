@@ -28,6 +28,10 @@ POST /api/memory/search             # Search memories
 1. **Session Management** - Track conversations across time
 2. **Memory Extraction** - Extract facts, preferences, decisions
 3. **Context Building** - Intelligently assemble relevant context
+4. **Text Processing** - Intelligent text chunking with semantic boundaries
+5. **Entity Extraction** - Named Entity Recognition with 18 entity types
+6. **Fact Extraction** - Pattern-based fact extraction with 12 fact types
+7. **Importance Scoring** - Multi-factor importance analysis for memory prioritization
 4. **Smart Compression** - Fit context within token limits
 
 ## Implementation Phases
