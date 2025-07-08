@@ -1,4 +1,4 @@
-# WebSocket and CORS Fix Summary
+# WebSocket, CORS, and CSRF Fix Summary
 
 ## Issue
 The KnowledgeHub frontend was experiencing WebSocket connection failures to `ws://192.168.1.25:3000/ws/notifications`.
@@ -57,8 +57,20 @@ After fixing WebSocket, the frontend at `http://192.168.1.25:3100` was blocked b
 - Restarted the API container to apply changes
 - Verified CORS headers are now correctly set
 
+## CSRF Token Fix
+
+### Final Issue
+After fixing CORS, API POST requests were still being blocked with 403 Forbidden due to CSRF token validation failure.
+
+### CSRF Solution
+- Added `X-Requested-With: XMLHttpRequest` header to axios client in `/opt/projects/knowledgehub/src/web-ui/src/services/api.ts`
+- This header, combined with `Content-Type: application/json`, tells the CSRF middleware that this is an AJAX request
+- AJAX requests are exempted from CSRF token validation in the security middleware
+- Rebuilt the frontend to include this header in all API requests
+
 ## Notes
 - There's a deprecation warning about `ws_handler` that can be addressed in a future update
 - The WebSocket implementation supports job notifications, source updates, and stats updates
 - Clients receive a unique ID upon connection for tracking purposes
 - CORS is properly configured for all development ports including 3100
+- CSRF protection is active but properly exempts AJAX/API requests with the correct headers
