@@ -70,10 +70,12 @@ class CORSSecurityConfig(BaseModel):
     development_origins: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001", 
+        "http://localhost:3100",  # KnowledgeHub frontend
         "http://localhost:3102",
         "http://localhost:5173",  # Vite dev server
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "http://127.0.0.1:3100",  # KnowledgeHub frontend
         "http://127.0.0.1:3102",
         "http://127.0.0.1:5173"
     ]

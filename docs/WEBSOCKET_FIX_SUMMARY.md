@@ -1,4 +1,4 @@
-# WebSocket Connection Fix Summary
+# WebSocket and CORS Fix Summary
 
 ## Issue
 The KnowledgeHub frontend was experiencing WebSocket connection failures to `ws://192.168.1.25:3000/ws/notifications`.
@@ -47,7 +47,18 @@ The KnowledgeHub frontend was experiencing WebSocket connection failures to `ws:
 ✅ Frontend can connect to WebSocket endpoint
 ✅ Real-time notifications are working
 
+## CORS Issue Fix
+
+### Additional Issue
+After fixing WebSocket, the frontend at `http://192.168.1.25:3100` was blocked by CORS policy when making API requests.
+
+### CORS Solution
+- Added `http://localhost:3100` and `http://127.0.0.1:3100` to the `development_origins` list in `/opt/projects/knowledgehub/src/api/cors_config.py`
+- Restarted the API container to apply changes
+- Verified CORS headers are now correctly set
+
 ## Notes
 - There's a deprecation warning about `ws_handler` that can be addressed in a future update
 - The WebSocket implementation supports job notifications, source updates, and stats updates
 - Clients receive a unique ID upon connection for tracking purposes
+- CORS is properly configured for all development ports including 3100
