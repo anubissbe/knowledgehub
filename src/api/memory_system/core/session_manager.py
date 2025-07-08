@@ -252,11 +252,20 @@ class SessionManager:
         """Cache session in Redis"""
         try:
             key = f"session:{session.id}"
-            await redis_client.setex(
-                key,
-                self._cache_ttl,
-                session.to_dict()
-            )
+            # Convert session to dict for caching
+            session_data = {
+                'id': str(session.id),
+                'user_id': session.user_id,
+                'project_id': str(session.project_id) if session.project_id else None,
+                'parent_session_id': str(session.parent_session_id) if session.parent_session_id else None,
+                'started_at': session.started_at.isoformat() if session.started_at else None,
+                'ended_at': session.ended_at.isoformat() if session.ended_at else None,
+                'session_metadata': session.session_metadata,
+                'tags': session.tags,
+                'created_at': session.created_at.isoformat() if session.created_at else None,
+                'updated_at': session.updated_at.isoformat() if session.updated_at else None
+            }
+            await redis_client.set(key, session_data, self._cache_ttl)
         except Exception as e:
             logger.warning(f"Failed to cache session: {e}")
     
@@ -266,9 +275,10 @@ class SessionManager:
             key = f"session:{session_id}"
             data = await redis_client.get(key)
             if data:
-                # Reconstruct session from cached data
-                # Note: This is simplified, full implementation would deserialize properly
-                return None  # For now, skip cache reconstruction
+                # For now, return None to force DB query
+                # Full implementation would reconstruct the session object
+                # This avoids issues with ORM relationships and session state
+                return None
         except Exception as e:
             logger.warning(f"Failed to get cached session: {e}")
         

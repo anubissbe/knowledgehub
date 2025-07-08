@@ -69,9 +69,11 @@ The memory system for extending Claude-Code context across sessions has been imp
 
 ### ⚠️ Remaining Issues
 
-1. **Redis Cache Integration**
-   - Session caching fails with "RedisCache object has no attribute 'setex'"
-   - Need to implement proper Redis caching for sessions
+1. **Redis Cache Integration** - PARTIALLY FIXED
+   - Fixed the `setex` issue by using `redis_client.set()` method instead
+   - Implemented proper session data serialization for caching
+   - Cache retrieval currently returns None to force DB queries (safe approach)
+   - Full cache reconstruction needs implementation for complete fix
 
 2. **Vector Similarity Search Limitations**
    - Currently using placeholder implementation
@@ -91,9 +93,14 @@ The memory system for extending Claude-Code context across sessions has been imp
    - Create context formatting for LLM consumption
 
 3. **Session Management Enhancement**
-   - Fix Redis caching
+   - Complete Redis cache reconstruction (currently safe but incomplete)
    - Implement session merging
    - Add session analytics
+
+4. **Infrastructure Issues** (NEW - 2025-07-08)
+   - PostgreSQL container has permission errors preventing connections
+   - This blocks testing of the Redis caching fix
+   - Needs infrastructure team attention
 
 ## Testing Status
 
