@@ -92,6 +92,19 @@ class ValidationMiddleware(BaseHTTPMiddleware):
                 'limit': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 10},
                 'offset': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 10}
             },
+            '/api/v1/chunks/batch': {
+                'document_id': {'content_type': ContentType.UUID, 'required': False},
+                'source_id': {'content_type': ContentType.UUID, 'required': False},
+                'content': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 100000},
+                'chunk_type': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 50},
+                'chunk_index': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 10},
+                'metadata': {'content_type': ContentType.JSON, 'required': False},
+                'embedding_id': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 255},
+                'parent_heading': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 500},
+                'content_hash': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 255},
+                'title': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 500},
+                'url': {'content_type': ContentType.URL, 'required': False}
+            },
             '/api/memory/': {
                 'content': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 50000},
                 'memory_type': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 50},
@@ -164,15 +177,21 @@ class ValidationMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log unexpected validation error
             logger.error(f"Validation middleware error: {e}")
-            await log_security_event(
-                SecurityEventType.MALFORMED_REQUEST,
-                ThreatLevel.HIGH,
-                source_ip,
-                user_agent,
-                str(request.url.path),
-                request.method,
-                f"Validation middleware error: {str(e)}"
-            )
+            
+            # Only log security event if it's not a recursion issue
+            if "recursion" not in str(e).lower() and "maximum" not in str(e).lower():
+                try:
+                    await log_security_event(
+                        SecurityEventType.MALFORMED_REQUEST,
+                        ThreatLevel.HIGH,
+                        source_ip,
+                        user_agent,
+                        str(request.url.path),
+                        request.method,
+                        f"Validation middleware error: {str(e)}"
+                    )
+                except Exception as log_error:
+                    logger.error(f"Failed to log security event: {log_error}")
             
             return JSONResponse(
                 status_code=500,
@@ -296,11 +315,28 @@ class ValidationMiddleware(BaseHTTPMiddleware):
                     body_str = body.decode('utf-8')
                     data = json.loads(body_str)
                     
-                    # Get validation rules for this endpoint
-                    validation_rules = self._get_validation_rules(request.url.path)
-                    
-                    # Validate the data
-                    validated_data = self.validator.validate_request_data(data, validation_rules)
+                    # Handle different payload types
+                    if isinstance(data, list):
+                        # For list payloads (like batch endpoints), validate each item
+                        validated_data = []
+                        for item in data:
+                            if isinstance(item, dict):
+                                # Get validation rules for this endpoint
+                                validation_rules = self._get_validation_rules(request.url.path)
+                                validated_item = self.validator.validate_request_data(item, validation_rules)
+                                validated_data.append(validated_item)
+                            else:
+                                # Skip validation for non-dict items in list
+                                validated_data.append(item)
+                    elif isinstance(data, dict):
+                        # Get validation rules for this endpoint
+                        validation_rules = self._get_validation_rules(request.url.path)
+                        
+                        # Validate the data
+                        validated_data = self.validator.validate_request_data(data, validation_rules)
+                    else:
+                        # For other data types, skip validation
+                        validated_data = data
                     
                     # Store validated data for use by the endpoint
                     # Note: This is a simplified approach; in production you might want
@@ -320,6 +356,8 @@ class ValidationMiddleware(BaseHTTPMiddleware):
                     raise HTTPException(status_code=400, detail="Invalid JSON format")
                 
                 except Exception as e:
+                    # Log the specific validation error
+                    logger.error(f"JSON validation failed for {request.url.path}: {str(e)}")
                     await log_security_event(
                         SecurityEventType.MALFORMED_REQUEST,
                         ThreatLevel.MEDIUM,

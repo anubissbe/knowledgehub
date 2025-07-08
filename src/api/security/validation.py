@@ -77,10 +77,10 @@ class SecurityValidator:
             r'(\'\s*OR\s*\'|\'\s*AND\s*\')',
             r'(\bUNION\b.*\bSELECT\b)',
             
-            # Command injection
-            r'(\$\(.*\)|`.*`)',
-            r'(\|\s*[a-zA-Z]+|\&\&|\|\|)',
-            r'(;.*\b(cat|ls|pwd|whoami|id|nc|netcat|wget|curl)\b)',
+            # Command injection (more specific patterns)
+            r'(\$\([^)]*\)|`[^`]*`)',
+            r'(\|\s*[a-zA-Z]+\s*;|\&\&\s*[a-zA-Z]+|\|\|\s*[a-zA-Z]+)',
+            r'(;\s*(cat|ls|pwd|whoami|id|nc|netcat|wget|curl)\s+)',
             
             # Path traversal
             r'(\.\./|\.\.\x5c)',

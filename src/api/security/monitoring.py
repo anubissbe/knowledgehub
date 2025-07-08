@@ -89,6 +89,10 @@ class SecurityMonitor:
         self.failed_auth_attempts: Dict[str, deque] = defaultdict(lambda: deque(maxlen=50))
         self.endpoint_access_patterns: Dict[str, deque] = defaultdict(lambda: deque(maxlen=200))
         
+        # Recursion prevention
+        self._processing_events: Set[str] = set()  # Track events being processed
+        self._event_rate_limiter: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))  # Rate limit events per IP
+        
         # Alerting thresholds
         self.config = {
             "max_failed_auth_per_hour": 10,
@@ -99,7 +103,8 @@ class SecurityMonitor:
                 "dirbuster", "gobuster", "wfuzz", "hydra", "metasploit"
             ],
             "blocked_request_threshold": 50,  # Auto-block after 50 blocked requests
-            "alert_cooldown_minutes": 15  # Minimum time between alerts for same IP
+            "alert_cooldown_minutes": 15,  # Minimum time between alerts for same IP
+            "max_events_per_ip_per_minute": 60  # Rate limit events per IP
         }
         
         # Alert tracking
@@ -136,30 +141,70 @@ class SecurityMonitor:
     async def log_event(self, event: SecurityEvent) -> None:
         """Log a security event and perform analysis"""
         try:
-            # Add to memory tracking
-            self.events.append(event)
-            self.ip_events[event.source_ip].append(event)
+            # Rate limit events per IP to prevent spam
+            now = datetime.now()
+            minute_ago = now - timedelta(minutes=1)
             
-            # Log to appropriate logger
-            event_dict = asdict(event)
-            event_dict['timestamp'] = event.timestamp.isoformat()
+            # Clean old events from rate limiter
+            self._event_rate_limiter[event.source_ip] = deque([
+                ts for ts in self._event_rate_limiter[event.source_ip] 
+                if ts > minute_ago
+            ], maxlen=100)
             
-            if event.threat_level in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]:
-                self.threat_logger.warning(f"HIGH/CRITICAL THREAT: {json.dumps(event_dict)}")
-            else:
-                self.security_logger.info(json.dumps(event_dict))
+            # Check rate limit
+            if len(self._event_rate_limiter[event.source_ip]) >= self.config["max_events_per_ip_per_minute"]:
+                logger.debug(f"Rate limiting events from IP {event.source_ip}")
+                return
             
-            # Audit logging for important events
-            if event.event_type in [SecurityEventType.AUTHENTICATION_SUCCESS, 
-                                   SecurityEventType.AUTHORIZATION_FAILURE,
-                                   SecurityEventType.PRIVILEGE_ESCALATION]:
-                self.audit_logger.info(f"AUDIT: {event.event_type.value} - IP: {event.source_ip} - Endpoint: {event.endpoint}")
+            # Add current event to rate limiter
+            self._event_rate_limiter[event.source_ip].append(now)
             
-            # Perform real-time analysis
-            await self._analyze_event(event)
+            # Create a unique event key to prevent recursion
+            event_key = f"{event.source_ip}_{event.event_type.value}_{event.endpoint}_{event.timestamp.timestamp()}"
             
-            # Write to JSON log for structured analysis
-            self._write_json_log(event)
+            # Check if we're already processing this event or similar
+            if event_key in self._processing_events:
+                logger.debug(f"Skipping duplicate event processing: {event_key}")
+                return
+            
+            # Add to processing set
+            self._processing_events.add(event_key)
+            
+            try:
+                # Add to memory tracking
+                self.events.append(event)
+                self.ip_events[event.source_ip].append(event)
+                
+                # Log to appropriate logger
+                event_dict = asdict(event)
+                event_dict['timestamp'] = event.timestamp.isoformat()
+                
+                if event.threat_level in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]:
+                    self.threat_logger.warning(f"HIGH/CRITICAL THREAT: {json.dumps(event_dict)}")
+                else:
+                    self.security_logger.info(json.dumps(event_dict))
+                
+                # Audit logging for important events
+                if event.event_type in [SecurityEventType.AUTHENTICATION_SUCCESS, 
+                                       SecurityEventType.AUTHORIZATION_FAILURE,
+                                       SecurityEventType.PRIVILEGE_ESCALATION]:
+                    self.audit_logger.info(f"AUDIT: {event.event_type.value} - IP: {event.source_ip} - Endpoint: {event.endpoint}")
+                
+                # Perform real-time analysis (only for non-malformed requests to prevent recursion)
+                if event.event_type != SecurityEventType.MALFORMED_REQUEST:
+                    await self._analyze_event(event)
+                
+                # Write to JSON log for structured analysis
+                self._write_json_log(event)
+                
+            finally:
+                # Remove from processing set
+                self._processing_events.discard(event_key)
+                
+                # Clean up old processing events to prevent memory leak
+                if len(self._processing_events) > 1000:
+                    # Keep only recent events (this is a safety measure)
+                    self._processing_events.clear()
             
         except Exception as e:
             logger.error(f"Error logging security event: {e}")
@@ -300,7 +345,7 @@ class SecurityMonitor:
     
     async def _check_auto_block(self, event: SecurityEvent) -> None:
         """Auto-block IPs with excessive blocked requests"""
-        if event.blocked and event.event_type != SecurityEventType.API_ABUSE:  # Prevent recursion
+        if event.blocked and event.event_type not in [SecurityEventType.API_ABUSE, SecurityEventType.MALFORMED_REQUEST]:  # Prevent recursion
             ip = event.source_ip
             blocked_count = sum(1 for e in self.ip_events[ip] if e.blocked)
             

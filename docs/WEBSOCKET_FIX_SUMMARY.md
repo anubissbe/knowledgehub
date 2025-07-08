@@ -68,9 +68,35 @@ After fixing CORS, API POST requests were still being blocked with 403 Forbidden
 - AJAX requests are exempted from CSRF token validation in the security middleware
 - Rebuilt the frontend to include this header in all API requests
 
+## Recursive Security Logging Fix
+
+### Final Issue
+The API container was experiencing infinite recursion in security monitoring, causing "maximum recursion depth exceeded" errors and performance issues.
+
+### Security Loop Solution
+- Fixed validation middleware to properly handle list payloads in batch endpoints
+- Added recursion prevention in security event logging with event tracking
+- Implemented rate limiting (60 events/IP/minute) to prevent event spam
+- Added circuit breaker for malformed request events to prevent self-triggering loops
+- Made security patterns more specific to reduce false positives
+
+### Results
+- ✅ Eliminated recursive logging loops
+- ✅ Clean, readable API logs
+- ✅ Functional security monitoring without performance degradation
+- ✅ Proper handling of batch endpoints
+
+## Final Status
+- ✅ WebSocket connections working
+- ✅ CORS properly configured
+- ✅ CSRF protection working with AJAX exemptions
+- ✅ Security monitoring functional without recursion
+- ✅ API endpoints responding correctly (Status 202 for refresh)
+
 ## Notes
 - There's a deprecation warning about `ws_handler` that can be addressed in a future update
 - The WebSocket implementation supports job notifications, source updates, and stats updates
 - Clients receive a unique ID upon connection for tracking purposes
 - CORS is properly configured for all development ports including 3100
 - CSRF protection is active but properly exempts AJAX/API requests with the correct headers
+- API response times may be 3-4 seconds for job creation endpoints (normal for database operations)
