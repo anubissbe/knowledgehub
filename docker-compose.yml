@@ -150,7 +150,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - WEAVIATE_URL=http://knowledgehub-weaviate:8080
       - S3_ENDPOINT_URL=http://minio:9000
-      - EMBEDDINGS_SERVICE_URL=http://embeddings-real:8100
+      - EMBEDDINGS_SERVICE_URL=http://ai-service:8000
       - ACTUAL_STORAGE_TB=11
       - VAULT_ADDR=${VAULT_ADDR:-http://192.168.1.24:8200}
       - VAULT_TOKEN=${VAULT_TOKEN}

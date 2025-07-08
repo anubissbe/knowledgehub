@@ -136,6 +136,14 @@ app.include_router(analytics.router)
 # WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
+# Unified search router
+try:
+    from .routers import unified_search
+    app.include_router(unified_search.router, prefix="/api/v1/search", tags=["unified-search"])
+    logger.info("Unified search router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Unified search router not available: {e}")
+
 # Memory system routers
 try:
     from .memory_system.api.routers import session as memory_session
@@ -177,6 +185,8 @@ async def root() -> Dict[str, Any]:
             "health": "/health",
             "sources": "/api/v1/sources",
             "search": "/api/v1/search",
+            "unified_search": "/api/v1/search/unified",
+            "search_suggestions": "/api/v1/search/suggest",
             "jobs": "/api/v1/jobs",
             "memories": "/api/v1/memories",
             "websocket": "/ws",

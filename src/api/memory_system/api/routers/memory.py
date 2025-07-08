@@ -272,7 +272,38 @@ async def search_memories(
     search_request: MemorySearchRequest,
     db: Session = Depends(get_db)
 ) -> dict:
-    """Search memories with filters"""
+    """Search memories with hybrid vector/keyword search
+    
+    This endpoint provides advanced search capabilities:
+    - Vector similarity search for semantic relevance
+    - Keyword search for exact matches
+    - Hybrid search combining both approaches
+    - Filtering by user, project, memory type, and importance
+    """
+    try:
+        # Use the integrated memory search service
+        from ...services.memory_search_service import memory_search_service
+        
+        result = await memory_search_service.search_memories(db, search_request)
+        
+        logger.info(
+            f"Memory search completed: query='{search_request.query}', "
+            f"results={result.total}, time={result.search_time_ms}ms"
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Memory search failed: {e}")
+        # Fallback to basic search if integrated search fails
+        return await _fallback_memory_search(db, search_request)
+
+
+async def _fallback_memory_search(
+    db: Session, 
+    search_request: MemorySearchRequest
+) -> MemorySearchResponse:
+    """Fallback to basic database search if vector search fails"""
     from ...models import MemorySession
     
     # Base query
@@ -292,7 +323,7 @@ async def search_memories(
     if search_request.min_importance > 0:
         query = query.filter(Memory.importance >= search_request.min_importance)
     
-    # Text search (simple ILIKE for now, vector search to be implemented)
+    # Text search (simple ILIKE)
     if search_request.query:
         search_term = f"%{search_request.query}%"
         query = query.filter(
@@ -306,7 +337,6 @@ async def search_memories(
     total = query.count()
     
     # Apply pagination and ordering
-    # Order by importance and creation date instead of computed relevance_score
     memories = query.order_by(
         desc(Memory.importance),
         desc(Memory.created_at)
@@ -317,5 +347,6 @@ async def search_memories(
         total=total,
         query=search_request.query,
         limit=search_request.limit,
-        offset=search_request.offset
+        offset=search_request.offset,
+        search_time_ms=0  # No timing for fallback search
     )

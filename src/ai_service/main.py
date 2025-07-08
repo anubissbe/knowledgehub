@@ -384,6 +384,39 @@ async def generate_embeddings(content: Dict[str, str]):
         logger.error(f"Error generating embeddings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/embeddings")
+async def generate_embeddings_batch(request: Dict[str, Any]):
+    """Generate embeddings for batch of texts (compatible with embeddings client)"""
+    try:
+        if not embedding_model:
+            raise HTTPException(status_code=500, detail="Embedding model not loaded")
+        
+        texts = request.get("texts", [])
+        normalize = request.get("normalize", True)
+        
+        if not texts:
+            raise HTTPException(status_code=400, detail="No texts provided")
+        
+        embeddings = []
+        for text in texts:
+            embedding = embedding_model.encode(text)
+            if normalize:
+                # Normalize embedding
+                norm = np.linalg.norm(embedding)
+                if norm > 0:
+                    embedding = embedding / norm
+            embeddings.append(embedding.tolist())
+        
+        return {
+            "embeddings": embeddings,
+            "model": "all-MiniLM-L6-v2",
+            "dimensions": len(embeddings[0]) if embeddings else 0
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating batch embeddings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

@@ -134,22 +134,24 @@ class ContextResponse(BaseModel):
 # Search Schemas
 class MemorySearchRequest(BaseModel):
     """Schema for memory search request"""
-    query: str = Field(..., description="Search query")
+    query: Optional[str] = Field(None, description="Search query")
     user_id: Optional[str] = Field(None, description="Filter by user")
     project_id: Optional[UUID] = Field(None, description="Filter by project")
     memory_types: Optional[List[MemoryTypeEnum]] = Field(None, description="Filter by types")
     min_importance: Optional[float] = Field(0.0, ge=0.0, le=1.0, description="Minimum importance")
     limit: int = Field(10, gt=0, le=100, description="Maximum results")
     offset: int = Field(0, ge=0, description="Pagination offset")
+    use_vector_search: bool = Field(True, description="Enable vector similarity search")
 
 
 class MemorySearchResponse(BaseModel):
     """Schema for memory search response"""
     results: List[MemoryResponse]
     total: int
-    query: str
+    query: Optional[str]
     limit: int
     offset: int
+    search_time_ms: Optional[int] = Field(None, description="Search execution time in milliseconds")
 
 
 # Batch Operations

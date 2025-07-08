@@ -46,6 +46,15 @@ See [Jobs Page Auto-refresh Documentation](docs/JOBS_PAGE_AUTO_REFRESH_FIX.md) f
 
 See [Scheduler Fix Documentation](docs/SCHEDULER_ATTRIBUTE_ERROR_FIX.md) for implementation details.
 
+### v1.2.0 - Memory Search Integration (2025-07-08)
+- **🧠 Unified Search**: Search across both documents and conversation memories
+- **🔍 Hybrid Memory Search**: Vector similarity and keyword search for memories
+- **🎯 Smart Filtering**: Filter by memory type, importance, user, and project
+- **⚡ Performance**: Parallel search execution with Redis caching
+- **🔄 Graceful Fallback**: Automatic fallback to keyword search if embeddings unavailable
+
+See [Memory Search Integration Documentation](docs/features/memory-search-integration.md) for implementation details.
+
 ---
 
 ## 🌟 Overview
