@@ -3,6 +3,14 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
+# Accept build arguments
+ARG VITE_API_URL=http://localhost:3000
+ARG VITE_WS_URL=ws://localhost:3000/ws
+
+# Set environment variables for the build
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
 # Copy package files
 COPY src/web-ui/package*.json ./
 

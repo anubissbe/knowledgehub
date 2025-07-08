@@ -339,11 +339,14 @@ services:
     build:
       context: .
       dockerfile: docker/web-ui.Dockerfile
+      args:
+        VITE_API_URL: http://192.168.1.25:3000
+        VITE_WS_URL: ws://192.168.1.25:3000/ws
     container_name: knowledgehub-ui
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3000/api/v1
-      - VITE_WS_URL=ws://localhost:3000/ws
+      - VITE_API_URL=http://192.168.1.25:3000
+      - VITE_WS_URL=ws://192.168.1.25:3000/ws
     volumes:
       - ./src/web-ui:/app
       - /app/node_modules
