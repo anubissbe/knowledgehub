@@ -3,7 +3,7 @@
 import logging
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
@@ -14,6 +14,7 @@ from ..schemas import (
     MemoryBatchCreate, MemoryBatchResponse,
     MemorySearchRequest, MemorySearchResponse
 )
+from ...services.embedding_service import memory_embedding_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,6 +48,7 @@ def memory_to_response(memory: Memory) -> MemoryResponse:
 @router.post("/", response_model=MemoryResponse)
 async def create_memory(
     memory_data: MemoryCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """Create a new memory"""
@@ -77,6 +79,13 @@ async def create_memory(
         db.add(memory)
         db.commit()
         db.refresh(memory)
+        
+        # Schedule embedding generation in background
+        background_tasks.add_task(
+            memory_embedding_service.update_memory_embedding,
+            db,
+            memory.id
+        )
         
         logger.info(f"Created memory {memory.id} for session {session.id}")
         return memory_to_response(memory)
@@ -129,7 +138,13 @@ async def update_memory(
             memory.entities = update_data.entities
         
         if update_data.metadata is not None:
-            memory.memory_metadata.update(update_data.metadata)
+            # Update metadata by creating a new dict that merges existing and new data
+            if memory.memory_metadata:
+                updated_metadata = dict(memory.memory_metadata)
+                updated_metadata.update(update_data.metadata)
+                memory.memory_metadata = updated_metadata
+            else:
+                memory.memory_metadata = update_data.metadata
         
         db.commit()
         db.refresh(memory)

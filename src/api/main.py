@@ -122,8 +122,10 @@ app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 try:
     from .memory_system.api.routers import session as memory_session
     from .memory_system.api.routers import memory as memory_router
+    from .memory_system.api.routers import vector_search
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
+    app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
     logger.info("Memory system integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
