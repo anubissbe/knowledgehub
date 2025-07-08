@@ -21,6 +21,7 @@ from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
+from .middleware.session_tracking import SessionTrackingMiddleware
 from .config import settings
 
 # Configure logging
@@ -72,6 +73,23 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
 app.add_middleware(SecureAuthMiddleware)
+
+# Initialize session tracking middleware
+try:
+    from .memory_system.core.session_manager import SessionManager
+    from .models import get_db
+    
+    # Create a session manager factory for the middleware
+    def get_session_manager():
+        db = next(get_db())
+        return SessionManager(db)
+    
+    app.add_middleware(SessionTrackingMiddleware, session_manager_factory=get_session_manager)
+    logger.info("Session tracking middleware initialized successfully")
+except ImportError as e:
+    logger.warning(f"Session tracking middleware not available: {e}")
+except Exception as e:
+    logger.error(f"Failed to initialize session tracking middleware: {e}")
 
 
 @app.middleware("http")

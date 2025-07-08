@@ -316,3 +316,129 @@ class SessionManager:
         
         logger.debug(f"Reconstructed session {session.id} from cache")
         return session
+    
+    async def get_or_create_session(self, session_id: str, metadata: Dict[str, Any] = None) -> MemorySession:
+        """Get existing session or create new one with given ID"""
+        try:
+            # Try to get existing session by string ID
+            if session_id.startswith('claude-'):
+                # This is a client-generated session ID, check by metadata
+                sessions = self.db.query(MemorySession).filter(
+                    MemorySession.session_metadata.op('->>')('client_session_id') == session_id
+                ).order_by(desc(MemorySession.created_at)).all()
+                
+                if sessions:
+                    # Return most recent matching session
+                    session = sessions[0]
+                    await self._cache_session(session)
+                    logger.info(f"Found existing session for client ID {session_id}: {session.id}")
+                    return session
+            else:
+                # Try to parse as UUID
+                try:
+                    uuid_id = UUID(session_id)
+                    session = await self.get_session(uuid_id)
+                    if session:
+                        logger.info(f"Found existing session {session_id}")
+                        return session
+                except ValueError:
+                    pass  # Not a valid UUID
+            
+            # Create new session
+            from ..api.schemas import SessionCreate
+            session_data = SessionCreate(
+                user_id="claude-code",  # Default user for Claude-Code
+                project_id=None,
+                session_metadata={
+                    **(metadata or {}),
+                    'client_session_id': session_id,
+                    'auto_created': True
+                }
+            )
+            
+            session = await self.create_session(session_data)
+            logger.info(f"Created new session {session.id} for client ID {session_id}")
+            return session
+            
+        except Exception as e:
+            logger.error(f"Failed to get or create session {session_id}: {e}")
+            raise
+    
+    async def update_session_activity(self, session_id: str, activity_data: Dict[str, Any]):
+        """Update session with activity data"""
+        try:
+            # Convert string ID to UUID if needed
+            if isinstance(session_id, str):
+                try:
+                    uuid_id = UUID(session_id)
+                except ValueError:
+                    logger.warning(f"Invalid session ID format: {session_id}")
+                    return
+            else:
+                uuid_id = session_id
+            
+            session = await self.get_session(uuid_id)
+            if not session:
+                logger.warning(f"Session not found for activity update: {uuid_id}")
+                return
+            
+            # Update last activity timestamp
+            session.updated_at = datetime.now(timezone.utc)
+            
+            # Update session metadata with latest activity
+            current_metadata = session.session_metadata or {}
+            if 'activities' not in current_metadata:
+                current_metadata['activities'] = []
+            
+            # Keep only last 10 activities to prevent metadata bloat
+            activities = current_metadata['activities'][-9:]  # Keep 9, add 1 = 10 total
+            activities.append(activity_data)
+            current_metadata['activities'] = activities
+            current_metadata['last_request_path'] = activity_data.get('path')
+            current_metadata['last_request_method'] = activity_data.get('method')
+            
+            # Create new dict to ensure SQLAlchemy detects the change
+            session.session_metadata = dict(current_metadata)
+            
+            self.db.commit()
+            await self._cache_session(session)
+            
+            logger.debug(f"Updated activity for session {uuid_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update session activity: {e}")
+            self.db.rollback()
+    
+    async def update_session_metadata(self, session_id: str, metadata_update: Dict[str, Any]):
+        """Update session metadata"""
+        try:
+            # Convert string ID to UUID if needed
+            if isinstance(session_id, str):
+                try:
+                    uuid_id = UUID(session_id)
+                except ValueError:
+                    logger.warning(f"Invalid session ID format: {session_id}")
+                    return
+            else:
+                uuid_id = session_id
+            
+            session = await self.get_session(uuid_id)
+            if not session:
+                logger.warning(f"Session not found for metadata update: {uuid_id}")
+                return
+            
+            # Update metadata
+            current_metadata = session.session_metadata or {}
+            current_metadata.update(metadata_update)
+            
+            # Create new dict to ensure SQLAlchemy detects the change
+            session.session_metadata = dict(current_metadata)
+            
+            self.db.commit()
+            await self._cache_session(session)
+            
+            logger.debug(f"Updated metadata for session {uuid_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update session metadata: {e}")
+            self.db.rollback()

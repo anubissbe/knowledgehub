@@ -525,3 +525,93 @@ class ContextService:
 
 # Global instance
 context_service = ContextService()
+
+
+async def build_context_for_request(
+    session_id: str, 
+    request_path: str, 
+    request_method: str,
+    max_tokens: int = 4000,
+    db: Session = None
+) -> Dict[str, Any]:
+    """
+    Build context for a request using the global context service.
+    
+    This is a convenience function for middleware and other components
+    that need to inject context without managing the service directly.
+    """
+    try:
+        if not db:
+            # Import here to avoid circular imports
+            from ...models import get_db
+            db = next(get_db())
+        
+        # Build context request
+        from ..api.context_schemas import ContextRequest, ContextTypeEnum
+        
+        context_request = ContextRequest(
+            session_id=UUID(session_id),
+            query=f"{request_method} {request_path}",
+            user_id="claude-code",
+            max_tokens=max_tokens,
+            context_types=[
+                ContextTypeEnum.recent,
+                ContextTypeEnum.similar,
+                ContextTypeEnum.preferences,
+                ContextTypeEnum.decisions,
+                ContextTypeEnum.errors
+            ]
+        )
+        
+        # Get context from service
+        context_response = await context_service.retrieve_context(db, context_request)
+        
+        # Convert to simple dict format for middleware use
+        return {
+            'session_id': session_id,
+            'memories': [
+                {
+                    'id': str(mem.id),
+                    'content': mem.content,
+                    'memory_type': mem.memory_type,
+                    'importance': mem.importance,
+                    'created_at': mem.created_at.isoformat() if mem.created_at else None
+                }
+                for section in context_response.sections
+                for mem in section.memories
+            ],
+            'sections': [
+                {
+                    'type': section.context_type.value,
+                    'title': section.title,
+                    'memory_count': len(section.memories),
+                    'relevance': section.relevance_score
+                }
+                for section in context_response.sections
+            ],
+            'stats': {
+                'total_memories': context_response.total_memories,
+                'total_tokens': context_response.total_tokens,
+                'max_relevance': context_response.max_relevance
+            },
+            'request_info': {
+                'path': request_path,
+                'method': request_method,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to build context for request {request_method} {request_path}: {e}")
+        return {
+            'session_id': session_id,
+            'memories': [],
+            'sections': [],
+            'stats': {'total_memories': 0, 'selected_memories': 0, 'token_estimate': 0},
+            'request_info': {
+                'path': request_path,
+                'method': request_method,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            },
+            'error': str(e)
+        }
