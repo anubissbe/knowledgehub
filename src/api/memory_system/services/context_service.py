@@ -521,6 +521,61 @@ class ContextService:
         )
         
         return formatted_context, context_summary
+    
+    async def get_compressed_context(
+        self,
+        db: Session,
+        session_id: UUID,
+        target_tokens: int = 4000,
+        strategy: str = "hybrid",
+        level: str = "moderate"
+    ) -> Dict[str, Any]:
+        """Get compressed context for a session using context compression service"""
+        try:
+            from ..core.context_compression import (
+                context_compression_service,
+                CompressionStrategy,
+                CompressionLevel
+            )
+            
+            # Convert string parameters to enums
+            compression_strategy = CompressionStrategy(strategy)
+            compression_level = CompressionLevel(level)
+            
+            # Get compressed context
+            compressed = await context_compression_service.compress_context(
+                db=db,
+                session_id=session_id,
+                target_tokens=target_tokens,
+                strategy=compression_strategy,
+                level=compression_level
+            )
+            
+            # Format for context service consumption
+            return {
+                "memories": compressed.memories,
+                "summary": compressed.summary,
+                "key_entities": compressed.key_entities,
+                "important_facts": compressed.important_facts,
+                "recent_decisions": compressed.recent_decisions,
+                "compression_stats": {
+                    "strategy_used": compressed.strategy_used,
+                    "compression_ratio": compressed.compression_ratio,
+                    "token_estimate": compressed.token_estimate,
+                    "original_count": len(compressed.memories) if hasattr(compressed, 'original_count') else 0
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting compressed context for session {session_id}: {e}")
+            return {
+                "memories": [],
+                "summary": "",
+                "key_entities": [],
+                "important_facts": [],
+                "recent_decisions": [],
+                "compression_stats": {}
+            }
 
 
 # Global instance

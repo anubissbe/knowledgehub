@@ -64,6 +64,16 @@ See [Memory Search Integration Documentation](docs/features/memory-search-integr
 
 See [Session Lifecycle Management Documentation](docs/features/session-lifecycle-management.md) for implementation details.
 
+### v1.2.2 - Context Compression Strategies (2025-07-08)
+- **🗜️ Intelligent Compression**: 7 compression strategies for managing context windows effectively
+- **⚡ Multiple Levels**: Light, moderate, aggressive, and extreme compression options
+- **🧠 Smart Selection**: Importance-based, recency-weighted, and hybrid compression algorithms
+- **📊 Analytics**: Compression statistics, recommendations, and performance metrics
+- **🔄 Caching**: Redis-based caching with 30-minute TTL for optimal performance
+- **🎯 Token Management**: Precise token estimation and target enforcement
+
+See [Context Compression Documentation](docs/features/context-compression-strategies.md) for implementation details.
+
 ---
 
 ## 🌟 Overview

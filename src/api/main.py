@@ -157,6 +157,7 @@ try:
     from .memory_system.api.routers import entity_extraction
     from .memory_system.api.routers import fact_extraction
     from .memory_system.api.routers import importance_scoring
+    from .memory_system.api.routers import context_compression
     app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
     app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
     app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
@@ -168,7 +169,8 @@ try:
     app.include_router(entity_extraction.router, prefix="/api/memory/entities", tags=["memory-entities"])
     app.include_router(fact_extraction.router, prefix="/api/memory/facts", tags=["memory-facts"])
     app.include_router(importance_scoring.router, prefix="/api/memory/importance", tags=["memory-importance"])
-    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction and importance scoring integrated successfully")
+    app.include_router(context_compression.router, prefix="/api/memory/compression", tags=["memory-compression"])
+    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction, importance scoring and context compression integrated successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
