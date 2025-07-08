@@ -31,7 +31,8 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/metrics",
         "/api/auth/status",
         "/api/security/monitoring/health",  # Security monitoring health check
-        "/api/security/headers/health"      # Security headers health check
+        "/api/security/headers/health",     # Security headers health check
+        "/api/security/rate-limiting/health"  # Rate limiting health check
     ]
     
     # Development paths (only exempt in development mode)

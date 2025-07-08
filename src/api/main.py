@@ -16,10 +16,11 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
-from .routes import auth, cors_security, security_monitoring, security_headers
+from .routes import auth, cors_security, security_monitoring, security_headers, rate_limiting
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
-from .middleware.rate_limit import RateLimitMiddleware
+from .middleware.advanced_rate_limit import AdvancedRateLimitMiddleware, DDoSProtectionMiddleware
+from .security.rate_limiting import RateLimitStrategy
 from .middleware.security import ContentValidationMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware as SecureHeadersMiddleware
 from .middleware.session_tracking import SessionTrackingMiddleware
@@ -89,7 +90,25 @@ app.add_middleware(
 # Add custom middleware (order matters - last added runs first)
 app.add_middleware(SecureHeadersMiddleware)
 app.add_middleware(ContentValidationMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE)
+# Add advanced rate limiting and DDoS protection middleware
+app.add_middleware(
+    AdvancedRateLimitMiddleware,
+    requests_per_minute=settings.RATE_LIMIT_REQUESTS_PER_MINUTE,
+    requests_per_hour=settings.RATE_LIMIT_REQUESTS_PER_MINUTE * 60,
+    requests_per_day=settings.RATE_LIMIT_REQUESTS_PER_MINUTE * 60 * 24,
+    burst_limit=settings.RATE_LIMIT_REQUESTS_PER_MINUTE // 3,
+    strategy=RateLimitStrategy.SLIDING_WINDOW,
+    enable_adaptive=True,
+    enable_ddos_protection=True
+)
+
+# Add DDoS protection middleware
+app.add_middleware(
+    DDoSProtectionMiddleware,
+    enable_protection=True,
+    protection_threshold=1000,
+    blacklist_duration=3600
+)
 app.add_middleware(SecureAuthMiddleware)
 
 # Add enhanced CORS security middleware
@@ -162,6 +181,7 @@ app.include_router(auth.router)  # Authentication endpoints
 app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])  # CORS security management
 app.include_router(security_monitoring.router, prefix="/api", tags=["security"])  # Security monitoring
 app.include_router(security_headers.router, prefix="/api", tags=["security"])  # Security headers
+app.include_router(rate_limiting.router, prefix="/api", tags=["security"])  # Rate limiting and DDoS protection
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
@@ -252,7 +272,12 @@ async def root() -> Dict[str, Any]:
                 "monitoring_health": "/api/security/monitoring/health",
                 "headers_status": "/api/security/headers/status",
                 "csrf_token": "/api/security/headers/csrf/token",
-                "headers_health": "/api/security/headers/health"
+                "headers_health": "/api/security/headers/health",
+                "rate_limiting_status": "/api/security/rate-limiting/status",
+                "rate_limiting_stats": "/api/security/rate-limiting/stats",
+                "rate_limiting_health": "/api/security/rate-limiting/health",
+                "blacklist_management": "/api/security/rate-limiting/blacklist",
+                "active_clients": "/api/security/rate-limiting/clients"
             }
         }
     }
