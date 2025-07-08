@@ -1,6 +1,6 @@
 """Session model for memory system"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, JSON
@@ -84,7 +84,7 @@ class MemorySession(Base):
     def end_session(self) -> None:
         """Mark session as ended"""
         if not self.ended_at:
-            self.ended_at = datetime.utcnow()
+            self.ended_at = datetime.now(timezone.utc)
     
     def add_tag(self, tag: str) -> None:
         """Add a tag to the session"""

@@ -152,6 +152,7 @@ try:
     from .memory_system.api.routers import context as context_router
     from .memory_system.api.routers import session_admin
     from .memory_system.api.routers import session_linking
+    from .memory_system.api.routers import session_lifecycle
     from .memory_system.api.routers import text_processing
     from .memory_system.api.routers import entity_extraction
     from .memory_system.api.routers import fact_extraction
@@ -162,6 +163,7 @@ try:
     app.include_router(context_router.router, prefix="/api/memory/context", tags=["memory-context"])
     app.include_router(session_admin.router, prefix="/api/memory/admin", tags=["memory-admin"])
     app.include_router(session_linking.router, prefix="/api/memory/linking", tags=["memory-linking"])
+    app.include_router(session_lifecycle.router, prefix="/api/memory", tags=["memory-lifecycle"])
     app.include_router(text_processing.router, prefix="/api/memory/text", tags=["memory-text"])
     app.include_router(entity_extraction.router, prefix="/api/memory/entities", tags=["memory-entities"])
     app.include_router(fact_extraction.router, prefix="/api/memory/facts", tags=["memory-facts"])

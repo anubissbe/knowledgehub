@@ -10,6 +10,7 @@ from sqlalchemy import and_, or_, desc
 from ..models import MemorySession, Memory
 from ..api.schemas import SessionCreate, SessionUpdate, SessionResponse
 from ...services.cache import redis_client
+from .session_lifecycle import SessionLifecycleManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,42 +20,36 @@ class SessionManager:
     
     def __init__(self, db: Session):
         self.db = db
-        self._cache_ttl = 3600  # 1 hour cache
+        self._cache_ttl = 3600  # 1 hour
+        self.lifecycle_manager = SessionLifecycleManager(db)
     
     async def create_session(self, session_data: SessionCreate) -> MemorySession:
-        """Create a new session"""
+        """Create a new session with full lifecycle management"""
         try:
             # Check for recent active sessions to link
-            if not session_data.parent_session_id:
+            parent_session_id = session_data.parent_session_id
+            if not parent_session_id:
                 recent_session = await self._find_recent_session(
                     session_data.user_id,
                     session_data.project_id
                 )
                 if recent_session:
-                    session_data.parent_session_id = recent_session.id
+                    parent_session_id = recent_session.id
                     logger.info(f"Linking to recent session: {recent_session.id}")
             
-            # Create new session
-            session = MemorySession(
-                user_id=session_data.user_id,
-                project_id=session_data.project_id,
-                parent_session_id=session_data.parent_session_id,
-                session_metadata=session_data.metadata or {},
-                tags=session_data.tags or []
+            # Use lifecycle manager for proper session initialization
+            session = await self.lifecycle_manager.start_session(
+                session_data, 
+                parent_session_id
             )
             
             # Add automatic tags
             if session_data.project_id:
                 session.add_tag("project")
-            if session_data.parent_session_id:
+            if parent_session_id:
                 session.add_tag("continued")
             
-            self.db.add(session)
             self.db.commit()
-            self.db.refresh(session)
-            
-            # Cache session
-            await self._cache_session(session)
             
             logger.info(f"Created session {session.id} for user {session.user_id}")
             return session
@@ -119,28 +114,24 @@ class SessionManager:
             self.db.rollback()
             raise
     
-    async def end_session(self, session_id: UUID) -> Optional[MemorySession]:
-        """End a session"""
+    async def end_session(self, session_id: UUID, reason: str = "normal") -> Optional[MemorySession]:
+        """End a session with full lifecycle cleanup"""
         session = await self.get_session(session_id)
         if not session:
             return None
         
         try:
-            session.end_session()
-            self.db.commit()
+            # Use lifecycle manager for proper session finalization
+            session = await self.lifecycle_manager.end_session(
+                session_id,
+                reason=reason
+            )
             
-            # Process session for insights
-            await self._process_session_end(session)
-            
-            # Update cache
-            await self._cache_session(session)
-            
-            logger.info(f"Ended session {session_id}")
+            logger.info(f"Ended session {session_id} (reason: {reason})")
             return session
             
         except Exception as e:
             logger.error(f"Failed to end session: {e}")
-            self.db.rollback()
             raise
     
     async def get_user_sessions(self, user_id: str, 

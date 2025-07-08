@@ -55,6 +55,15 @@ See [Scheduler Fix Documentation](docs/SCHEDULER_ATTRIBUTE_ERROR_FIX.md) for imp
 
 See [Memory Search Integration Documentation](docs/features/memory-search-integration.md) for implementation details.
 
+### v1.2.1 - Enhanced Session Lifecycle Management (2025-07-08)
+- **🚀 Smart Session Start**: Automatic session linking with parent context preservation
+- **🏁 Graceful Session End**: Insights extraction and summary generation on completion
+- **📊 Session Health Monitoring**: Real-time warnings for duration, memory count, and inactivity
+- **🔄 State Transitions**: Support for pausing, resuming, and archiving sessions
+- **🧹 Automatic Cleanup**: Background tasks for session maintenance and auto-termination
+
+See [Session Lifecycle Management Documentation](docs/features/session-lifecycle-management.md) for implementation details.
+
 ---
 
 ## 🌟 Overview
