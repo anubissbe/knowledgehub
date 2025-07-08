@@ -16,12 +16,13 @@ try:
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
-from .routes import auth, cors_security
+from .routes import auth, cors_security, security_monitoring
 from .services.startup import initialize_services, shutdown_services
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.security import SecurityHeadersMiddleware, ContentValidationMiddleware
 from .middleware.session_tracking import SessionTrackingMiddleware
+from .middleware.security_monitoring import SecurityMonitoringMiddleware
 from .config import settings
 
 # Configure logging
@@ -92,6 +93,9 @@ app.add_middleware(SecureAuthMiddleware)
 # Add enhanced CORS security middleware
 app.add_middleware(CORSSecurityMiddleware, environment=settings.APP_ENV)
 
+# Add security monitoring middleware
+app.add_middleware(SecurityMonitoringMiddleware, environment=settings.APP_ENV)
+
 # Initialize session tracking middleware
 try:
     from .memory_system.core.session_manager import SessionManager
@@ -144,6 +148,7 @@ async def log_requests(request: Request, call_next):
 # Include routers
 app.include_router(auth.router)  # Authentication endpoints
 app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])  # CORS security management
+app.include_router(security_monitoring.router, prefix="/api", tags=["security"])  # Security monitoring
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
@@ -228,7 +233,10 @@ async def root() -> Dict[str, Any]:
             "security": {
                 "cors_config": "/api/security/cors/config",
                 "cors_stats": "/api/security/cors/security/stats",
-                "cors_health": "/api/security/cors/health"
+                "cors_health": "/api/security/cors/health",
+                "monitoring_stats": "/api/security/monitoring/stats",
+                "monitoring_events": "/api/security/monitoring/events",
+                "monitoring_health": "/api/security/monitoring/health"
             }
         }
     }

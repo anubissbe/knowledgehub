@@ -29,7 +29,8 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/redoc",
         "/api/openapi.json",
         "/metrics",
-        "/api/auth/status"
+        "/api/auth/status",
+        "/api/security/monitoring/health"  # Security monitoring health check
     ]
     
     # Development paths (only exempt in development mode)
