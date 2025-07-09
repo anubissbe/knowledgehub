@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import text
 import psutil
 import redis.asyncio as aioredis
@@ -207,3 +208,209 @@ async def get_trending_analysis(db: AsyncSession = Depends(get_db)):
         "popular_topics": popular_topics,
         "recent_sources": recent_sources
     }
+
+@router.get("/search")
+async def get_search_analytics(db: Session = Depends(get_db)):
+    """Get comprehensive search analytics"""
+    
+    try:
+        now = datetime.utcnow()
+        
+        # Search volume metrics
+        today_searches = db.execute(
+            text("SELECT COUNT(*) FROM search_history WHERE DATE(created_at) = CURRENT_DATE")
+        )
+        today_count = today_searches.scalar() or 0
+        
+        week_searches = db.execute(
+            text("SELECT COUNT(*) FROM search_history WHERE created_at >= :week_ago"),
+            {"week_ago": now - timedelta(days=7)}
+        )
+        week_count = week_searches.scalar() or 0
+        
+        month_searches = db.execute(
+            text("SELECT COUNT(*) FROM search_history WHERE created_at >= :month_ago"),
+            {"month_ago": now - timedelta(days=30)}
+        )
+        month_count = month_searches.scalar() or 0
+        
+        # Average response time
+        avg_response_time = db.execute(
+            text("SELECT AVG(execution_time_ms) FROM search_history WHERE created_at >= :week_ago"),
+            {"week_ago": now - timedelta(days=7)}
+        )
+        avg_time = avg_response_time.scalar() or 0
+        
+        # Search type distribution
+        search_types = db.execute(
+            text("""
+                SELECT search_type, COUNT(*) as count
+                FROM search_history 
+                WHERE created_at >= :week_ago
+                GROUP BY search_type
+                ORDER BY count DESC
+            """),
+            {"week_ago": now - timedelta(days=7)}
+        )
+        
+        type_distribution = [
+            {"type": row[0], "count": row[1]}
+            for row in search_types.fetchall()
+        ]
+        
+        # Popular queries
+        popular_queries = db.execute(
+            text("""
+                SELECT query, COUNT(*) as frequency, AVG(results_count) as avg_results
+                FROM search_history 
+                WHERE created_at >= :week_ago
+                GROUP BY query
+                ORDER BY frequency DESC
+                LIMIT 10
+            """),
+            {"week_ago": now - timedelta(days=7)}
+        )
+        
+        popular_queries_data = [
+            {
+                "query": row[0][:50] + ("..." if len(row[0]) > 50 else ""),
+                "frequency": row[1],
+                "avg_results": round(row[2], 1) if row[2] else 0
+            }
+            for row in popular_queries.fetchall()
+        ]
+        
+        # Search performance over time (last 7 days)
+        daily_performance = []
+        for i in range(7):
+            date = now - timedelta(days=(6-i))
+            date_str = date.strftime("%Y-%m-%d")
+            
+            daily_stats = db.execute(
+                text("""
+                    SELECT 
+                        COUNT(*) as searches,
+                        AVG(execution_time_ms) as avg_time,
+                        AVG(results_count) as avg_results
+                    FROM search_history 
+                    WHERE DATE(created_at) = :date
+                """),
+                {"date": date_str}
+            )
+            
+            stats = daily_stats.fetchone()
+            daily_performance.append({
+                "date": date_str,
+                "searches": stats[0] or 0,
+                "avg_response_time": round(stats[1], 1) if stats[1] else 0,
+                "avg_results": round(stats[2], 1) if stats[2] else 0
+            })
+        
+        # Search success rate (queries with results)
+        success_rate = db.execute(
+            text("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN results_count > 0 THEN 1 END) as with_results
+                FROM search_history 
+                WHERE created_at >= :week_ago
+            """),
+            {"week_ago": now - timedelta(days=7)}
+        )
+        
+        success_stats = success_rate.fetchone()
+        success_rate_pct = 0
+        if success_stats[0] > 0:
+            success_rate_pct = round((success_stats[1] / success_stats[0]) * 100, 1)
+        
+        return {
+            "search_volume": {
+                "today": today_count,
+                "week": week_count,
+                "month": month_count
+            },
+            "performance": {
+                "avg_response_time_ms": round(avg_time, 1),
+                "success_rate_pct": success_rate_pct
+            },
+            "search_types": type_distribution,
+            "popular_queries": popular_queries_data,
+            "daily_performance": daily_performance
+        }
+        
+    except Exception as e:
+        # Return mock data if database error
+        import logging
+        logging.error(f"Search analytics error: {e}")
+        return {
+            "search_volume": {
+                "today": 0,
+                "week": 0,
+                "month": 0
+            },
+            "performance": {
+                "avg_response_time_ms": 0,
+                "success_rate_pct": 0
+            },
+            "search_types": [],
+            "popular_queries": [],
+            "daily_performance": []
+        }
+
+@router.get("/search/realtime")
+async def get_realtime_search_metrics(db: Session = Depends(get_db)):
+    """Get real-time search metrics for dashboard"""
+    
+    try:
+        now = datetime.utcnow()
+        
+        # Last hour metrics
+        hour_ago = now - timedelta(hours=1)
+        recent_searches = db.execute(
+            text("""
+                SELECT COUNT(*) as searches, AVG(execution_time_ms) as avg_time
+                FROM search_history 
+                WHERE created_at >= :hour_ago
+            """),
+            {"hour_ago": hour_ago}
+        )
+        
+        recent_stats = recent_searches.fetchone()
+        
+        # Active search patterns (last 5 minutes)
+        active_searches = db.execute(
+            text("""
+                SELECT query, execution_time_ms, results_count, created_at
+                FROM search_history 
+                WHERE created_at >= :five_min_ago
+                ORDER BY created_at DESC
+                LIMIT 5
+            """),
+            {"five_min_ago": now - timedelta(minutes=5)}
+        )
+        
+        recent_queries = [
+            {
+                "query": row[0][:40] + ("..." if len(row[0]) > 40 else ""),
+                "response_time": round(row[1], 1) if row[1] else 0,
+                "results": row[2] or 0,
+                "timestamp": row[3].isoformat() if row[3] else None
+            }
+            for row in active_searches.fetchall()
+        ]
+        
+        return {
+            "hourly_searches": recent_stats[0] or 0,
+            "avg_response_time": round(recent_stats[1], 1) if recent_stats[1] else 0,
+            "recent_queries": recent_queries
+        }
+        
+    except Exception as e:
+        # Return mock data if database error
+        import logging
+        logging.error(f"Realtime search metrics error: {e}")
+        return {
+            "hourly_searches": 0,
+            "avg_response_time": 0,
+            "recent_queries": []
+        }

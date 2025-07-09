@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  api:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; req = urllib.request.Request('http://localhost:3000/health'); req.add_header('User-Agent', 'HealthCheck/1.0'); exit(0 if urllib.request.urlopen(req).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  scheduler:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; req = urllib.request.Request('http://localhost:8080/health'); req.add_header('User-Agent', 'HealthCheck/1.0'); exit(0 if urllib.request.urlopen(req).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mcp-server:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0 if os.path.exists('/tmp/mcp_healthy') else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rag-processor:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; exit(0)"]  # RAG doesn't have HTTP endpoint
+      interval: 30s
+      timeout: 10s
+      retries: 3

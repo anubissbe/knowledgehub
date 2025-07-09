@@ -354,6 +354,29 @@ class JobService:
             job.error = "Job cancelled by user"
         
         self.db.commit()
+        self.db.refresh(job)
+        
+        # Send WebSocket notification for job cancellation
+        try:
+            from ..routers.websocket import broadcast_to_all
+            
+            # Send job cancelled notification
+            asyncio.create_task(broadcast_to_all({
+                "type": "job_cancelled",
+                "job_id": str(job_id),
+                "status": "cancelled",
+                "source_id": str(job.source_id) if job.source_id else None
+            }))
+            
+            # Also send stats update notification
+            asyncio.create_task(broadcast_to_all({
+                "type": "stats_updated",
+                "source_id": str(job.source_id) if job.source_id else None
+            }))
+            
+            logger.info(f"Sent WebSocket notification for cancelled job {job_id}")
+        except Exception as e:
+            logger.error(f"Failed to send WebSocket notification: {e}")
         
         # Remove from Redis queue if was pending
         if original_status == JobStatus.PENDING:

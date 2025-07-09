@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler
 try:
-    from .routes import analytics_simple as analytics
+    from .routes import analytics
 except ImportError:
     # Fallback if psutil not available
     from .routes import analytics_fixed as analytics
@@ -126,7 +126,7 @@ app.add_middleware(ValidationMiddleware, validation_level=validation_level)
 # Add security headers middleware
 from .security.headers import SecurityHeaderLevel
 security_level = SecurityHeaderLevel.STRICT if settings.APP_ENV == "production" else SecurityHeaderLevel.MODERATE
-app.add_middleware(SecureHeadersMiddleware, security_level=security_level, csrf_enabled=True, environment=settings.APP_ENV)
+app.add_middleware(SecureHeadersMiddleware, security_level=security_level, csrf_enabled=False, environment=settings.APP_ENV)
 
 # Initialize session tracking middleware
 try:

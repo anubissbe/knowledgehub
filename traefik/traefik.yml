@@ -51,6 +51,10 @@ api:
   dashboard: true
   insecure: true  # Enable insecure API access for debugging
 
+# Ping endpoint for health checks
+ping:
+  entryPoint: traefik
+
 # Metrics
 metrics:
   prometheus:

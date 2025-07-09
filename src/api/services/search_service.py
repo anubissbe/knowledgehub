@@ -42,11 +42,13 @@ import asyncio
 import time
 
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, or_, func
 
 from ..schemas.search import SearchQuery, SearchResult, SearchType
 from ..models.document import DocumentChunk, ChunkType
 from ..models.source import KnowledgeSource as Source
+from ..models.search import SearchHistory
 
 
 class SearchService:
@@ -91,7 +93,7 @@ class SearchService:
         """
         pass
     
-    async def search(self, db: Session, query: SearchQuery) -> Dict[str, Any]:
+    async def search(self, db: AsyncSession, query: SearchQuery) -> Dict[str, Any]:
         """Perform comprehensive search across the knowledge base.
         
         This method orchestrates the complete search process including caching,
@@ -184,6 +186,9 @@ class SearchService:
         # Cache the result
         if redis_client.client:
             await redis_client.set(cache_key, response, expiry=300)  # 5 min cache
+        
+        # Record search analytics
+        await self._record_search_analytics(db, query, response)
         
         return response
     
@@ -543,3 +548,44 @@ class SearchService:
                 filters["chunk_type"] = query.filters["chunk_types"]
         
         return filters
+    
+    async def _record_search_analytics(self, db: AsyncSession, query: SearchQuery, response: Dict[str, Any]):
+        """Record search analytics for performance monitoring and insights.
+        
+        This method asynchronously records search query metadata to the search_history
+        table for analytics purposes. It tracks query patterns, performance metrics,
+        and usage statistics to help optimize the search experience.
+        
+        Args:
+            db (Session): Database session for recording analytics
+            query (SearchQuery): Original search query parameters
+            response (Dict[str, Any]): Search response with results and timing
+            
+        Tracked Metrics:
+            - Query text and search type
+            - Result count and execution time
+            - Applied filters and search patterns
+            - Timestamp for trend analysis
+            
+        Note:
+            This method is designed to be non-blocking and will not fail
+            search operations if analytics recording encounters errors.
+        """
+        try:
+            search_record = SearchHistory(
+                query=query.query,
+                results_count=response.get("total", 0),
+                search_type=query.search_type.value,
+                filters=query.filters or {},
+                execution_time_ms=response.get("search_time_ms", 0),
+                created_at=datetime.utcnow()
+            )
+            
+            db.add(search_record)
+            await db.commit()
+            
+        except Exception as e:
+            # Log error but don't fail the search
+            import logging
+            logging.warning(f"Failed to record search analytics: {e}")
+            await db.rollback()

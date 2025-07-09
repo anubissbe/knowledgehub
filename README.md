@@ -21,6 +21,17 @@
 
 ## 📢 Recent Updates
 
+### v1.3.0 - Search Analytics Dashboard (2025-07-09)
+- **📊 Search Analytics**: Comprehensive search performance tracking and visualization
+- **📈 Real-time Metrics**: Live search volume, response times, and success rates
+- **🔍 Query Analysis**: Popular queries tracking with frequency and result statistics
+- **📋 Search Types**: Distribution analysis of hybrid, vector, and keyword searches
+- **⏱️ Performance Charts**: 7-day historical performance trends with interactive charts
+- **🎯 Dashboard Integration**: New Analytics page in navigation with automatic refresh
+- **🗃️ Search History**: Automatic logging of all search queries for analysis
+
+See [Search Analytics Documentation](docs/SEARCH_ANALYTICS_IMPLEMENTATION.md) for implementation details.
+
 ### v1.1.0 - Real-time Dashboard Updates (2025-07-04)
 - **🔄 Live Stats Updates**: Dashboard statistics now update in real-time via WebSocket
 - **🚀 Auto-refresh**: Dashboard refreshes every 30 seconds automatically
@@ -103,6 +114,9 @@ KnowledgeHub is a modern, AI-powered knowledge management system that transforms
 - **Vector Embeddings**: sentence-transformers with 384-dimensional vectors
 - **Real-time Results**: Sub-second search performance with caching
 - **Context-Aware**: Maintains document structure and relationships
+- **📊 Search Analytics**: Comprehensive performance tracking and query analysis
+- **📈 Real-time Metrics**: Live search volume, response times, and success rates
+- **🔍 Usage Insights**: Popular queries and search pattern analysis
 
 #### 🏗️ **Production-Ready Architecture**
 - **Microservices Design**: 13+ containerized services working in concert

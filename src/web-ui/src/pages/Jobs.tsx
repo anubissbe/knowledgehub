@@ -12,6 +12,7 @@ import {
   IconButton,
   TablePagination,
   Tooltip,
+  CircularProgress,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -21,11 +22,14 @@ import {
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
+import { useWebSocket } from '@/contexts/WebSocketContext'
 
 function Jobs() {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [cancellingJobs, setCancellingJobs] = useState<Set<string>>(new Set())
   const queryClient = useQueryClient()
+  const { isConnected } = useWebSocket()
 
   const { data: jobsResponse, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['jobs', page, rowsPerPage],
@@ -48,12 +52,29 @@ function Jobs() {
   })
 
   const cancelMutation = useMutation({
-    mutationFn: api.cancelJob,
-    onSuccess: () => {
+    mutationFn: (jobId: string) => {
+      setCancellingJobs(prev => new Set(prev).add(jobId))
+      return api.cancelJob(jobId)
+    },
+    onSuccess: (_, jobId) => {
+      // Remove from cancelling set
+      setCancellingJobs(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(jobId)
+        return newSet
+      })
       // Invalidate multiple queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
       queryClient.invalidateQueries({ queryKey: ['sources'] })
+    },
+    onError: (_, jobId) => {
+      // Remove from cancelling set on error too
+      setCancellingJobs(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(jobId)
+        return newSet
+      })
     },
   })
 
@@ -102,6 +123,14 @@ function Jobs() {
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           Jobs
         </Typography>
+        {isConnected && (
+          <Chip 
+            label="Live" 
+            color="success" 
+            size="small" 
+            sx={{ mr: 2 }}
+          />
+        )}
         <Tooltip title="Refresh jobs">
           <IconButton 
             onClick={() => refetch()} 
@@ -136,9 +165,10 @@ function Jobs() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={job.status}
+                    label={cancellingJobs.has(job.id) ? 'cancelling...' : job.status}
                     size="small"
-                    color={getStatusColor(job.status)}
+                    color={cancellingJobs.has(job.id) ? 'warning' : getStatusColor(job.status)}
+                    icon={cancellingJobs.has(job.id) ? <CircularProgress size={16} /> : undefined}
                   />
                 </TableCell>
                 <TableCell>{formatDate(job.created_at)}</TableCell>
@@ -153,11 +183,11 @@ function Jobs() {
                       <RefreshIcon />
                     </IconButton>
                   )}
-                  {(job.status === 'pending' || job.status === 'running') && (
+                  {(job.status === 'pending' || job.status === 'running') && !cancellingJobs.has(job.id) && (
                     <IconButton
                       size="small"
                       onClick={() => cancelMutation.mutate(job.id)}
-                      disabled={cancelMutation.isPending}
+                      disabled={cancelMutation.isPending || cancellingJobs.has(job.id)}
                     >
                       <CancelIcon />
                     </IconButton>

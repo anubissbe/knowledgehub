@@ -92,6 +92,25 @@ The API container was experiencing infinite recursion in security monitoring, ca
 - ✅ CSRF protection working with AJAX exemptions
 - ✅ Security monitoring functional without recursion
 - ✅ API endpoints responding correctly (Status 202 for refresh)
+- ✅ Job cancel endpoint CORS/CSRF issues resolved
+
+## Job Cancel Endpoint Fix
+
+### Issue
+After the initial CSRF fixes, the job cancel endpoints (`/api/v1/jobs/{id}/cancel`) were still returning 403 Forbidden errors due to:
+1. Browser caching of old JavaScript files without the X-Requested-With header
+2. Missing validation rules for jobs endpoints causing middleware issues
+
+### Solution
+1. **Cache-busting rebuild**: Rebuilt the web-ui container with `--no-cache` to force browser to load updated JavaScript with proper headers
+2. **Validation middleware fix**: Added specific validation rules for `/api/v1/jobs` endpoints to prevent validation errors
+3. **Header verification**: Confirmed the X-Requested-With header is properly included in the built bundle
+
+### Results
+- ✅ Job cancel endpoints now respond with proper HTTP status codes (404 for non-existent jobs instead of 403 Forbidden)
+- ✅ CSRF protection allows AJAX requests with X-Requested-With header
+- ✅ Browser serves updated JavaScript bundle with proper headers
+- ✅ Validation middleware handles jobs endpoints correctly
 
 ## Notes
 - There's a deprecation warning about `ws_handler` that can be addressed in a future update

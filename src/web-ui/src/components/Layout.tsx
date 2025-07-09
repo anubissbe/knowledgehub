@@ -21,6 +21,7 @@ import {
   Search as SearchIcon,
   Work as WorkIcon,
   Memory as MemoryIcon,
+  Analytics as AnalyticsIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material'
 
@@ -32,6 +33,7 @@ const menuItems = [
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Memory', icon: <MemoryIcon />, path: '/memory' },
+  { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ]
 

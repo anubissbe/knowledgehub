@@ -171,7 +171,11 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
         
         # For POST/PUT requests, check body content
         if request.method in ["POST", "PUT", "PATCH"]:
-            if await self._check_request_body(request, source_ip, user_agent):
+            # Skip body checks for performance-critical endpoints in development
+            if self.environment == "development" and str(request.url.path).startswith('/api/v1/jobs/'):
+                # In development, skip expensive body checks for job endpoints
+                pass
+            elif await self._check_request_body(request, source_ip, user_agent):
                 return self._create_blocked_response("Malicious payload detected")
         
         return None
@@ -301,15 +305,47 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
     
     async def _check_request_body(self, request: Request, source_ip: str, user_agent: str) -> bool:
         """Check request body for malicious content"""
+        # Skip body checks for certain safe endpoints to improve performance
+        safe_endpoints = [
+            '/api/v1/jobs/',  # Job operations are internally validated
+            '/api/v1/sources/',  # Source operations have their own validation
+            '/api/v1/search',  # Search queries are sanitized separately
+            '/api/v1/memories/',  # Memory operations are validated
+            '/ws/',  # WebSocket connections
+            '/api/persistent-context/',  # Persistent context operations
+            '/api/memory/',  # Memory system operations
+        ]
+        
+        path = str(request.url.path)
+        if any(path.startswith(endpoint) for endpoint in safe_endpoints):
+            # Only check payload size for safe endpoints
+            content_length = request.headers.get('content-length')
+            if content_length and int(content_length) > 10 * 1024 * 1024:  # 10MB limit
+                await log_security_event(
+                    SecurityEventType.DOS_ATTEMPT,
+                    ThreatLevel.MEDIUM,
+                    source_ip,
+                    user_agent,
+                    path,
+                    request.method,
+                    f"Large payload detected: {content_length} bytes",
+                    blocked=True
+                )
+                return True
+            return False
+        
         try:
+            # For other endpoints, perform full security checks
             # Read body content
             body = await request.body()
             if not body:
                 return False
             
-            body_str = body.decode('utf-8', errors='ignore')
+            # Limit body size for pattern checking to prevent performance issues
+            max_check_size = 100 * 1024  # 100KB
+            body_str = body[:max_check_size].decode('utf-8', errors='ignore')
             
-            # Check for injection patterns in body
+            # Check for injection patterns in body (limited to first 100KB)
             for pattern in self.compiled_patterns:
                 if pattern.search(body_str):
                     await log_security_event(
@@ -317,7 +353,7 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
                         ThreatLevel.HIGH,
                         source_ip,
                         user_agent,
-                        str(request.url.path),
+                        path,
                         request.method,
                         f"Injection pattern in request body: {pattern.pattern}",
                         blocked=True
@@ -331,7 +367,7 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
                     ThreatLevel.MEDIUM,
                     source_ip,
                     user_agent,
-                    str(request.url.path),
+                    path,
                     request.method,
                     f"Large payload detected: {len(body)} bytes",
                     blocked=True
@@ -342,7 +378,7 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Error checking request body: {e}")
             # Don't block on parsing errors, but log for investigation
             await log_suspicious_request(
-                source_ip, user_agent, str(request.url.path),
+                source_ip, user_agent, path,
                 f"Request body parsing error: {str(e)}"
             )
         

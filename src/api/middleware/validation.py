@@ -117,6 +117,10 @@ class ValidationMiddleware(BaseHTTPMiddleware):
                 'password': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 255},
                 'email': {'content_type': ContentType.EMAIL, 'required': False},
                 'api_key': {'content_type': ContentType.API_KEY, 'required': False}
+            },
+            '/api/v1/jobs': {
+                # Jobs endpoints generally don't require body validation
+                # Cancel endpoint takes empty body, other endpoints are minimal
             }
         }
         

@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -16,8 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/rag_processor ./rag_processor
 COPY src/shared ./shared
 
+# Copy health check script
+COPY docker/rag_health_check.sh /tmp/health_check.sh
+RUN chmod +x /tmp/health_check.sh
+
 # Set Python path
 ENV PYTHONPATH=/app
 
 # Run the RAG processor
-CMD ["python", "-m", "rag_processor.worker"]
+CMD ["python", "-m", "rag_processor.main"]

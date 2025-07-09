@@ -13,14 +13,14 @@ services:
       - DB_PORT=5432
       - DB_NAME=knowledgehub
       - DB_USER=khuser
-      - DB_PASSWORD=khpassword
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - ./data/ai_models:/app/models
     restart: unless-stopped
     networks:
       - knowledgehub_default
     healthcheck:
-      test: ["CMD", "python3", "/tmp/health_check.py"]
+      test: ["CMD", "python", "-c", "import requests; exit(0 if requests.get('http://localhost:8000/health').status_code == 200 else 1)"]
       interval: 45s
       timeout: 15s
       retries: 5

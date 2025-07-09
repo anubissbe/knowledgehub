@@ -10,7 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 import os
 import json
 
-from .http_server import SchedulerHTTPServer
+from http_server import SchedulerHTTPServer
 
 # Configure logging
 logging.basicConfig(

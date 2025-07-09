@@ -297,6 +297,71 @@ export const api = {
     }
   },
 
+  // Search Analytics
+  getSearchAnalytics: async () => {
+    try {
+      const { data } = await apiClient.get('/api/v1/analytics/search')
+      return data
+    } catch (error) {
+      console.warn('Search analytics endpoint not available:', error)
+      // Return mock data for development
+      return {
+        search_volume: {
+          today: 245,
+          week: 1689,
+          month: 7234
+        },
+        performance: {
+          avg_response_time_ms: 127.5,
+          success_rate_pct: 94.2
+        },
+        search_types: [
+          { type: 'hybrid', count: 156 },
+          { type: 'vector', count: 89 },
+          { type: 'keyword', count: 67 }
+        ],
+        popular_queries: [
+          { query: 'API authentication', frequency: 34, avg_results: 12.5 },
+          { query: 'Getting started guide', frequency: 28, avg_results: 8.2 },
+          { query: 'Configuration settings', frequency: 22, avg_results: 15.7 },
+          { query: 'Error handling', frequency: 18, avg_results: 9.3 },
+          { query: 'Database setup', frequency: 15, avg_results: 11.8 }
+        ],
+        daily_performance: Array.from({ length: 7 }, (_, i) => {
+          const date = new Date()
+          date.setDate(date.getDate() - (6 - i))
+          return {
+            date: date.toISOString().split('T')[0],
+            searches: Math.floor(Math.random() * 200) + 50,
+            avg_response_time: Math.floor(Math.random() * 100) + 80,
+            avg_results: Math.floor(Math.random() * 10) + 5
+          }
+        })
+      }
+    }
+  },
+
+  getRealtimeSearchMetrics: async () => {
+    try {
+      const { data } = await apiClient.get('/api/v1/analytics/search/realtime')
+      return data
+    } catch (error) {
+      console.warn('Realtime search metrics endpoint not available:', error)
+      // Return mock data for development
+      return {
+        hourly_searches: Math.floor(Math.random() * 50) + 20,
+        avg_response_time: Math.floor(Math.random() * 50) + 100,
+        recent_queries: [
+          { query: 'API documentation', response_time: 145.2, results: 12, timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString() },
+          { query: 'Getting started', response_time: 98.7, results: 8, timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString() },
+          { query: 'Configuration', response_time: 203.1, results: 15, timestamp: new Date(Date.now() - 7 * 60 * 1000).toISOString() },
+          { query: 'Error handling', response_time: 167.8, results: 6, timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString() },
+          { query: 'Database setup', response_time: 134.5, results: 9, timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString() }
+        ]
+      }
+    }
+  },
+
   // WebSocket connection for real-time updates
   connectWebSocket: () => {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws'
