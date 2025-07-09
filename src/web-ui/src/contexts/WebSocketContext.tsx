@@ -39,6 +39,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
           // Handle different message types
           switch (data.type) {
+            case 'connected':
+              // WebSocket connection established - nothing special to do
+              console.log('WebSocket connection established with client ID:', data.client_id)
+              break
+
             case 'job_completed':
             case 'job_failed':
             case 'job_cancelled':
@@ -57,6 +62,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             case 'stats_updated':
               // Invalidate dashboard stats
               queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+              break
+
+            case 'pong':
+              // Response to ping - keepalive mechanism
               break
 
             default:
