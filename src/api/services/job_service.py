@@ -340,6 +340,41 @@ class JobService:
     
     async def cancel_job(self, job_id: UUID) -> bool:
         """Cancel a pending or running job"""
+        
+        # First check if this is an active job from Redis
+        try:
+            import redis.asyncio as redis
+            redis_client = redis.from_url(self.redis_url, decode_responses=True)
+            
+            # Check if there's an active job for this source
+            active_key = f"source:active:{job_id}"
+            
+            if await redis_client.exists(active_key):
+                # Delete the active job lock to cancel it
+                await redis_client.delete(active_key)
+                
+                # Send WebSocket notification for job cancellation
+                try:
+                    from ..routers.websocket import broadcast_to_all
+                    
+                    # Send job cancelled notification
+                    asyncio.create_task(broadcast_to_all({
+                        "type": "job_cancelled",
+                        "job_id": str(job_id),
+                        "status": "cancelled",
+                        "source_id": str(job_id)
+                    }))
+                except Exception as e:
+                    logger.warning(f"Failed to send WebSocket notification: {e}")
+                
+                await redis_client.close()
+                return True
+            
+            await redis_client.close()
+        except Exception as e:
+            logger.error(f"Error checking Redis for active job: {e}")
+        
+        # Fall back to database job lookup
         job = await self.get_job(self.db, job_id)
         if not job or job.status not in [JobStatus.PENDING, JobStatus.RUNNING]:
             return False
