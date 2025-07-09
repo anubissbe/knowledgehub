@@ -186,7 +186,11 @@ function Jobs() {
                   {(job.status === 'pending' || job.status === 'running') && !cancellingJobs.has(job.id) && (
                     <IconButton
                       size="small"
-                      onClick={() => cancelMutation.mutate(job.id)}
+                      onClick={() => {
+                        // Extract UUID from job ID (remove 'active-' prefix if present)
+                        const jobUuid = job.id.startsWith('active-') ? job.id.replace('active-', '') : job.id
+                        cancelMutation.mutate(jobUuid)
+                      }}
                       disabled={cancelMutation.isPending || cancellingJobs.has(job.id)}
                     >
                       <CancelIcon />
