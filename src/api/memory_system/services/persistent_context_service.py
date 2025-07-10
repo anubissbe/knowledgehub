@@ -21,7 +21,7 @@ from ..core.persistent_context import (
 )
 from ..core.session_manager import SessionManager
 from ..models import Memory, MemorySession, MemoryType
-from .embedding_service import EmbeddingService
+from .embedding_service import MemoryEmbeddingService
 from .fact_extraction import FactExtractionService
 from .entity_extraction import EntityExtractionService
 from .importance_scoring import ImportanceScoringService
@@ -42,7 +42,7 @@ class PersistentContextService:
         self.db = db
         self.context_manager = get_persistent_context_manager(db)
         self.session_manager = SessionManager(db)
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = MemoryEmbeddingService()
         self.fact_extraction = FactExtractionService()
         self.entity_extraction = EntityExtractionService()
         self.importance_scoring = ImportanceScoringService()

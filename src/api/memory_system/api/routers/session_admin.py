@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ....dependencies import get_db
+from ....models import get_db
 from ...services.session_cleanup import session_cleanup_service
 
 logger = logging.getLogger(__name__)

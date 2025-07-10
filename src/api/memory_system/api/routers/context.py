@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from ....dependencies import get_db
+from ....models import get_db
 from ..context_schemas import (
     ContextRequest, ContextResponse, ContextStats, ContextUpdateRequest,
     ContextTypeEnum

@@ -22,7 +22,7 @@ from sqlalchemy import and_, or_, desc, func, text
 from sqlalchemy.dialects.postgresql import insert
 
 from ..models import Memory, MemorySession, MemoryType
-from ..services.embedding_service import EmbeddingService
+from ..services.embedding_service import MemoryEmbeddingService
 from ...services.cache import redis_client
 from ...services.vector_store import vector_store
 
@@ -98,7 +98,7 @@ class PersistentContextManager:
     
     def __init__(self, db: Session):
         self.db = db
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = MemoryEmbeddingService()
         self.context_graph = ContextGraph(
             nodes={},
             edges={},
@@ -153,9 +153,19 @@ class PersistentContextManager:
             for memory in memories:
                 try:
                     # Generate embedding for memory content
-                    embedding = await self.embedding_service.generate_embedding(
-                        memory.content + " " + (memory.summary or "")
-                    )
+                    embedding = None
+                    if self.embedding_service.embeddings_client:
+                        try:
+                            embedding = await self.embedding_service.generate_embedding(
+                                memory.content + " " + (memory.summary or "")
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to generate embedding: {e}")
+                    
+                    if not embedding:
+                        embedding = self._create_pseudo_embedding(
+                            memory.content + " " + (memory.summary or "")
+                        )
                     
                     # Create context vector
                     vector = ContextVector(
@@ -338,14 +348,50 @@ class PersistentContextManager:
         }
         return mapping.get(memory_type, ContextType.CONVERSATION_FLOW)
     
+    def _create_pseudo_embedding(self, content: str, dim: int = 384) -> List[float]:
+        """Create a pseudo-embedding based on text features when real embeddings unavailable"""
+        import hashlib
+        
+        # Create a deterministic hash-based embedding
+        hash_obj = hashlib.sha256(content.encode())
+        hash_hex = hash_obj.hexdigest()
+        
+        # Convert hash to floats in range [-1, 1]
+        embedding = []
+        for i in range(0, dim * 2, 2):
+            # Use pairs of hex digits to create values
+            if i < len(hash_hex):
+                val = int(hash_hex[i:i+2], 16) / 127.5 - 1.0
+            else:
+                # Pad with deterministic values based on content length
+                val = (len(content) % 256) / 127.5 - 1.0
+            embedding.append(val)
+        
+        # Normalize the embedding
+        norm = sum(x*x for x in embedding) ** 0.5
+        if norm > 0:
+            embedding = [x / norm for x in embedding]
+        
+        return embedding[:dim]
+    
     async def add_context(self, content: str, context_type: ContextType, 
                          scope: ContextScope, importance: float = 0.5,
                          related_entities: List[str] = None,
                          metadata: Dict[str, Any] = None) -> UUID:
         """Add new context to the persistent system"""
         try:
-            # Generate embedding
-            embedding = await self.embedding_service.generate_embedding(content)
+            # Generate embedding (use empty embedding if service unavailable)
+            embedding = None
+            if self.embedding_service.embeddings_client:
+                try:
+                    embedding = await self.embedding_service.generate_embedding(content)
+                except Exception as e:
+                    logger.warning(f"Failed to generate embedding for context: {e}")
+            
+            # Use a placeholder embedding if none available
+            if not embedding:
+                # Create a simple hash-based pseudo-embedding for basic functionality
+                embedding = self._create_pseudo_embedding(content)
             
             # Create context vector
             vector = ContextVector(
@@ -453,8 +499,17 @@ class PersistentContextManager:
                              limit: int = 10) -> List[ContextVector]:
         """Retrieve relevant context for a query"""
         try:
-            # Generate query embedding
-            query_embedding = await self.embedding_service.generate_embedding(query)
+            # Generate query embedding (with fallback)
+            query_embedding = None
+            if self.embedding_service.embeddings_client:
+                try:
+                    query_embedding = await self.embedding_service.generate_embedding(query)
+                except Exception as e:
+                    logger.warning(f"Failed to generate query embedding: {e}")
+            
+            if not query_embedding:
+                # Use pseudo-embedding as fallback
+                query_embedding = self._create_pseudo_embedding(query)
             
             # Find similar vectors
             candidates = []
@@ -467,6 +522,16 @@ class PersistentContextManager:
                 
                 # Calculate similarity
                 similarity = self._calculate_similarity(query_embedding, vector.embedding)
+                
+                # For text-based fallback, also calculate text similarity
+                if not self.embedding_service.embeddings_client:
+                    # Simple text similarity based on common words
+                    query_words = set(query.lower().split())
+                    content_words = set(vector.content.lower().split())
+                    if query_words and content_words:
+                        text_similarity = len(query_words & content_words) / len(query_words | content_words)
+                        # Blend embedding similarity with text similarity
+                        similarity = (similarity * 0.3) + (text_similarity * 0.7)
                 
                 # Boost by importance and access count
                 boosted_score = similarity * (1 + vector.importance) * (1 + vector.access_count * 0.1)

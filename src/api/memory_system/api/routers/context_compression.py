@@ -12,7 +12,7 @@ from ...core.context_compression import (
     CompressionLevel,
     CompressedContext
 )
-from ....database import get_db
+from ....models import get_db
 import logging
 
 logger = logging.getLogger(__name__)

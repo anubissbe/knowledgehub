@@ -7,10 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from ....dependencies import get_db
+from ....models import get_db
 from ...services.embedding_service import memory_embedding_service
 from ..schemas import MemoryResponse
 from .memory import memory_to_response
+from ...models import Memory, MemorySession
+from sqlalchemy import or_, and_, desc, func
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -39,6 +41,80 @@ class VectorSearchResponse(BaseModel):
     total: int
 
 
+async def _fallback_text_search(
+    search_request: VectorSearchRequest,
+    db: Session
+) -> VectorSearchResponse:
+    """Fallback text-based search when embeddings are not available"""
+    query = db.query(Memory)
+    
+    # Apply filters
+    if search_request.session_id:
+        query = query.filter(Memory.session_id == search_request.session_id)
+    
+    if search_request.user_id:
+        query = query.join(MemorySession).filter(MemorySession.user_id == search_request.user_id)
+    
+    if search_request.memory_types:
+        query = query.filter(Memory.memory_type.in_(search_request.memory_types))
+    
+    # Text search using PostgreSQL ILIKE
+    search_term = f"%{search_request.query}%"
+    query = query.filter(
+        or_(
+            Memory.content.ilike(search_term),
+            Memory.summary.ilike(search_term),
+            func.array_to_string(Memory.entities, ' ').ilike(search_term)
+        )
+    )
+    
+    # Order by importance and recency
+    query = query.order_by(
+        desc(Memory.importance),
+        desc(Memory.created_at)
+    )
+    
+    # Apply limit
+    memories = query.limit(search_request.limit).all()
+    
+    # Calculate simple text similarity scores
+    results = []
+    for memory in memories:
+        # Simple scoring based on occurrence count
+        content_lower = (memory.content or "").lower()
+        summary_lower = (memory.summary or "").lower()
+        entities_text = " ".join(memory.entities or []).lower()
+        query_lower = search_request.query.lower()
+        
+        # Count occurrences
+        score = 0.0
+        score += content_lower.count(query_lower) * 0.3
+        score += summary_lower.count(query_lower) * 0.2
+        score += entities_text.count(query_lower) * 0.1
+        
+        # Boost by importance
+        score += float(memory.importance or 0.5) * 0.4
+        
+        # Normalize to 0-1 range
+        score = min(1.0, score)
+        
+        # Apply minimum similarity filter
+        if score >= search_request.min_similarity:
+            results.append(VectorSearchResult(
+                memory=memory_to_response(memory),
+                similarity=score
+            ))
+    
+    # Sort by similarity score
+    results.sort(key=lambda x: x.similarity, reverse=True)
+    
+    return VectorSearchResponse(
+        results=results[:search_request.limit],
+        query=search_request.query,
+        total=len(results)
+    )
+
+
 @router.post("/search", response_model=VectorSearchResponse)
 async def vector_search_memories(
     search_request: VectorSearchRequest,
@@ -46,18 +122,24 @@ async def vector_search_memories(
 ):
     """Search memories using vector similarity"""
     try:
+        # Check if embeddings service is available
+        if not hasattr(memory_embedding_service, 'embeddings_client') or memory_embedding_service.embeddings_client is None:
+            # Fallback to text-based search
+            logger.warning("Embeddings service not available, falling back to text search")
+            return await _fallback_text_search(search_request, db)
+        
         # Generate embedding for the query
-        embeddings_client = memory_embedding_service.embeddings_client
-        query_embedding = await embeddings_client.generate_embedding(
-            search_request.query,
-            normalize=True
-        )
+        try:
+            query_embedding = await memory_embedding_service.embeddings_client.generate_embedding(
+                search_request.query,
+                normalize=True
+            )
+        except Exception as e:
+            logger.warning(f"Failed to generate embedding: {e}, falling back to text search")
+            return await _fallback_text_search(search_request, db)
         
         if not query_embedding:
-            raise HTTPException(
-                status_code=500, 
-                detail="Failed to generate query embedding"
-            )
+            return await _fallback_text_search(search_request, db)
         
         # Perform vector similarity search
         similar_memories = await memory_embedding_service.find_similar_memories(
@@ -95,7 +177,8 @@ async def vector_search_memories(
         raise
     except Exception as e:
         logger.error(f"Vector search failed: {e}")
-        raise HTTPException(status_code=500, detail="Vector search failed")
+        # Fallback to text search
+        return await _fallback_text_search(search_request, db)
 
 
 @router.post("/similar/{memory_id}", response_model=VectorSearchResponse)

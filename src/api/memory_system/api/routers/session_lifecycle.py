@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from ....dependencies import get_db
+from ....models import get_db
 from ...core.session_manager import SessionManager
 from ...core.session_lifecycle import SessionLifecycleManager
 from ..schemas import SessionResponse

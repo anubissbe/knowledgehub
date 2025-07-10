@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
-from ....dependencies import get_db
+from ....models import get_db
 from ...models import Memory, MemoryType
 from ..schemas import (
     MemoryCreate, MemoryUpdate, MemoryResponse,
@@ -156,6 +156,17 @@ async def update_memory(
         logger.error(f"Failed to update memory: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update memory")
+
+
+@router.put("/{memory_id}", response_model=MemoryResponse)
+async def update_memory_put(
+    memory_id: UUID,
+    update_data: MemoryUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update a memory (PUT method - same as PATCH for backward compatibility)"""
+    # Delegate to the PATCH handler for consistency
+    return await update_memory(memory_id, update_data, db)
 
 
 @router.delete("/{memory_id}")

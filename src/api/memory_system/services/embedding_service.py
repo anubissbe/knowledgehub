@@ -16,7 +16,23 @@ class MemoryEmbeddingService:
     """Service for generating and managing memory embeddings"""
     
     def __init__(self):
-        self.embeddings_client = get_embeddings_client()
+        try:
+            self.embeddings_client = get_embeddings_client()
+        except Exception as e:
+            logger.warning(f"Failed to initialize embeddings client: {e}")
+            self.embeddings_client = None
+    
+    async def generate_embedding(self, text: str, normalize: bool = True) -> Optional[List[float]]:
+        """Generate embedding for text with fallback support"""
+        if not self.embeddings_client:
+            logger.warning("Embeddings client not available, using fallback")
+            return None
+        
+        try:
+            return await self.embeddings_client.generate_embedding(text, normalize=normalize)
+        except Exception as e:
+            logger.error(f"Failed to generate embedding: {e}")
+            return None
     
     async def generate_memory_embedding(self, memory: Memory) -> Optional[List[float]]:
         """Generate embedding for a memory"""
