@@ -118,6 +118,11 @@ export const api = {
     return data
   },
 
+  updateSourceSchedule: async (id: string, refreshInterval: number) => {
+    const { data } = await apiClient.patch<Source>(`/api/v1/sources/${id}`, { refresh_interval: refreshInterval })
+    return data
+  },
+
   deleteSource: async (id: string) => {
     await apiClient.delete(`/api/v1/sources/${id}`)
   },
@@ -360,6 +365,65 @@ export const api = {
         ]
       }
     }
+  },
+
+  // Scheduler endpoints
+  getSchedulerConfig: async () => {
+    try {
+      const { data } = await apiClient.get('/api/v1/scheduler/config')
+      return data
+    } catch (error) {
+      console.warn('Scheduler config endpoint not available:', error)
+      return {
+        enabled: true,
+        default_interval: 86400,
+        check_interval: 3600,
+      }
+    }
+  },
+
+  updateSchedulerConfig: async (config: { enabled: boolean; default_interval: number; check_interval: number }) => {
+    const { data } = await apiClient.post('/api/v1/scheduler/config', config)
+    return data
+  },
+
+  getSchedulerStatus: async () => {
+    try {
+      const { data } = await apiClient.get('/api/v1/scheduler/status')
+      return data
+    } catch (error) {
+      console.warn('Scheduler status endpoint not available:', error)
+      return {
+        enabled: true,
+        last_check: new Date().toISOString(),
+        next_check: new Date(Date.now() + 3600000).toISOString(),
+        sources_due: 0,
+        total_sources: 0,
+      }
+    }
+  },
+
+  runScheduler: async () => {
+    const { data } = await apiClient.post('/api/v1/scheduler/run')
+    return data
+  },
+
+  getSourcesDue: async () => {
+    try {
+      const { data } = await apiClient.get('/api/v1/scheduler/sources/due')
+      return data
+    } catch (error) {
+      console.warn('Sources due endpoint not available:', error)
+      return {
+        sources: [],
+        total: 0,
+      }
+    }
+  },
+
+  refreshSourceNow: async (sourceId: string) => {
+    const { data } = await apiClient.post(`/api/v1/scheduler/sources/${sourceId}/refresh`)
+    return data
   },
 
   // WebSocket connection for real-time updates

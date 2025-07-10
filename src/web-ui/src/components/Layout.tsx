@@ -23,6 +23,8 @@ import {
   Memory as MemoryIcon,
   Analytics as AnalyticsIcon,
   Settings as SettingsIcon,
+  AdminPanelSettings as AdminIcon,
+  AccountTree as WorkflowIcon,
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -33,8 +35,10 @@ const menuItems = [
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Memory', icon: <MemoryIcon />, path: '/memory' },
+  { text: 'Workflow', icon: <WorkflowIcon />, path: '/workflow' },
   { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  { text: 'Admin', icon: <AdminIcon />, path: '/admin' },
 ]
 
 export default function Layout() {

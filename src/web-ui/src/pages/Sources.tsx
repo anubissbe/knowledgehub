@@ -22,11 +22,13 @@ import {
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
+  FileUpload as ExportIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { api } from '@/services/api'
 import { Source, SourceCreate } from '@/types'
+import ExportManager from '@/components/ExportManager'
 
 function Sources() {
   const [openDialog, setOpenDialog] = useState(false)
@@ -126,13 +128,16 @@ function Sources() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">Knowledge Sources</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpenDialog(true)}
-        >
-          Add Source
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <ExportManager />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenDialog(true)}
+          >
+            Add Source
+          </Button>
+        </Box>
       </Box>
 
       <Grid container spacing={3}>

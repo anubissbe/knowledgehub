@@ -15,12 +15,12 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3000',
+        target: 'http://192.168.1.25:3000',
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:3000',
+        target: 'ws://192.168.1.25:3000',
         ws: true,
         changeOrigin: true,
       },

@@ -8,6 +8,8 @@ import Jobs from '@/pages/Jobs'
 import Memory from '@/pages/Memory'
 import Settings from '@/pages/Settings'
 import Analytics from '@/pages/Analytics'
+import AdminDashboard from '@/pages/AdminDashboard'
+import Workflow from '@/pages/Workflow'
 
 function App() {
   return (
@@ -21,7 +23,9 @@ function App() {
           <Route path="jobs" element={<Jobs />} />
           <Route path="memory" element={<Memory />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="workflow" element={<Workflow />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="admin" element={<AdminDashboard />} />
         </Route>
       </Routes>
     </Box>
