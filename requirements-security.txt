@@ -13,7 +13,7 @@ pip-licenses==4.3.4    # Check licenses of installed packages
 # Code quality and security
 pylint==3.0.3          # Python code analysis
 mypy==1.8.0            # Static type checker
-black==23.12.1         # Code formatter (security through consistency)
+black==24.3.0         # Code formatter (security through consistency)
 flake8==7.0.0          # Style guide enforcement
 
 # Vulnerability database tools
