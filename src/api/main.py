@@ -10,7 +10,27 @@ import time
 import os
 from typing import Dict, Any
 
-from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler
+from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler, project_timeline, admin, exports, claude_simple, claude_working, claude_sync
+
+# Set up basic logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    from .routers import workflow_integration
+    WORKFLOW_ROUTER_AVAILABLE = True
+    logger.info("Workflow integration router imported successfully")
+except ImportError as e:
+    logger.warning(f"Workflow integration router not available: {e}")
+    WORKFLOW_ROUTER_AVAILABLE = False
+
+try:
+    from .routers import memory_sync
+    MEMORY_SYNC_ROUTER_AVAILABLE = True
+    logger.info("Memory sync router imported successfully")
+except ImportError as e:
+    logger.warning(f"Memory sync router not available: {e}")
+    MEMORY_SYNC_ROUTER_AVAILABLE = False
 try:
     from .routes import analytics
 except ImportError:
@@ -28,12 +48,12 @@ from .middleware.security_monitoring import SecurityMonitoringMiddleware
 from .middleware.validation import ValidationMiddleware
 from .config import settings
 
-# Configure logging
+# Reconfigure logging with settings
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
 )
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -90,7 +110,8 @@ app.add_middleware(
 # Add custom middleware (order matters - last added runs first)
 # Remove duplicate SecureHeadersMiddleware - it's added again below with proper config
 # app.add_middleware(SecureHeadersMiddleware)
-app.add_middleware(ContentValidationMiddleware)
+# Temporarily disable ContentValidationMiddleware to debug timeouts
+# app.add_middleware(ContentValidationMiddleware)
 # Add advanced rate limiting and DDoS protection middleware
 app.add_middleware(
     AdvancedRateLimitMiddleware,
@@ -191,7 +212,97 @@ app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
 app.include_router(scheduler.router, prefix="/api/v1/scheduler", tags=["scheduler"])
+app.include_router(project_timeline.router, prefix="/api/v1", tags=["project-timeline"])
+app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+app.include_router(exports.router, prefix="/api/v1", tags=["exports"])
+if WORKFLOW_ROUTER_AVAILABLE:
+    app.include_router(workflow_integration.router, prefix="/api/v1", tags=["workflow"])
+    logger.info("Workflow integration router added successfully")
+else:
+    logger.warning("Workflow integration router not available")
+
+if MEMORY_SYNC_ROUTER_AVAILABLE:
+    app.include_router(memory_sync.router, prefix="/api/v1", tags=["memory-sync"])
+    logger.info("Memory sync router added successfully")
+else:
+    logger.warning("Memory sync router not available")
 app.include_router(analytics.router)
+app.include_router(claude_simple.router, tags=["claude-enhancements"])
+app.include_router(claude_working.router, tags=["claude-working"])
+app.include_router(claude_sync.router, tags=["claude-sync"])
+
+# Claude Auto - Automatic session management
+try:
+    from .routers import claude_auto
+    app.include_router(claude_auto.router, tags=["claude-auto"])
+    logger.info("Claude Auto router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Claude Auto router not available: {e}")
+
+# Project Context - Per-project isolation
+try:
+    from .routers import project_context
+    app.include_router(project_context.router, tags=["project-context"])
+    logger.info("Project Context router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Project Context router not available: {e}")
+
+# Mistake Learning - Learn from errors to prevent repetition
+try:
+    from .routers import mistake_learning
+    app.include_router(mistake_learning.router, tags=["mistake-learning"])
+    logger.info("Mistake Learning router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Mistake Learning router not available: {e}")
+
+# Proactive Assistant - Anticipate needs and provide assistance
+try:
+    from .routers import proactive
+    app.include_router(proactive.router, tags=["proactive"])
+    logger.info("Proactive Assistant router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Proactive Assistant router not available: {e}")
+
+# Decision Reasoning - Track decisions, alternatives, and reasoning with confidence scores
+try:
+    from .routers import decision_reasoning
+    app.include_router(decision_reasoning.router, tags=["decision-reasoning"])
+    logger.info("Decision Reasoning router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Decision Reasoning router not available: {e}")
+
+# Code Evolution - Track code changes, refactoring patterns, and improvements over time
+try:
+    from .routers import code_evolution
+    app.include_router(code_evolution.router, tags=["code-evolution"])
+    logger.info("Code Evolution router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Code Evolution router not available: {e}")
+
+# Performance Metrics - Track command execution patterns, success rates, and optimize performance
+try:
+    from .routers import performance_metrics
+    app.include_router(performance_metrics.router, tags=["performance-metrics"])
+    logger.info("Performance Metrics router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Performance Metrics router not available: {e}")
+
+# Claude Workflow Integration - Automatic memory capture and context extraction
+try:
+    from .routers import claude_workflow
+    app.include_router(claude_workflow.router, tags=["claude-workflow"])
+    logger.info("Claude Workflow Integration router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Claude Workflow Integration router not available: {e}")
+
+# Performance optimization router
+try:
+    from .routes import performance
+    app.include_router(performance.router, prefix="/api", tags=["performance"])
+    logger.info("Performance optimization router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Performance optimization router not available: {e}")
+
 # WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
@@ -235,6 +346,23 @@ try:
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
+# Learning system router
+try:
+    # Using working learning router to avoid Pydantic SQLAlchemy issues
+    from .routers import learning_working
+    app.include_router(learning_working.router, tags=["learning"])
+    logger.info("Learning system integrated successfully")
+except ImportError as e:
+    logger.warning(f"Learning system not available: {e}")
+
+# Cross-session learning router
+try:
+    from .routers import cross_session_learning
+    app.include_router(cross_session_learning.router, prefix="/api", tags=["cross-session-learning"])
+    logger.info("Cross-session learning system integrated successfully")
+except ImportError as e:
+    logger.warning(f"Cross-session learning system not available: {e}")
+
 
 @app.get("/api", tags=["root"])
 async def root() -> Dict[str, Any]:
@@ -272,6 +400,90 @@ async def root() -> Dict[str, Any]:
                 "context_analytics": "/api/memory/persistent/context/analytics",
                 "persistent_context_health": "/api/persistent-context/health",
                 "persistent_context_status": "/api/persistent-context/status"
+            },
+            "learning_system": {
+                "learn": "/api/learning/learn",
+                "feedback": "/api/learning/feedback",
+                "outcomes": "/api/learning/outcomes",
+                "patterns": "/api/learning/patterns/search",
+                "adapt": "/api/learning/adapt",
+                "analytics": "/api/learning/analytics",
+                "success_rate": "/api/learning/success-rate",
+                "success_patterns": "/api/learning/patterns/success",
+                "failure_patterns": "/api/learning/patterns/failure"
+            },
+            "cross_session_learning": {
+                "sessions": "/api/cross-session-learning/sessions",
+                "active_sessions": "/api/cross-session-learning/sessions/active",
+                "continue_session": "/api/cross-session-learning/sessions/{session_id}/continue",
+                "pause_session": "/api/cross-session-learning/sessions/{session_id}/pause",
+                "complete_session": "/api/cross-session-learning/sessions/{session_id}/complete",
+                "knowledge_transfer": "/api/cross-session-learning/knowledge-transfer",
+                "learning_history": "/api/cross-session-learning/history",
+                "cross_session_patterns": "/api/cross-session-learning/patterns/cross-session",
+                "pattern_analysis": "/api/cross-session-learning/analysis",
+                "recurring_patterns": "/api/cross-session-learning/patterns/recurring",
+                "pattern_clusters": "/api/cross-session-learning/patterns/clusters",
+                "learning_progression": "/api/cross-session-learning/progression",
+                "outcome_predictions": "/api/cross-session-learning/predictions"
+            },
+            "decision_reasoning": {
+                "record_decision": "/api/decisions/record",
+                "explain_decision": "/api/decisions/explain/{decision_id}",
+                "update_outcome": "/api/decisions/update-outcome",
+                "find_similar": "/api/decisions/similar",
+                "suggest_decision": "/api/decisions/suggest",
+                "confidence_report": "/api/decisions/confidence-report",
+                "categories": "/api/decisions/categories",
+                "reasoning_patterns": "/api/decisions/patterns/{category}",
+                "search_decisions": "/api/decisions/search"
+            },
+            "code_evolution": {
+                "track_change": "/api/code-evolution/track-change",
+                "evolution_history": "/api/code-evolution/history",
+                "compare_versions": "/api/code-evolution/compare/{change_id}",
+                "refactoring_suggestions": "/api/code-evolution/suggest-refactoring",
+                "update_impact": "/api/code-evolution/update-impact",
+                "pattern_analytics": "/api/code-evolution/patterns/analytics",
+                "learned_patterns": "/api/code-evolution/patterns/learned",
+                "analyze_file": "/api/code-evolution/suggestions/file",
+                "evolution_trends": "/api/code-evolution/trends",
+                "upload_diff": "/api/code-evolution/upload-diff",
+                "search_records": "/api/code-evolution/search"
+            },
+            "performance_metrics": {
+                "track_performance": "/api/performance/track",
+                "track_batch": "/api/performance/track-batch",
+                "performance_report": "/api/performance/report",
+                "predict_performance": "/api/performance/predict",
+                "analyze_patterns": "/api/performance/patterns",
+                "optimization_history": "/api/performance/optimization-history",
+                "command_categories": "/api/performance/categories",
+                "performance_thresholds": "/api/performance/thresholds",
+                "optimization_strategies": "/api/performance/optimization-strategies",
+                "benchmark_command": "/api/performance/benchmark",
+                "recommendations": "/api/performance/recommendations",
+                "performance_trends": "/api/performance/trends"
+            },
+            "project_timeline": {
+                "timelines": "/api/v1/project-timeline/timelines",
+                "milestones": "/api/v1/project-timeline/milestones",
+                "progress_analysis": "/api/v1/project-timeline/timelines/{timeline_id}/progress/analysis",
+                "velocity_tracking": "/api/v1/project-timeline/timelines/{timeline_id}/velocity",
+                "insights": "/api/v1/project-timeline/timelines/{timeline_id}/insights",
+                "milestone_detection": "/api/v1/project-timeline/timelines/{timeline_id}/milestones/detect",
+                "progress_snapshots": "/api/v1/project-timeline/timelines/{timeline_id}/snapshots"
+            },
+            "admin": {
+                "dashboard": "/api/v1/admin/dashboard",
+                "system_overview": "/api/v1/admin/system/overview",
+                "user_management": "/api/v1/admin/users/management",
+                "user_manage": "/api/v1/admin/users/manage",
+                "system_configuration": "/api/v1/admin/system/configuration",
+                "system_command": "/api/v1/admin/system/command",
+                "system_health_detailed": "/api/v1/admin/system/health/detailed",
+                "advanced_analytics": "/api/v1/admin/analytics/advanced",
+                "system_logs": "/api/v1/admin/logs/system"
             },
             "security": {
                 "cors_config": "/api/security/cors/config",

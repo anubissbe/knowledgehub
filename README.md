@@ -1,8 +1,8 @@
-# KnowledgeHub
+# KnowledgeHub - AI Intelligence Amplifier for Claude Code
 
 <div align="center">
 
-![KnowledgeHub Logo](https://img.shields.io/badge/KnowledgeHub-AI%20Knowledge%20Management-blue?style=for-the-badge)
+![KnowledgeHub Logo](https://img.shields.io/badge/KnowledgeHub-AI%20Intelligence%20Amplifier-blue?style=for-the-badge)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -11,15 +11,101 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
 
-**An intelligent, production-ready knowledge management system powered by AI**
+**Transform Claude Code from a reactive assistant into a proactive, learning partner that gets better with each interaction**
 
-[🚀 Quick Start](docs/QUICK_START.md) • [📖 User Guide](docs/USER_GUIDE.md) • [👨‍💼 Admin Guide](docs/ADMIN_GUIDE.md) • [🏗️ Architecture](docs/ARCHITECTURE.md) • [⚙️ Deployment](docs/DEPLOYMENT_PIPELINE.md)
+[🚀 Quick Start](#quick-start) • [✨ Features](#features) • [📖 Documentation](#documentation) • [🏗️ Architecture](docs/ARCHITECTURE.md) • [⚙️ API Reference](#api-reference)
 
 </div>
 
 ---
 
+## 🚀 What is KnowledgeHub?
+
+KnowledgeHub is an AI Intelligence Amplifier that gives Claude Code **persistent memory**, **learning capabilities**, and **intelligent workflow integration**. It transforms Claude Code from a stateless assistant into an intelligent partner that remembers your work, learns from your patterns, and proactively helps you code better.
+
+### 🎯 Key Benefits
+
+- **🔗 Never Lose Context**: Seamlessly continue work across Claude Code sessions
+- **🧠 Learn from Experience**: Track mistakes and successful solutions  
+- **⚡ Performance Optimization**: Monitor and improve command execution
+- **🎯 Proactive Assistance**: Get suggestions before you ask
+- **📊 Data-Driven Decisions**: Track reasoning and outcomes
+- **🔄 Code Evolution**: Understand how your code improves over time
+- **🤖 Automatic Memory**: Capture insights without manual effort
+
+## ✨ Features
+
+### 1. 🔗 Session Continuity System
+Never lose your work context between Claude Code conversations.
+- Automatic context restoration when starting new sessions
+- Handoff notes between conversations
+- Unfinished task tracking
+- Multi-session project support
+
+### 2. 📁 Project Context Profiles  
+Maintain separate memory spaces for different projects.
+- Per-project memory isolation
+- Automatic context switching based on working directory
+- Project-specific patterns and preferences
+- Framework and language detection
+
+### 3. 🧠 Learning from Mistakes
+Track errors and their solutions to avoid repeating mistakes.
+- Error pattern recognition
+- Solution effectiveness tracking
+- Lesson extraction from successful fixes
+- Similar error detection
+
+### 4. ⚡ Proactive Assistance
+Get intelligent suggestions based on your work patterns.
+- Task prediction based on context
+- Incomplete work reminders
+- Next action suggestions
+- Pattern-based recommendations
+
+### 5. 📊 Decision History & Reasoning
+Track why certain decisions were made with alternatives considered.
+- Decision tracking with reasoning
+- Alternative solutions recording
+- Confidence scoring
+- Outcome-based learning
+
+### 6. 🔄 Code Evolution Tracking
+Monitor how code changes and improves over time.
+- Before/after code analysis
+- Refactoring pattern detection
+- Quality improvement metrics
+- Evolution history by file/project
+
+### 7. 📈 Performance & Quality Metrics
+Track command execution patterns and optimize performance.
+- Command execution tracking
+- Success/failure rate analysis
+- Performance pattern detection
+- Optimization recommendations
+
+### 8. 🤖 Workflow Integration
+Automatically capture memories from Claude Code interactions.
+- Conversation memory capture
+- Terminal output context extraction
+- Tool usage tracking
+- Discovery saving
+
 ## 📢 Recent Updates
+
+### v2.0.0 - AI Intelligence Amplifier (2025-07-11)
+- **🧠 8 Major AI Features**: Complete intelligence system for Claude Code
+- **🔗 Session Continuity**: Link conversations across sessions
+- **📁 Project Profiles**: Per-project memory isolation
+- **🎯 Mistake Learning**: Track and learn from errors
+- **⚡ Proactive Help**: Anticipate needs and suggest actions
+- **📊 Decision Tracking**: Record reasoning and alternatives
+- **🔄 Code Evolution**: Track improvements over time
+- **📈 Performance Metrics**: Optimize command execution
+- **🤖 Auto Capture**: Extract memories from conversations
+- **🐚 45 Shell Commands**: Complete CLI integration
+
+See [AI Features Documentation](docs/AI_INTELLIGENCE_FEATURES.md) for complete details.
 
 ### v1.3.0 - Search Analytics Dashboard (2025-07-09)
 - **📊 Search Analytics**: Comprehensive search performance tracking and visualization
