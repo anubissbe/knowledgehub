@@ -1,0 +1,45 @@
+{
+  "api": {
+    "host": "0.0.0.0",
+    "port": 3000,
+    "cors_origins": ["*"],
+    "debug": false
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5433,
+    "name": "knowledgehub",
+    "user": "knowledgehub",
+    "password": "your-database-password"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6381
+  },
+  "weaviate": {
+    "host": "localhost",
+    "port": 8090
+  },
+  "neo4j": {
+    "uri": "bolt://localhost:7687",
+    "user": "neo4j",
+    "password": "your-neo4j-password"
+  },
+  "timescale": {
+    "host": "localhost",
+    "port": 5434,
+    "database": "knowledgehub_analytics",
+    "user": "knowledgehub",
+    "password": "your-timescale-password"
+  },
+  "minio": {
+    "endpoint": "localhost:9010",
+    "access_key": "your-minio-access-key",
+    "secret_key": "your-minio-secret-key",
+    "secure": false
+  },
+  "ai_service": {
+    "url": "http://localhost:8002",
+    "timeout": 30
+  }
+}
