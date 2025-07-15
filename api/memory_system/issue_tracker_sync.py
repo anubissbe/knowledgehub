@@ -25,6 +25,7 @@ MEMORY_SYSTEM_PATH = Path(__file__).parent
 sys.path.insert(0, str(MEMORY_SYSTEM_PATH))
 
 from claude_unified_memory import UnifiedMemorySystem
+from ..path_config import SYNC_LOGS_BASE, ISSUES_BASE, PROJECTS_BASE
 
 logger = logging.getLogger(__name__)
 
@@ -246,9 +247,9 @@ class IssueTrackerSync:
         self.memory_system = memory_system or UnifiedMemorySystem()
         
         # Storage
-        self.issues_dir = Path("/opt/projects/memory-system/data/issue_tracker")
-        self.projects_dir = Path("/opt/projects/memory-system/data/project_metrics")
-        self.sync_logs_dir = Path("/opt/projects/memory-system/data/sync_logs")
+        self.issues_dir = ISSUES_BASE
+        self.projects_dir = PROJECTS_BASE
+        self.sync_logs_dir = SYNC_LOGS_BASE
         
         for directory in [self.issues_dir, self.projects_dir, self.sync_logs_dir]:
             directory.mkdir(exist_ok=True)

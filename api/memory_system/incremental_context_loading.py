@@ -26,6 +26,7 @@ MEMORY_SYSTEM_PATH = Path(__file__).parent
 sys.path.insert(0, str(MEMORY_SYSTEM_PATH))
 
 from claude_unified_memory import UnifiedMemorySystem
+from ..path_config import CONTEXT_CACHE_BASE, INCREMENTAL_LOADING_BASE
 
 logger = logging.getLogger(__name__)
 
@@ -197,8 +198,8 @@ class IncrementalContextLoader:
         self.memory_system = memory_system or UnifiedMemorySystem()
         
         # Storage directories
-        self.loading_dir = Path("/opt/projects/memory-system/data/incremental_loading")
-        self.cache_dir = Path("/opt/projects/memory-system/data/context_cache")
+        self.loading_dir = INCREMENTAL_LOADING_BASE
+        self.cache_dir = CONTEXT_CACHE_BASE
         self.plans_dir = self.loading_dir / "plans"
         self.progress_dir = self.loading_dir / "progress"
         

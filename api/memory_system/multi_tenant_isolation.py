@@ -26,6 +26,7 @@ MEMORY_SYSTEM_PATH = Path(__file__).parent
 sys.path.insert(0, str(MEMORY_SYSTEM_PATH))
 
 from claude_unified_memory import UnifiedMemorySystem
+from ..path_config import TENANTS_BASE, AUDIT_LOGS_BASE
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +226,8 @@ class MultiTenantIsolationManager:
         self.user_sessions: Dict[str, Dict[str, Any]] = {}
         
         # Storage
-        self.tenants_dir = Path("/opt/projects/memory-system/data/tenants")
-        self.audit_dir = Path("/opt/projects/memory-system/data/audit_logs")
+        self.tenants_dir = TENANTS_BASE
+        self.audit_dir = AUDIT_LOGS_BASE
         self.tenants_dir.mkdir(exist_ok=True)
         self.audit_dir.mkdir(exist_ok=True)
         

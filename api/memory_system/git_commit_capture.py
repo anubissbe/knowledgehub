@@ -195,9 +195,9 @@ class GitCommitCapture:
         self.memory_system = memory_system or UnifiedMemorySystem()
         
         # Storage
-        self.commits_dir = Path("/opt/projects/memory-system/data/git_commits")
-        self.branches_dir = Path("/opt/projects/memory-system/data/git_branches")
-        self.repos_dir = Path("/opt/projects/memory-system/data/git_repositories")
+        self.commits_dir = GIT_COMMITS_BASE
+        self.branches_dir = GIT_BRANCHES_BASE
+        self.repos_dir = GIT_REPOS_BASE
         
         for directory in [self.commits_dir, self.branches_dir, self.repos_dir]:
             directory.mkdir(exist_ok=True)
@@ -942,6 +942,7 @@ import sys
 sys.path.append('{MEMORY_SYSTEM_PATH}')
 from git_commit_capture import GitCommitCapture
 import asyncio
+from ..path_config import GIT_BRANCHES_BASE, GIT_COMMITS_BASE, GIT_REPOS_BASE
 
 async def capture():
     capture = GitCommitCapture()
@@ -1045,7 +1046,7 @@ if __name__ == "__main__":
         print("📝 Testing Git Commit Context Capture")
         
         # Test with current repository
-        repo_path = "/opt/projects/knowledgehub"
+        repo_path = "KNOWLEDGEHUB_BASE"
         
         if os.path.exists(repo_path):
             print(f"Testing with repository: {repo_path}")

@@ -16,13 +16,14 @@ from sqlalchemy import cast, String, desc
 from ..models.memory import MemoryItem
 from .project_context_manager import ProjectContextManager
 from .mistake_learning_system import MistakeLearningSystem
+from ..path_config import MEMORY_CLI_PATH
 
 
 class ClaudeSessionManager:
     """Manages Claude Code session continuity with automatic context restoration"""
     
     def __init__(self):
-        self.memory_cli_path = "/opt/projects/memory-system/memory-cli"
+        self.memory_cli_path = MEMORY_CLI_PATH
         self.session_file = Path.home() / ".claude_session.json"
         self.context_file = Path.home() / ".claude_context.json"
         self.project_manager = ProjectContextManager()

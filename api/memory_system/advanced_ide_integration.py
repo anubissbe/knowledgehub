@@ -27,6 +27,7 @@ MEMORY_SYSTEM_PATH = Path(__file__).parent
 sys.path.insert(0, str(MEMORY_SYSTEM_PATH))
 
 from claude_unified_memory import UnifiedMemorySystem
+from ..path_config import IDE_EVENTS_BASE, IDE_PROJECTS_BASE, IDE_SESSIONS_BASE
 
 logger = logging.getLogger(__name__)
 
@@ -273,9 +274,9 @@ class AdvancedIDEIntegration:
         self.memory_system = memory_system or UnifiedMemorySystem()
         
         # Storage
-        self.events_dir = Path("/opt/projects/memory-system/data/ide_events")
-        self.sessions_dir = Path("/opt/projects/memory-system/data/ide_sessions")
-        self.projects_dir = Path("/opt/projects/memory-system/data/ide_projects")
+        self.events_dir = IDE_EVENTS_BASE
+        self.sessions_dir = IDE_SESSIONS_BASE
+        self.projects_dir = IDE_PROJECTS_BASE
         
         for directory in [self.events_dir, self.sessions_dir, self.projects_dir]:
             directory.mkdir(exist_ok=True)

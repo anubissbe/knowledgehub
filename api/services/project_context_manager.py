@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import cast, String, desc, and_
 
 from ..models.memory import MemoryItem
+from ..path_config import MEMORY_CLI_PATH
 
 
 class ProjectContextManager:
@@ -24,7 +25,7 @@ class ProjectContextManager:
         self.projects_dir = Path.home() / ".claude_projects"
         self.projects_dir.mkdir(exist_ok=True)
         self.active_project_file = Path.home() / ".claude_active_project.json"
-        self.memory_cli_path = "/opt/projects/memory-system/memory-cli"
+        self.memory_cli_path = MEMORY_CLI_PATH
         
     def _get_project_id(self, project_path: str) -> str:
         """Generate consistent project ID from path"""

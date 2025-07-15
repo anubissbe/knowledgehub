@@ -1,4 +1,5 @@
 """
+from ..path_config import MEMORY_SYSTEM_BASE
 Memory Sync Service - Bridges local memory system and KnowledgeHub database
 """
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class MemorySyncService:
     """Service to synchronize local memory system with KnowledgeHub database"""
     
-    def __init__(self, local_memory_path: str = "/opt/projects/memory-system"):
+    def __init__(self, local_memory_path: str = None):
         self.local_memory_path = Path(local_memory_path)
         self.memories_dir = self.local_memory_path / "memories"
         self.synced_entries_file = self.local_memory_path / ".synced_entries.json"
