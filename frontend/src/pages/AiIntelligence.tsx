@@ -12,8 +12,6 @@ import {
   ListItemText,
   ListItemIcon,
   Chip,
-  IconButton,
-  Tooltip,
   LinearProgress,
   Alert,
 } from '@mui/material'
@@ -25,7 +23,6 @@ import {
   Code,
   Speed,
   TrendingUp,
-  Info,
 } from '@mui/icons-material'
 
 const aiFeatures = [

@@ -5,9 +5,6 @@ import {
   Typography,
   TextField,
   Button,
-  List,
-  ListItem,
-  ListItemText,
   Chip,
   Grid,
   Card,
@@ -36,13 +33,13 @@ const columns: GridColDef[] = [
     field: 'type',
     headerName: 'Type',
     width: 120,
-    valueGetter: (params) => params.row.metadata?.type || 'unknown',
+    valueGetter: (params: any) => params.row.metadata?.type || 'unknown',
   },
   {
     field: 'timestamp',
     headerName: 'Created',
     width: 180,
-    valueGetter: (params) => 
+    valueGetter: (params: any) => 
       new Date(params.row.metadata?.timestamp || '').toLocaleString(),
   },
   {
@@ -70,10 +67,18 @@ export default function MemorySystem() {
 
   const fetchMemories = async () => {
     try {
-      const response = await api.get('/api/memories')
-      setMemories(response.data.memories || [])
+      const response = await api.get('/api/memory/memories')
+      setMemories(response.data.memories || response.data || [])
     } catch (error) {
       console.error('Error fetching memories:', error)
+      // Try alternate endpoint
+      try {
+        const response = await api.get('/api/memories')
+        setMemories(response.data.memories || response.data || [])
+      } catch (error2) {
+        console.error('Error fetching memories from alternate endpoint:', error2)
+        setMemories([])
+      }
     } finally {
       setLoading(false)
     }
@@ -170,10 +175,14 @@ export default function MemorySystem() {
           <DataGrid
             rows={memories}
             columns={columns}
-            pageSize={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 10 },
+              },
+            }}
+            pageSizeOptions={[10, 25, 50]}
             checkboxSelection
-            disableSelectionOnClick
+            disableRowSelectionOnClick
           />
         )}
       </Paper>

@@ -8,26 +8,11 @@ import {
   Grid,
   Card,
   CardContent,
-  Chip,
   IconButton,
   Tooltip,
 } from '@mui/material'
 import { Refresh, ZoomIn, ZoomOut, CenterFocusStrong } from '@mui/icons-material'
 import { api } from '../services/api'
-
-interface GraphNode {
-  id: string
-  label: string
-  type: string
-  properties: Record<string, any>
-}
-
-interface GraphEdge {
-  source: string
-  target: string
-  type: string
-  properties: Record<string, any>
-}
 
 interface GraphStats {
   total_nodes: number
@@ -38,7 +23,6 @@ interface GraphStats {
 
 export default function KnowledgeGraph() {
   const [stats, setStats] = useState<GraphStats | null>(null)
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
   const [queryResult, setQueryResult] = useState<any>(null)
   const [cypherQuery, setCypherQuery] = useState('')
   const [loading, setLoading] = useState(false)
