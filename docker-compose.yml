@@ -183,17 +183,15 @@ services:
 
   # Web UI (Frontend)
   webui:
-    build: ./webui
+    build: ./frontend
     restart: unless-stopped
     environment:
-      - REACT_APP_API_URL=http://localhost:3000
-      - REACT_APP_WS_URL=ws://localhost:3000
+      - VITE_API_URL=http://localhost:3000
+      - VITE_WS_URL=ws://localhost:3000
     ports:
       - "3100:80"
     depends_on:
       - api
-    volumes:
-      - ./webui/nginx.conf:/etc/nginx/nginx.conf:ro
 
   # Nginx Reverse Proxy (Optional)
   nginx:
