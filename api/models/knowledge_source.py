@@ -130,6 +130,7 @@ class KnowledgeSource(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     url = Column(Text, nullable=False, unique=True)
+    type = Column(String(50), nullable=False, default="website")
     status: SourceStatus = Column(
         SQLEnum(SourceStatus, name="source_status", values_callable=lambda obj: [e.value for e in obj]),
         default=SourceStatus.PENDING,
@@ -146,6 +147,11 @@ class KnowledgeSource(Base):
     documents = relationship("Document", back_populates="source", cascade="all, delete-orphan")
     jobs = relationship("ScrapingJob", back_populates="source", cascade="all, delete-orphan")
     
+    @property
+    def document_count(self) -> int:
+        """Return the count of documents associated with this source."""
+        return self.stats.get("documents", 0) if self.stats else 0
+
     def __repr__(self) -> str:
         """Return string representation of the knowledge source.
         

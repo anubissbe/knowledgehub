@@ -26,6 +26,8 @@ class MemorySyncService:
     """Service to synchronize local memory system with KnowledgeHub database"""
     
     def __init__(self, local_memory_path: str = None):
+        if local_memory_path is None:
+            local_memory_path = "/opt/projects/memory-system/data"
         self.local_memory_path = Path(local_memory_path)
         self.memories_dir = self.local_memory_path / "memories"
         self.synced_entries_file = self.local_memory_path / ".synced_entries.json"

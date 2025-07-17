@@ -8,8 +8,8 @@ from sqlalchemy.pool import QueuePool
 from contextlib import contextmanager
 from typing import Generator
 
-# Get database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://khuser:khpassword@localhost:5432/knowledgehub")
+# Get database URL from environment or config
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://knowledgehub:knowledgehub@localhost:5433/knowledgehub")
 
 # Create database engine with connection pooling
 engine = create_engine(

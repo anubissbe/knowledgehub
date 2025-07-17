@@ -55,6 +55,28 @@ async def create_memory(
         raise HTTPException(status_code=500, detail="Failed to create memory")
 
 
+@router.get("/recent", response_model=List[MemoryResponse])
+async def get_recent_memories(
+    limit: int = Query(100, ge=1, le=1000, description="Number of recent memories to retrieve"),
+    db: Session = Depends(get_db),
+    memory_service=Depends(get_memory_service)
+):
+    """Get recent memories"""
+    try:
+        memories = await memory_service.get_memories(
+            db,
+            skip=0,
+            limit=limit,
+            memory_type=None,
+            source=None
+        )
+        return memories
+        
+    except Exception as e:
+        logger.error(f"Error fetching recent memories: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch recent memories")
+
+
 @router.get("/{memory_id}", response_model=MemoryResponse)
 async def get_memory(
     memory_id: str,
@@ -101,3 +123,5 @@ async def delete_memory(
     except Exception as e:
         logger.error(f"Error deleting memory: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete memory")
+
+

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Application settings
     APP_NAME: str = "AI Knowledge Hub"
     APP_ENV: str = "development"
+    NODE_ENV: Optional[str] = None
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
     
@@ -25,23 +26,33 @@ class Settings(BaseSettings):
     API_PORT: int = 3000
     API_WORKERS: int = 4
     API_RELOAD: bool = True
+    API_CORS_ORIGINS: Optional[str] = None
     
     # Database settings
-    DATABASE_URL: str = "postgresql://khuser:khpassword@localhost:5432/knowledgehub"
+    DATABASE_URL: str = "postgresql://knowledgehub:knowledgehub123@localhost:5433/knowledgehub"
+    DATABASE_HOST: Optional[str] = None
+    DATABASE_PORT: Optional[int] = None
+    DATABASE_NAME: Optional[str] = None
+    DATABASE_USER: Optional[str] = None
+    DATABASE_PASSWORD: Optional[str] = None
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 40
     
     # Redis settings
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://localhost:6381/0"
+    REDIS_HOST: Optional[str] = None
+    REDIS_PORT: Optional[int] = None
     REDIS_MAX_CONNECTIONS: int = 50
     
     # Weaviate settings
-    WEAVIATE_URL: str = "http://localhost:8080"
+    WEAVIATE_URL: str = "http://localhost:8090"
+    WEAVIATE_HOST: Optional[str] = None
+    WEAVIATE_PORT: Optional[int] = None
     WEAVIATE_API_KEY: Optional[str] = None
     WEAVIATE_COLLECTION_NAME: str = "Knowledge_chunks"
     
     # S3/MinIO settings
-    S3_ENDPOINT_URL: str = "http://localhost:9000"
+    S3_ENDPOINT_URL: str = "http://localhost:9010"
     S3_ACCESS_KEY_ID: str = "minioadmin"
     S3_SECRET_ACCESS_KEY: str = "minioadmin"
     S3_BUCKET_NAME: str = "knowledge-hub"
@@ -101,6 +112,36 @@ class Settings(BaseSettings):
     # Monitoring
     PROMETHEUS_ENABLED: bool = True
     PROMETHEUS_PORT: int = 9090
+    
+    # Neo4j settings
+    NEO4J_URI: Optional[str] = None
+    NEO4J_USER: Optional[str] = None
+    NEO4J_PASSWORD: Optional[str] = None
+    
+    # TimescaleDB settings
+    TIMESCALE_HOST: Optional[str] = None
+    TIMESCALE_PORT: Optional[int] = None
+    TIMESCALE_DATABASE: Optional[str] = None
+    TIMESCALE_USER: Optional[str] = None
+    TIMESCALE_PASSWORD: Optional[str] = None
+    
+    # MinIO settings (alternative names)
+    MINIO_ENDPOINT: Optional[str] = None
+    MINIO_ACCESS_KEY: Optional[str] = None
+    MINIO_SECRET_KEY: Optional[str] = None
+    MINIO_USE_SSL: Optional[bool] = None
+    
+    # AI Service settings
+    AI_SERVICE_URL: Optional[str] = None
+    AI_SERVICE_TIMEOUT: Optional[int] = None
+    
+    # JWT settings
+    JWT_SECRET: Optional[str] = None
+    JWT_EXPIRATION_DELTA: Optional[int] = None
+    
+    # Session settings
+    SESSION_SECRET: Optional[str] = None
+    SESSION_EXPIRATION: Optional[int] = None
     
     # Additional environment variables that may be present
     API_URL: Optional[str] = None

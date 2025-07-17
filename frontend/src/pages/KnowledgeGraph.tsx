@@ -1,188 +1,561 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box,
-  Paper,
   Typography,
-  Button,
-  TextField,
-  Grid,
-  Card,
-  CardContent,
   IconButton,
-  Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
+  Slider,
+  Chip,
+  LinearProgress,
+  alpha,
 } from '@mui/material'
-import { Refresh, ZoomIn, ZoomOut, CenterFocusStrong } from '@mui/icons-material'
+import { 
+  Refresh, 
+  ZoomIn, 
+  ZoomOut, 
+  CenterFocusStrong,
+  PlayArrow,
+  Pause,
+  AutoAwesome,
+  BubbleChart,
+  AccountTree,
+  Hub,
+  Fullscreen,
+  FilterList,
+} from '@mui/icons-material'
+import { Network } from 'vis-network/standalone'
+import { DataSet } from 'vis-data'
+import { motion } from 'framer-motion'
+import PageContainer from '../components/ultra/PageContainer'
+import UltraHeader from '../components/ultra/UltraHeader'
+import GlassCard from '../components/GlassCard'
 import { api } from '../services/api'
 
-interface GraphStats {
-  total_nodes: number
-  total_edges: number
-  node_types: Record<string, number>
-  edge_types: Record<string, number>
+interface GraphNode {
+  id: string
+  label: string
+  type: string
+  properties?: Record<string, any>
 }
 
+interface GraphEdge {
+  from: string
+  to: string
+  label?: string
+  type?: string
+}
+
+interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+
+const NODE_COLORS = {
+  memory: '#2196F3',
+  session: '#FF00FF',
+  decision: '#00FF88',
+  error: '#FF3366',
+  pattern: '#FFD700',
+  workflow: '#00FFFF',
+  code: '#8B5CF6',
+  default: '#EC4899',
+  primary: '#2196F3',
+}
+
+const LAYOUTS = [
+  { value: 'physics', label: 'Physics', icon: <BubbleChart /> },
+  { value: 'hierarchical', label: 'Hierarchical', icon: <AccountTree /> },
+  { value: 'circular', label: 'Circular', icon: <Hub /> },
+]
+
 export default function KnowledgeGraph() {
-  const [stats, setStats] = useState<GraphStats | null>(null)
-  const [queryResult, setQueryResult] = useState<any>(null)
-  const [cypherQuery, setCypherQuery] = useState('')
-  const [loading, setLoading] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const networkRef = useRef<Network | null>(null)
+  const animationRef = useRef<number | null>(null)
+  const [graphData, setGraphData] = useState<GraphData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [layout, setLayout] = useState('physics')
+  const [autoRotate, setAutoRotate] = useState(true)
+  const [nodeSize, setNodeSize] = useState(25)
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [stats, setStats] = useState({
+    nodes: 0,
+    edges: 0,
+    types: {} as Record<string, number>,
+  })
 
   useEffect(() => {
-    fetchGraphStats()
+    fetchGraphData()
+    return () => {
+      // Clean up animation
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+        animationRef.current = null
+      }
+      // Clean up network
+      if (networkRef.current) {
+        networkRef.current.destroy()
+        networkRef.current = null
+      }
+    }
   }, [])
 
-  const fetchGraphStats = async () => {
-    try {
-      const response = await api.get('/api/knowledge-graph/stats')
-      setStats(response.data)
-    } catch (error) {
-      console.error('Error fetching graph stats:', error)
+  useEffect(() => {
+    if (graphData && containerRef.current) {
+      renderGraph()
     }
-  }
+  }, [graphData, layout, nodeSize])
 
-  const executeCypherQuery = async () => {
-    setLoading(true)
+  const fetchGraphData = async () => {
     try {
-      const response = await api.post('/api/knowledge-graph/query', {
-        query: cypherQuery,
+      const response = await api.get('/api/knowledge-graph/full')
+      const data = response.data as GraphData
+      
+      // Calculate stats
+      const nodeTypes = data.nodes.reduce((acc, node) => {
+        acc[node.type] = (acc[node.type] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      
+      setStats({
+        nodes: data.nodes.length,
+        edges: data.edges.length,
+        types: nodeTypes,
       })
-      setQueryResult(response.data)
+      
+      setGraphData(data)
+      setLoading(false)
     } catch (error) {
-      console.error('Error executing query:', error)
-    } finally {
+      console.error('Error fetching graph data:', error)
+      setGraphData({ nodes: [], edges: [] })
       setLoading(false)
     }
   }
 
+  const renderGraph = () => {
+    if (!containerRef.current || !graphData) return
+
+    // Clean up any existing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+
+    const nodes = new DataSet(
+      graphData.nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        color: {
+          background: NODE_COLORS[node.type as keyof typeof NODE_COLORS] || NODE_COLORS.default,
+          border: '#ffffff',
+          highlight: {
+            background: NODE_COLORS[node.type as keyof typeof NODE_COLORS] || NODE_COLORS.default,
+            border: '#ffffff',
+          },
+        },
+        font: {
+          color: '#ffffff',
+          size: 14,
+          face: 'Inter',
+        },
+        size: nodeSize,
+        shape: 'dot',
+        borderWidth: 2,
+        shadow: {
+          enabled: true,
+          color: 'rgba(0,0,0,0.5)',
+          size: 10,
+          x: 3,
+          y: 3,
+        },
+      }))
+    )
+
+    const edges = new DataSet(
+      graphData.edges.map((edge, index) => ({
+        id: index.toString(),
+        from: edge.from,
+        to: edge.to,
+        label: edge.label,
+        color: {
+          color: alpha('#ffffff', 0.3),
+          highlight: NODE_COLORS.primary,
+        },
+        width: 2,
+        smooth: {
+          enabled: true,
+          type: 'dynamic',
+          roundness: 0.5,
+        },
+        arrows: {
+          to: {
+            enabled: true,
+            scaleFactor: 0.5,
+          },
+        },
+      }))
+    )
+
+    const options = {
+      nodes: {
+        borderWidth: 2,
+        shadow: true,
+      },
+      edges: {
+        smooth: {
+          enabled: true,
+          type: 'dynamic',
+          roundness: 0.5,
+        },
+      },
+      physics: {
+        enabled: layout === 'physics',
+        stabilization: {
+          enabled: true,
+          iterations: 100,
+        },
+        barnesHut: {
+          gravitationalConstant: -2000,
+          centralGravity: 0.3,
+          springLength: 95,
+          springConstant: 0.04,
+        },
+      },
+      layout: {
+        improvedLayout: true,
+        hierarchical: layout === 'hierarchical' ? {
+          enabled: true,
+          direction: 'UD',
+          sortMethod: 'directed',
+          nodeSpacing: 150,
+          levelSeparation: 150,
+        } : false,
+      },
+      interaction: {
+        hover: true,
+        navigationButtons: true,
+        keyboard: true,
+        multiselect: true,
+      },
+    }
+
+    if (networkRef.current) {
+      networkRef.current.destroy()
+    }
+
+    networkRef.current = new Network(containerRef.current, { nodes, edges }, options)
+
+    // Handle node selection
+    networkRef.current.on('selectNode', (params) => {
+      if (params.nodes.length > 0) {
+        setSelectedNode(params.nodes[0])
+      }
+    })
+
+    networkRef.current.on('deselectNode', () => {
+      setSelectedNode(null)
+    })
+
+    // Auto rotation effect with proper cleanup
+    if (autoRotate && layout === 'physics') {
+      let angle = 0
+      const rotate = () => {
+        // Check if network still exists and auto-rotate is enabled
+        if (!networkRef.current || !autoRotate) {
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current)
+            animationRef.current = null
+          }
+          return
+        }
+        
+        angle += 0.01
+        try {
+          networkRef.current.moveTo({
+            position: { x: Math.sin(angle) * 50, y: Math.cos(angle) * 50 },
+            scale: 1,
+            animation: false,
+          })
+        } catch (error) {
+          console.warn('Error in rotation animation:', error)
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current)
+            animationRef.current = null
+          }
+          return
+        }
+        
+        animationRef.current = requestAnimationFrame(rotate)
+      }
+      animationRef.current = requestAnimationFrame(rotate)
+    }
+  }
+
+  const handleZoomIn = () => {
+    if (networkRef.current) {
+      try {
+        networkRef.current.moveTo({ scale: networkRef.current.getScale() * 1.2 })
+      } catch (error) {
+        console.warn('Error in zoom in:', error)
+      }
+    }
+  }
+  
+  const handleZoomOut = () => {
+    if (networkRef.current) {
+      try {
+        networkRef.current.moveTo({ scale: networkRef.current.getScale() * 0.8 })
+      } catch (error) {
+        console.warn('Error in zoom out:', error)
+      }
+    }
+  }
+  
+  const handleFit = () => {
+    if (networkRef.current) {
+      try {
+        networkRef.current.fit()
+      } catch (error) {
+        console.warn('Error in fit:', error)
+      }
+    }
+  }
+  const handleFullscreen = () => {
+    if (containerRef.current?.requestFullscreen) {
+      containerRef.current.requestFullscreen()
+    }
+  }
+
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
-        Knowledge Graph
-      </Typography>
+    <PageContainer>
+      <UltraHeader 
+        title="Knowledge Graph" 
+        subtitle="NEURAL NETWORK VISUALIZATION"
+      />
 
-      {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total Nodes
-              </Typography>
-              <Typography variant="h4">
-                {stats?.total_nodes?.toLocaleString() || '0'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total Edges
-              </Typography>
-              <Typography variant="h4">
-                {stats?.total_edges?.toLocaleString() || '0'}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Node Types
-              </Typography>
-              <Typography variant="h4">
-                {Object.keys(stats?.node_types || {}).length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Edge Types
-              </Typography>
-              <Typography variant="h4">
-                {Object.keys(stats?.edge_types || {}).length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Graph Visualization Placeholder */}
-      <Paper sx={{ p: 2, mb: 3, height: 400 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Graph Visualization</Typography>
-          <Box>
-            <Tooltip title="Zoom In">
-              <IconButton><ZoomIn /></IconButton>
-            </Tooltip>
-            <Tooltip title="Zoom Out">
-              <IconButton><ZoomOut /></IconButton>
-            </Tooltip>
-            <Tooltip title="Center">
-              <IconButton><CenterFocusStrong /></IconButton>
-            </Tooltip>
-            <Tooltip title="Refresh">
-              <IconButton onClick={fetchGraphStats}><Refresh /></IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            height: 300,
-            bgcolor: 'background.default',
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+      <Box sx={{ px: 3, pb: 6 }}>
+        {/* Controls */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
         >
-          <Typography color="text.secondary">
-            Graph visualization would be rendered here using vis.js or similar library
-          </Typography>
+          <GlassCard sx={{ mb: 3 }}>
+            <Box sx={{ p: 2 }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
+                {/* Layout Toggle */}
+                <ToggleButtonGroup
+                  value={layout}
+                  exclusive
+                  onChange={(_, value) => value && setLayout(value)}
+                  size="small"
+                >
+                  {LAYOUTS.map((l) => (
+                    <ToggleButton key={l.value} value={l.value}>
+                      {l.icon}
+                      <Typography variant="caption" sx={{ ml: 1 }}>
+                        {l.label}
+                      </Typography>
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+
+                {/* Node Size Slider */}
+                <Box display="flex" alignItems="center" gap={2} sx={{ minWidth: 200 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Node Size
+                  </Typography>
+                  <Slider
+                    value={nodeSize}
+                    onChange={(_: Event, value: number | number[]) => {
+                      setNodeSize(value as number)
+                      if (graphData) renderGraph()
+                    }}
+                    min={15}
+                    max={50}
+                    sx={{ flex: 1 }}
+                  />
+                </Box>
+
+                {/* Controls */}
+                <Box display="flex" gap={1}>
+                  <IconButton onClick={() => setAutoRotate(!autoRotate)} color={autoRotate ? 'primary' : 'default'}>
+                    {autoRotate ? <Pause /> : <PlayArrow />}
+                  </IconButton>
+                  <IconButton onClick={handleZoomIn}>
+                    <ZoomIn />
+                  </IconButton>
+                  <IconButton onClick={handleZoomOut}>
+                    <ZoomOut />
+                  </IconButton>
+                  <IconButton onClick={handleFit}>
+                    <CenterFocusStrong />
+                  </IconButton>
+                  <IconButton onClick={handleFullscreen}>
+                    <Fullscreen />
+                  </IconButton>
+                  <IconButton onClick={fetchGraphData}>
+                    <Refresh />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Box>
+          </GlassCard>
+        </motion.div>
+
+        {/* Main Graph */}
+        <Box display="flex" gap={3} sx={{ height: 600 }}>
+          {/* Graph Container */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 100 }}
+            style={{ flex: 1 }}
+          >
+            <GlassCard sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+              {loading ? (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Box textAlign="center">
+                    <AutoAwesome
+                      sx={{
+                        fontSize: 60,
+                        color: 'primary.main',
+                        animation: 'pulse 2s infinite',
+                      }}
+                    />
+                    <Typography variant="h6" sx={{ mt: 2 }}>
+                      Loading Knowledge Graph...
+                    </Typography>
+                  </Box>
+                </Box>
+              ) : (
+                <Box
+                  ref={containerRef}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    '& .vis-network': {
+                      backgroundColor: 'transparent !important',
+                    },
+                  }}
+                />
+              )}
+
+              {/* Selected Node Info */}
+              {selectedNode && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    position: 'absolute',
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                  }}
+                >
+                  <GlassCard>
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        Selected Node: {selectedNode}
+                      </Typography>
+                    </Box>
+                  </GlassCard>
+                </motion.div>
+              )}
+            </GlassCard>
+          </motion.div>
+
+          {/* Stats Panel */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            style={{ width: 300 }}
+          >
+            <GlassCard sx={{ height: '100%' }}>
+              <Box sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <FilterList sx={{ color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight="bold">
+                    Graph Statistics
+                  </Typography>
+                </Box>
+
+                {/* Node & Edge Count */}
+                <Box sx={{ mb: 3 }}>
+                  <Box display="flex" justifyContent="space-between" mb={2}>
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold" color="primary.main">
+                        {stats.nodes}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Nodes
+                      </Typography>
+                    </Box>
+                    <Box textAlign="right">
+                      <Typography variant="h4" fontWeight="bold" color="secondary.main">
+                        {stats.edges}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Edges
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={(stats.edges / (stats.nodes * 2)) * 100}
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: theme => alpha(theme.palette.primary.main, 0.1),
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 4,
+                        background: theme => `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      },
+                    }}
+                  />
+                </Box>
+
+                {/* Node Types */}
+                <Box>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    Node Types
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    {Object.entries(stats.types).map(([type, count]) => (
+                      <Box
+                        key={type}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: theme => alpha(theme.palette.background.default, 0.5),
+                          borderLeft: `3px solid ${NODE_COLORS[type as keyof typeof NODE_COLORS] || NODE_COLORS.default}`,
+                        }}
+                      >
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="body2" textTransform="capitalize">
+                            {type}
+                          </Typography>
+                          <Chip
+                            label={count}
+                            size="small"
+                            sx={{
+                              backgroundColor: alpha(NODE_COLORS[type as keyof typeof NODE_COLORS] || NODE_COLORS.default, 0.2),
+                              color: NODE_COLORS[type as keyof typeof NODE_COLORS] || NODE_COLORS.default,
+                              fontWeight: 'bold',
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </GlassCard>
+          </motion.div>
         </Box>
-      </Paper>
-
-      {/* Cypher Query */}
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Cypher Query Console
-        </Typography>
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          label="Enter Cypher Query"
-          value={cypherQuery}
-          onChange={(e) => setCypherQuery(e.target.value)}
-          placeholder="MATCH (n) RETURN n LIMIT 10"
-          sx={{ mb: 2 }}
-        />
-        <Button
-          variant="contained"
-          onClick={executeCypherQuery}
-          disabled={loading || !cypherQuery}
-        >
-          Execute Query
-        </Button>
-
-        {queryResult && (
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Query Result:
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-              <pre style={{ margin: 0, overflow: 'auto' }}>
-                {JSON.stringify(queryResult, null, 2)}
-              </pre>
-            </Paper>
-          </Box>
-        )}
-      </Paper>
-    </Box>
+      </Box>
+    </PageContainer>
   )
 }

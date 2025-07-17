@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test Results</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        async function testEndpoint(url, name) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                results.innerHTML += `<p><strong>${name}:</strong> ✅ Success (${response.status})</p>`;
+                console.log(`${name} response:`, data);
+            } catch (error) {
+                results.innerHTML += `<p><strong>${name}:</strong> ❌ Error: ${error.message}</p>`;
+                console.error(`${name} error:`, error);
+            }
+        }
+        
+        // Test endpoints from different ports
+        async function runTests() {
+            results.innerHTML = '<h2>Testing API endpoints...</h2>';
+            
+            // Test memory API
+            await testEndpoint('http://192.168.1.25:8003/api/v1/memories/search?q=&limit=5', 'Memory API (port 8003)');
+            
+            // Test main API endpoints (these will likely fail)
+            await testEndpoint('http://192.168.1.25:3000/api/memory/stats', 'Memory Stats (port 3000)');
+            await testEndpoint('http://192.168.1.25:3000/api/ai-features/summary', 'AI Features (port 3000)');
+            
+            // Test through Vite proxy
+            await testEndpoint('http://192.168.1.25:3101/api/v1/memories/search?q=&limit=5', 'Memory API (via Vite proxy)');
+            await testEndpoint('http://192.168.1.25:3101/api/memory/stats', 'Memory Stats (via Vite proxy)');
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>
