@@ -1,0 +1,23 @@
+# KnowledgeHub MCP Server Requirements
+
+# Core MCP framework
+mcp>=1.0.0
+
+# Async and networking
+aiohttp>=3.8.0
+asyncio-mqtt>=0.11.0
+
+# JSON schema validation
+jsonschema>=4.0.0
+
+# Logging and configuration
+pydantic>=2.0.0
+
+# KnowledgeHub dependencies (inherited from main project)
+# These should already be available in the KnowledgeHub environment:
+# - SQLAlchemy
+# - FastAPI
+# - psutil
+# - numpy
+# - redis
+# - asyncpg

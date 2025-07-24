@@ -1,0 +1,56 @@
+{
+  "server": {
+    "name": "knowledgehub",
+    "version": "1.0.0",
+    "description": "AI-enhanced MCP server for KnowledgeHub integration",
+    "transport": "stdio"
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "knowledgehub_mcp.log"
+  },
+  "knowledgehub": {
+    "api_base_url": "http://localhost:3000",
+    "default_user_id": "claude_code",
+    "session_timeout_minutes": 30,
+    "context_sync_enabled": true
+  },
+  "tools": {
+    "memory": {
+      "enabled": true,
+      "default_similarity_threshold": 0.7,
+      "max_search_results": 50
+    },
+    "session": {
+      "enabled": true,
+      "auto_restore_context": true,
+      "save_context_on_end": true
+    },
+    "ai": {
+      "enabled": true,
+      "max_predictions": 10,
+      "prediction_confidence_threshold": 0.5
+    },
+    "analytics": {
+      "enabled": true,
+      "default_time_window": "1h",
+      "max_alerts": 100
+    },
+    "utility": {
+      "enabled": true,
+      "health_check_deep": false
+    }
+  },
+  "performance": {
+    "max_concurrent_tools": 10,
+    "tool_timeout_seconds": 30,
+    "cache_results": true,
+    "cache_ttl_seconds": 300
+  },
+  "security": {
+    "require_authentication": false,
+    "allowed_origins": ["*"],
+    "rate_limit_per_minute": 100
+  }
+}

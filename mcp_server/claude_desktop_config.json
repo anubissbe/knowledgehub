@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "knowledgehub": {
+      "command": "python",
+      "args": [
+        "/opt/projects/knowledgehub/mcp_server/start_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/opt/projects/knowledgehub",
+        "KNOWLEDGEHUB_API_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
