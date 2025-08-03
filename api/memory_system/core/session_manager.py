@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
-from ..models import MemorySession, Memory
+from ..models import MemorySession, MemorySystemMemory
 from ..api.schemas import SessionCreate, SessionUpdate, SessionResponse
 from ...services.cache import redis_client
 from .session_lifecycle import SessionLifecycleManager

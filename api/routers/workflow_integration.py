@@ -4,7 +4,7 @@ Provides basic workflow integration endpoints without external dependencies
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 

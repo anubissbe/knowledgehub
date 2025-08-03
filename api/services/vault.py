@@ -80,11 +80,11 @@ async def get_database_config() -> Dict[str, str]:
     
     if vault_config:
         logger.info("Using database credentials from Vault")
-        username = vault_config.get('username', 'khuser')
-        password = vault_config.get('password')
+        username = vault_config.get('username', 'knowledgehub')
+        password = vault_config.get('password', 'knowledgehub')
         database = vault_config.get('database', 'knowledgehub')
-        host = vault_config.get('host', 'postgres')
-        port = vault_config.get('port', '5432')
+        host = vault_config.get('host', 'localhost')
+        port = vault_config.get('port', '5433')
         
         return {
             'DATABASE_URL': f"postgresql://{username}:{password}@{host}:{port}/{database}"
@@ -93,7 +93,7 @@ async def get_database_config() -> Dict[str, str]:
         # Fallback to environment variables
         logger.warning("Vault unavailable, using environment variables for database config")
         return {
-            'DATABASE_URL': os.getenv('DATABASE_URL', 'postgresql://khuser:khpassword@postgres:5432/knowledgehub')
+            'DATABASE_URL': os.getenv('DATABASE_URL', 'postgresql://knowledgehub:knowledgehub123@postgres:5432/knowledgehub')
         }
 
 
@@ -108,7 +108,7 @@ async def get_minio_config() -> Dict[str, str]:
         return {
             'S3_ACCESS_KEY_ID': vault_config.get('access_key', 'minioadmin'),
             'S3_SECRET_ACCESS_KEY': vault_config.get('secret_key'),
-            'S3_ENDPOINT_URL': vault_config.get('endpoint', 'http://minio:9000'),
+            'S3_ENDPOINT_URL': vault_config.get('endpoint', 'http://localhost:9010'),
             'S3_BUCKET_NAME': vault_config.get('bucket', 'knowledge-hub')
         }
     else:
@@ -117,7 +117,7 @@ async def get_minio_config() -> Dict[str, str]:
         return {
             'S3_ACCESS_KEY_ID': os.getenv('S3_ACCESS_KEY_ID', 'minioadmin'),
             'S3_SECRET_ACCESS_KEY': os.getenv('S3_SECRET_ACCESS_KEY', 'minioadmin'),
-            'S3_ENDPOINT_URL': os.getenv('S3_ENDPOINT_URL', 'http://minio:9000'),
+            'S3_ENDPOINT_URL': os.getenv('S3_ENDPOINT_URL', 'http://localhost:9010'),
             'S3_BUCKET_NAME': os.getenv('S3_BUCKET_NAME', 'knowledge-hub')
         }
 

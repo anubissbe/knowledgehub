@@ -27,16 +27,7 @@ def health_check():
 
 @router.post("/record")
 def record_decision(
-    decision_title: str = Query(..., description="Title of the decision"),
-    chosen_solution: str = Query(..., description="What was ultimately chosen"),
-    reasoning: str = Query(..., description="Why this solution was chosen"),
-    confidence: float = Query(..., ge=0.0, le=1.0, description="Confidence level (0-1)"),
-    alternatives: List[Dict[str, Any]] = Body(..., description="Alternative solutions considered"),
-    context: Dict[str, Any] = Body({}, description="Context when decision was made"),
-    evidence: Optional[List[str]] = Body(None, description="Evidence supporting the decision"),
-    trade_offs: Optional[Dict[str, Any]] = Body(None, description="Trade-offs analyzed"),
-    project_id: Optional[str] = Query(None),
-    session_id: Optional[str] = Query(None),
+    data: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -53,12 +44,56 @@ def record_decision(
     ]
     """
     try:
+        # Extract parameters from JSON body
+        decision_title = data.get("decision_title")
+        chosen_solution = data.get("chosen_solution")
+        reasoning = data.get("reasoning")
+        confidence = data.get("confidence", 0.8)
+        alternatives_raw = data.get("alternatives", [])
+        context = data.get("context", {})
+        evidence = data.get("evidence")
+        trade_offs = data.get("trade_offs")
+        project_id = data.get("project_id")
+        session_id = data.get("session_id")
+        
+        # Handle alternatives - convert strings to dict format if needed
+        alternatives = []
+        for alt in alternatives_raw:
+            if isinstance(alt, str):
+                # Convert simple string to dict format
+                alternatives.append({
+                    "solution": alt,
+                    "pros": [],
+                    "cons": [],
+                    "reason_rejected": "Not chosen"
+                })
+            elif isinstance(alt, dict):
+                alternatives.append(alt)
+            else:
+                continue
+        
+        # Validate required fields
+        if not all([decision_title, chosen_solution, reasoning]):
+            raise HTTPException(
+                status_code=422,
+                detail="Missing required fields: decision_title, chosen_solution, reasoning"
+            )
+        
+        # Validate confidence range
+        if not 0.0 <= confidence <= 1.0:
+            raise HTTPException(
+                status_code=422,
+                detail="Confidence must be between 0.0 and 1.0"
+            )
+        
         result = reasoning_system.record_decision(
             db, decision_title, chosen_solution, reasoning,
             alternatives, context, confidence, evidence,
             trade_offs, project_id, session_id
         )
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -165,6 +200,70 @@ def get_reasoning_patterns(category: str) -> Dict[str, str]:
     """Get learned reasoning patterns for a category"""
     patterns = reasoning_system.reasoning_patterns.get(category, {})
     return patterns
+
+
+@router.get("/history")
+def get_decision_history(
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    limit: int = Query(20, le=100, description="Maximum number of decisions to return"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get decision history with filtering and pagination
+    """
+    try:
+        # Get recent decisions from the reasoning system
+        all_decisions = []
+        
+        # Collect decisions from all categories
+        for cat, decisions in reasoning_system.decision_history.items():
+            for decision in decisions:
+                if not category or cat == category:
+                    # Handle both dict and string formats
+                    if isinstance(decision, dict):
+                        decision_data = {
+                            "category": cat,
+                            "title": decision.get("title", "Untitled"),
+                            "chosen_solution": decision.get("chosen_solution"),
+                            "alternatives": decision.get("alternatives", []),
+                            "reasoning": decision.get("reasoning", ""),
+                            "confidence_score": decision.get("confidence_score", 0.5),
+                            "timestamp": decision.get("timestamp", ""),
+                            "outcome": decision.get("outcome", "pending"),
+                            "tags": decision.get("tags", [])
+                        }
+                    else:
+                        # Handle legacy string format
+                        decision_data = {
+                            "category": cat,
+                            "title": str(decision),
+                            "chosen_solution": str(decision),
+                            "alternatives": [],
+                            "reasoning": "",
+                            "confidence_score": 0.5,
+                            "timestamp": "",
+                            "outcome": "legacy",
+                            "tags": []
+                        }
+                    all_decisions.append(decision_data)
+        
+        # Sort by timestamp (newest first)
+        all_decisions.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
+        # Apply pagination
+        paginated_decisions = all_decisions[offset:offset + limit]
+        
+        return {
+            "decisions": paginated_decisions,
+            "total": len(all_decisions),
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < len(all_decisions)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/search")

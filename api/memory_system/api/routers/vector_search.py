@@ -11,7 +11,7 @@ from ....models import get_db
 from ...services.embedding_service import memory_embedding_service
 from ..schemas import MemoryResponse
 from .memory import memory_to_response
-from ...models import Memory, MemorySession
+from ...models import MemorySystemMemory, MemorySession
 from sqlalchemy import or_, and_, desc, func
 
 logger = logging.getLogger(__name__)
@@ -46,32 +46,32 @@ async def _fallback_text_search(
     db: Session
 ) -> VectorSearchResponse:
     """Fallback text-based search when embeddings are not available"""
-    query = db.query(Memory)
+    query = db.query(MemorySystemMemory)
     
     # Apply filters
     if search_request.session_id:
-        query = query.filter(Memory.session_id == search_request.session_id)
+        query = query.filter(MemorySystemMemory.session_id == search_request.session_id)
     
     if search_request.user_id:
         query = query.join(MemorySession).filter(MemorySession.user_id == search_request.user_id)
     
     if search_request.memory_types:
-        query = query.filter(Memory.memory_type.in_(search_request.memory_types))
+        query = query.filter(MemorySystemMemory.memory_type.in_(search_request.memory_types))
     
     # Text search using PostgreSQL ILIKE
     search_term = f"%{search_request.query}%"
     query = query.filter(
         or_(
-            Memory.content.ilike(search_term),
-            Memory.summary.ilike(search_term),
-            func.array_to_string(Memory.entities, ' ').ilike(search_term)
+            MemorySystemMemory.content.ilike(search_term),
+            MemorySystemMemory.summary.ilike(search_term),
+            func.array_to_string(MemorySystemMemory.entities, ' ').ilike(search_term)
         )
     )
     
     # Order by importance and recency
     query = query.order_by(
-        desc(Memory.importance),
-        desc(Memory.created_at)
+        desc(MemorySystemMemory.importance),
+        desc(MemorySystemMemory.created_at)
     )
     
     # Apply limit
@@ -122,15 +122,9 @@ async def vector_search_memories(
 ):
     """Search memories using vector similarity"""
     try:
-        # Check if embeddings service is available
-        if not hasattr(memory_embedding_service, 'embeddings_client') or memory_embedding_service.embeddings_client is None:
-            # Fallback to text-based search
-            logger.warning("Embeddings service not available, falling back to text search")
-            return await _fallback_text_search(search_request, db)
-        
-        # Generate embedding for the query
+        # Generate embedding for the query using the service which has fallback
         try:
-            query_embedding = await memory_embedding_service.embeddings_client.generate_embedding(
+            query_embedding = await memory_embedding_service.generate_embedding(
                 search_request.query,
                 normalize=True
             )
@@ -192,7 +186,7 @@ async def find_similar_memories(
     from ...models import Memory
     
     # Get the target memory
-    memory = db.query(Memory).filter_by(id=memory_id).first()
+    memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     
@@ -251,7 +245,7 @@ async def reindex_session_embeddings(
     from ...models import Memory
     
     # Get all memories in the session
-    memories = db.query(Memory).filter_by(session_id=session_id).all()
+    memories = db.query(MemorySystemMemory).filter_by(session_id=session_id).all()
     
     if not memories:
         raise HTTPException(

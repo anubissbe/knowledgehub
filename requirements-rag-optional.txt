@@ -1,0 +1,11 @@
+# Optional RAG dependencies - install only if needed
+# These are kept separate to avoid conflicts with existing packages
+
+# Core LlamaIndex (minimal version that works with existing packages)
+llama-index-core==0.10.0
+llama-index-vector-stores-weaviate==0.1.0
+llama-index-embeddings-huggingface==0.1.0
+
+# Note: These packages may have conflicts with existing versions.
+# Install with: pip install -r requirements-rag-optional.txt --upgrade-strategy only-if-needed
+# Or use in a separate virtual environment

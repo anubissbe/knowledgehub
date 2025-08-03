@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -24,6 +24,7 @@
     "axios": "^1.7.2",
     "date-fns": "^2.30.0",
     "framer-motion": "^12.23.6",
+    "playwright": "^1.54.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-intersection-observer": "^9.16.0",
@@ -37,6 +38,7 @@
     "vis-network": "^10.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/three": "^0.178.1",

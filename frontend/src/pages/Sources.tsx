@@ -50,8 +50,12 @@ interface Source {
   name: string;
   url: string;
   type: 'website' | 'documentation' | 'repository' | 'api' | 'wiki';
-  status: 'PENDING' | 'CRAWLING' | 'INDEXING' | 'COMPLETED' | 'ERROR' | 'PAUSED';
-  document_count: number;
+  status: 'pending' | 'crawling' | 'indexing' | 'completed' | 'error' | 'paused';
+  stats?: {
+    documents: number;
+    chunks: number;
+    errors: number;
+  };
   last_scraped_at: string | null;
   created_at: string;
   config?: {
@@ -60,6 +64,11 @@ interface Source {
     crawl_delay?: number;
     follow_patterns?: string[];
     exclude_patterns?: string[];
+  };
+  scraping_status?: {
+    job_status: 'processing' | 'queued';
+    priority: string;
+    position?: number;
   };
 }
 
@@ -72,12 +81,12 @@ const sourceTypeIcons = {
 };
 
 const statusColors = {
-  PENDING: 'default',
-  CRAWLING: 'info',
-  INDEXING: 'warning',
-  COMPLETED: 'success',
-  ERROR: 'error',
-  PAUSED: 'secondary'
+  pending: 'default',
+  crawling: 'info',
+  indexing: 'warning',
+  completed: 'success',
+  error: 'error',
+  paused: 'secondary'
 } as const;
 
 export default function Sources() {
@@ -100,9 +109,14 @@ export default function Sources() {
   const fetchSources = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/sources/');
-      setSources(response.data);
+      const response = await api.get('/api/v1/sources/');
+      console.log('Sources API response:', response);
+      const sourcesData = response.data.sources || response.data || [];
+      // Ensure it's always an array
+      const sourcesArray = Array.isArray(sourcesData) ? sourcesData : [];
+      setSources(sourcesArray);
     } catch (err) {
+      console.error('Error fetching sources:', err);
       setError('Failed to fetch sources');
     } finally {
       setLoading(false);
@@ -111,6 +125,13 @@ export default function Sources() {
 
   useEffect(() => {
     fetchSources();
+    
+    // Auto-refresh every 2 seconds for more responsive status updates
+    const interval = setInterval(() => {
+      fetchSources();
+    }, 2000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleOpenDialog = (source?: Source) => {
@@ -162,7 +183,7 @@ export default function Sources() {
         }
       };
 
-      await api.post('/api/sources/', payload);
+      await api.post('/api/v1/sources/', payload);
       await fetchSources();
       handleCloseDialog();
     } catch (err) {
@@ -172,7 +193,7 @@ export default function Sources() {
 
   const handleRefresh = async (sourceId: string) => {
     try {
-      await api.post(`/api/sources/${sourceId}/refresh`);
+      await api.post(`/api/v1/sources/${sourceId}/refresh`);
       await fetchSources();
     } catch (err) {
       setError('Failed to refresh source');
@@ -185,7 +206,7 @@ export default function Sources() {
     }
 
     try {
-      await api.delete(`/api/sources/${sourceId}`);
+      await api.delete(`/api/v1/sources/${sourceId}`);
       await fetchSources();
     } catch (err) {
       setError('Failed to delete source');
@@ -206,7 +227,7 @@ export default function Sources() {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '100%', overflow: 'hidden' }}>
       <Box display="flex" justifyContent="between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1" gutterBottom>
           Knowledge Sources
@@ -241,7 +262,7 @@ export default function Sources() {
             <CardContent>
               <Typography variant="h6">Active</Typography>
               <Typography variant="h4">
-                {sources.filter(s => s.status === 'COMPLETED').length}
+                {Array.isArray(sources) ? sources.filter(s => s.status?.toLowerCase() === 'completed').length : 0}
               </Typography>
             </CardContent>
           </Card>
@@ -249,9 +270,12 @@ export default function Sources() {
         <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6">Crawling</Typography>
+              <Typography variant="h6">Scraping</Typography>
               <Typography variant="h4">
-                {sources.filter(s => ['CRAWLING', 'INDEXING'].includes(s.status)).length}
+                {Array.isArray(sources) ? sources.filter(s => s.scraping_status?.job_status === 'processing').length : 0}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                + {Array.isArray(sources) ? sources.filter(s => s.scraping_status?.job_status === 'queued').length : 0} queued
               </Typography>
             </CardContent>
           </Card>
@@ -261,7 +285,7 @@ export default function Sources() {
             <CardContent>
               <Typography variant="h6">Total Documents</Typography>
               <Typography variant="h4">
-                {sources.reduce((sum, s) => sum + s.document_count, 0)}
+                {Array.isArray(sources) ? sources.reduce((sum, s) => sum + (s.stats?.documents || 0), 0) : 0}
               </Typography>
             </CardContent>
           </Card>
@@ -284,7 +308,7 @@ export default function Sources() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sources.map((source) => (
+                {Array.isArray(sources) && sources.map((source) => (
                   <TableRow key={source.id}>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={1}>
@@ -301,13 +325,29 @@ export default function Sources() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={source.status} 
-                        color={statusColors[source.status]}
-                        size="small"
-                      />
+                      {source.scraping_status ? (
+                        <Box>
+                          <Chip 
+                            label={`${source.scraping_status.job_status === 'processing' ? 'Scraping' : 'Queued'} (${source.scraping_status.priority})`}
+                            color="warning"
+                            size="small"
+                            sx={{ mb: 0.5 }}
+                          />
+                          {source.scraping_status.position && (
+                            <Typography variant="caption" display="block">
+                              Position: {source.scraping_status.position}
+                            </Typography>
+                          )}
+                        </Box>
+                      ) : (
+                        <Chip 
+                          label={source.status} 
+                          color={statusColors[source.status]}
+                          size="small"
+                        />
+                      )}
                     </TableCell>
-                    <TableCell>{source.document_count}</TableCell>
+                    <TableCell>{source.stats?.documents || 0}</TableCell>
                     <TableCell>{formatDate(source.last_scraped_at)}</TableCell>
                     <TableCell>
                       <Box display="flex" gap={1}>
@@ -315,7 +355,7 @@ export default function Sources() {
                           <IconButton
                             size="small"
                             onClick={() => handleRefresh(source.id)}
-                            disabled={source.status === 'CRAWLING'}
+                            disabled={source.status === 'crawling'}
                           >
                             <RefreshIcon />
                           </IconButton>

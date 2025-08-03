@@ -12,7 +12,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent))

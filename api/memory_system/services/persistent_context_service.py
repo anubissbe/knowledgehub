@@ -20,7 +20,7 @@ from ..core.persistent_context import (
     ContextVector
 )
 from ..core.session_manager import SessionManager
-from ..models import Memory, MemorySession, MemoryType
+from ..models import MemorySystemMemory, MemorySession, MemoryType
 from .embedding_service import MemoryEmbeddingService
 from .fact_extraction import FactExtractionService
 from .entity_extraction import EntityExtractionService
@@ -63,9 +63,9 @@ class PersistentContextService:
             if not session:
                 raise ValueError(f"Session {session_id} not found")
             
-            memories = self.db.query(Memory).filter(
-                Memory.session_id == session_id
-            ).order_by(Memory.importance_score.desc()).all()
+            memories = self.db.query(MemorySystemMemory).filter(
+                MemorySystemMemory.session_id == session_id
+            ).order_by(MemorySystemMemory.importance_score.desc()).all()
             
             if not memories:
                 logger.info(f"No memories found for session {session_id}")
@@ -126,7 +126,7 @@ class PersistentContextService:
             logger.error(f"Error processing session {session_id} for context: {e}")
             raise
     
-    async def _analyze_context_type(self, memory: Memory) -> ContextType:
+    async def _analyze_context_type(self, memory: MemorySystemMemory) -> ContextType:
         """Analyze memory content to determine appropriate context type"""
         try:
             content = memory.content.lower()
@@ -171,7 +171,7 @@ class PersistentContextService:
             logger.warning(f"Error analyzing context type: {e}")
             return ContextType.CONVERSATION_FLOW
     
-    async def _determine_context_scope(self, session: MemorySession, memory: Memory) -> ContextScope:
+    async def _determine_context_scope(self, session: MemorySession, memory: MemorySystemMemory) -> ContextScope:
         """Determine the appropriate scope for context"""
         try:
             # Check if memory is project-specific
@@ -331,9 +331,9 @@ class PersistentContextService:
                 return []
             
             # Get recent memories from session to understand context
-            recent_memories = self.db.query(Memory).filter(
-                Memory.session_id == session_id
-            ).order_by(Memory.created_at.desc()).limit(5).all()
+            recent_memories = self.db.query(MemorySystemMemory).filter(
+                MemorySystemMemory.session_id == session_id
+            ).order_by(MemorySystemMemory.created_at.desc()).limit(5).all()
             
             if not recent_memories:
                 return []

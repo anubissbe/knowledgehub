@@ -98,6 +98,59 @@ async def list_sources(
         # Convert sources using the new schema method
         source_responses = [SourceResponse.from_db_model(source) for source in sources]
         
+        # Get scraping status for all sources
+        import redis
+        import json
+        try:
+            redis_client = redis.Redis(host='192.168.1.25', port=6381, decode_responses=True)
+            
+            # First check for currently running jobs from the database
+            from ..models.job import ScrapingJob, JobStatus
+            from ..models import get_db
+            db = next(get_db())
+            try:
+                running_jobs = db.query(ScrapingJob).filter(
+                    ScrapingJob.status == JobStatus.RUNNING
+                ).all()
+            finally:
+                db.close()
+            
+            for job in running_jobs:
+                for source_resp in source_responses:
+                    if str(source_resp.id) == str(job.source_id):
+                        source_resp.scraping_status = {
+                            "job_status": "running",
+                            "job_id": str(job.id),
+                            "started_at": job.started_at.isoformat() if job.started_at else None
+                        }
+                        break
+            
+            # Then collect queued job status
+            for priority in ["high", "normal", "low"]:
+                queue = f"crawl_jobs:{priority}"
+                queue_length = redis_client.llen(queue)
+                
+                for i in range(queue_length):
+                    job_data = redis_client.lindex(queue, i)
+                    if job_data:
+                        try:
+                            job = json.loads(job_data)
+                            source_id = job.get("source_id")  # Direct source_id field
+                            if source_id:
+                                # Find matching source and add status
+                                for source_resp in source_responses:
+                                    if str(source_resp.id) == source_id:
+                                        source_resp.scraping_status = {
+                                            "job_status": "processing" if i == 0 else "queued",
+                                            "priority": priority,
+                                            "position": i + 1
+                                        }
+                                        break
+                        except:
+                            pass
+        except Exception as e:
+            logger.warning(f"Could not fetch scraping status: {e}")
+        
         return SourceListResponse(
             sources=source_responses,
             total=total,

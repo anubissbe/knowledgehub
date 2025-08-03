@@ -51,9 +51,9 @@ class MemorySession(Base):
                         default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    memories = relationship('Memory', back_populates='session',
+    memories = relationship('MemorySystemMemory', back_populates='session',
                             cascade='all, delete-orphan',
-                            order_by='Memory.created_at.desc()')
+                            order_by='MemorySystemMemory.created_at.desc()')
     parent_session = relationship('MemorySession', remote_side=[id],
                                   backref=backref('child_sessions'))
     

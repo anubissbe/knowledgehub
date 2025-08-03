@@ -1,15 +1,16 @@
 """Base database configuration and session management"""
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Column, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
+from sqlalchemy.sql import func
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
 
 # Get database URL from environment or config
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://knowledgehub:knowledgehub@localhost:5433/knowledgehub")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://knowledgehub:knowledgehub123@localhost:5433/knowledgehub")
 
 # Create database engine with connection pooling
 engine = create_engine(
@@ -26,6 +27,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create base class for models
 Base = declarative_base()
+
+
+class TimeStampedModel(Base):
+    """Base model with timestamp fields."""
+    
+    __abstract__ = True
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 def get_db() -> Generator:
     """

@@ -5,7 +5,7 @@ Provides Prometheus metrics for security monitoring and alerting.
 """
 
 from prometheus_client import Counter, Gauge, Histogram, Info
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import time
 from datetime import datetime
 

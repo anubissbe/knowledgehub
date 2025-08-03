@@ -127,7 +127,7 @@ async def compress_context(
         
         # Get original memory count for comparison
         from ...models import Memory
-        original_count = db.query(Memory).filter_by(
+        original_count = db.query(MemorySystemMemory).filter_by(
             session_id=request.session_id
         ).count()
         
@@ -161,7 +161,7 @@ async def get_compression_stats(
     and recommendations for compression strategies.
     """
     try:
-        from ...models import Memory, MemorySession
+        from ...models import MemorySystemMemory, MemorySession
         
         # Check if session exists
         session = db.query(MemorySession).filter_by(id=session_id).first()
@@ -169,7 +169,7 @@ async def get_compression_stats(
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Get memory count and estimate tokens
-        memories = db.query(Memory).filter_by(session_id=session_id).all()
+        memories = db.query(MemorySystemMemory).filter_by(session_id=session_id).all()
         if not memories:
             raise HTTPException(status_code=404, detail="No memories found in session")
         

@@ -17,7 +17,7 @@ import asyncio
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..models import MemorySession, Memory, MemoryType
+from ..models import MemorySession, MemorySystemMemory, MemoryType
 from ..api.schemas import SessionCreate
 from ...services.cache import redis_client
 from ..services.context_service import ContextService
@@ -286,7 +286,7 @@ class SessionLifecycleManager:
     
     async def _create_welcome_memory(self, session: MemorySession):
         """Create initial welcome memory for new sessions"""
-        welcome_memory = Memory(
+        welcome_memory = MemorySystemMemory(
             session_id=session.id,
             content="New session started. I'm ready to help and will remember our conversation.",
             summary="Session initialization",

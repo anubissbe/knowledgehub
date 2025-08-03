@@ -1,0 +1,23 @@
+# Zep Configuration
+api_secret: "your-secret-key-change-this"
+
+store:
+  type: postgres
+  postgres:
+    dsn: postgresql://zep:zep123@zep-postgres:5432/zep
+
+nlp:
+  spacy_model: en_core_web_sm
+
+memory:
+  message_window: 12
+
+extractors:
+  messages:
+    entities:
+      enabled: true
+    summarizer:
+      enabled: true
+
+server:
+  port: 8000

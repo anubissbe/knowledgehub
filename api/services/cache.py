@@ -76,6 +76,19 @@ class RedisCache:
         except Exception as e:
             logger.error(f"Redis delete error: {e}")
     
+    async def keys(self, pattern: str) -> list[str]:
+        """Get all keys matching the pattern"""
+        try:
+            if self.client is None:
+                return []
+            keys = await self.client.keys(pattern)
+            # Redis returns bytes for keys when decode_responses=True is set, 
+            # but we've set it, so keys should be strings already
+            return keys
+        except Exception as e:
+            logger.error(f"Redis keys error: {e}")
+            return []
+    
     async def close(self):
         """Close Redis connection"""
         if self.client:
@@ -84,3 +97,10 @@ class RedisCache:
 
 # Global Redis client instance
 redis_client = RedisCache(settings.REDIS_URL)
+
+
+async def get_cache_service() -> RedisCache:
+    """Get the cache service instance"""
+    if not redis_client.client:
+        await redis_client.initialize()
+    return redis_client

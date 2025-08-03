@@ -451,7 +451,7 @@ class PythonPatternAnalyzer(ast.NodeVisitor):
 _pattern_engine: Optional[PatternRecognitionEngine] = None
 
 
-def get_pattern_engine() -> PatternRecognitionEngine:
+async def get_pattern_engine() -> PatternRecognitionEngine:
     """Get or create the pattern recognition engine"""
     global _pattern_engine
     

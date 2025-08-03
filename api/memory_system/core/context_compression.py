@@ -23,7 +23,7 @@ import hashlib
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
-from ..models import Memory, MemorySession, MemoryType
+from ..models import MemorySystemMemory, MemorySession, MemoryType
 from ...services.cache import redis_client
 
 logger = logging.getLogger(__name__)
@@ -116,9 +116,9 @@ class ContextCompressionService:
         if not session:
             raise ValueError(f"Session {session_id} not found")
         
-        memories = db.query(Memory).filter_by(
+        memories = db.query(MemorySystemMemory).filter_by(
             session_id=session_id
-        ).order_by(desc(Memory.created_at)).all()
+        ).order_by(desc(MemorySystemMemory.created_at)).all()
         
         if not memories:
             return CompressedContext()
@@ -174,7 +174,7 @@ class ContextCompressionService:
     
     async def _importance_based_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -219,7 +219,7 @@ class ContextCompressionService:
     
     async def _recency_weighted_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -267,7 +267,7 @@ class ContextCompressionService:
     
     async def _summarization_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -305,7 +305,7 @@ class ContextCompressionService:
     
     async def _entity_consolidation_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -345,7 +345,7 @@ class ContextCompressionService:
     
     async def _semantic_clustering_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -377,7 +377,7 @@ class ContextCompressionService:
     
     async def _hierarchical_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -418,7 +418,7 @@ class ContextCompressionService:
     
     async def _hybrid_compression(
         self,
-        memories: List[Memory],
+        memories: List[MemorySystemMemory],
         target_tokens: int,
         level: CompressionLevel
     ) -> CompressedContext:
@@ -460,7 +460,7 @@ class ContextCompressionService:
         
         return importance_compressed
     
-    def _group_memories_for_summarization(self, memories: List[Memory]) -> Dict[str, List[Memory]]:
+    def _group_memories_for_summarization(self, memories: List[MemorySystemMemory]) -> Dict[str, List[MemorySystemMemory]]:
         """Group memories by type for summarization"""
         groups = {}
         for memory in memories:
@@ -470,7 +470,7 @@ class ContextCompressionService:
             groups[memory_type].append(memory)
         return groups
     
-    def _group_memories_by_entities(self, memories: List[Memory]) -> Dict[str, List[Memory]]:
+    def _group_memories_by_entities(self, memories: List[MemorySystemMemory]) -> Dict[str, List[MemorySystemMemory]]:
         """Group memories by shared entities"""
         entity_groups = {}
         
@@ -483,7 +483,7 @@ class ContextCompressionService:
         
         return entity_groups
     
-    def _create_semantic_clusters(self, memories: List[Memory]) -> List[List[Memory]]:
+    def _create_semantic_clusters(self, memories: List[MemorySystemMemory]) -> List[List[MemorySystemMemory]]:
         """Create clusters based on semantic similarity"""
         clusters = []
         processed = set()
@@ -511,11 +511,11 @@ class ContextCompressionService:
         
         return clusters
     
-    def _find_cluster_representative(self, cluster: List[Memory]) -> Memory:
+    def _find_cluster_representative(self, cluster: List[MemorySystemMemory]) -> MemorySystemMemory:
         """Find the most representative memory in a cluster"""
         return max(cluster, key=lambda m: m.importance)
     
-    def _create_cluster_summary(self, cluster: List[Memory]) -> str:
+    def _create_cluster_summary(self, cluster: List[MemorySystemMemory]) -> str:
         """Create a summary for a memory cluster"""
         if len(cluster) == 1:
             return cluster[0].summary or cluster[0].content[:100] + "..."
@@ -539,7 +539,7 @@ class ContextCompressionService:
         entity_str = ", ".join(common_entities[:3]) if common_entities else "various topics"
         return f"Discussion about {entity_str} ({len(cluster)} related memories)"
     
-    def _create_group_summary(self, group_memories: List[Memory], group_type: str) -> str:
+    def _create_group_summary(self, group_memories: List[MemorySystemMemory], group_type: str) -> str:
         """Create summary for a group of memories of the same type"""
         if not group_memories:
             return ""
@@ -556,7 +556,7 @@ class ContextCompressionService:
         else:
             return f"{len(group_memories)} {group_type} memories"
     
-    def _create_entity_summary(self, entity: str, entity_memories: List[Memory]) -> str:
+    def _create_entity_summary(self, entity: str, entity_memories: List[MemorySystemMemory]) -> str:
         """Create summary for memories related to a specific entity"""
         important_points = []
         for memory in entity_memories:
@@ -569,7 +569,7 @@ class ContextCompressionService:
         else:
             return f"Mentioned in {len(entity_memories)} memories"
     
-    def _generate_summary(self, memories: List[Memory]) -> str:
+    def _generate_summary(self, memories: List[MemorySystemMemory]) -> str:
         """Generate a summary from a list of memories"""
         if not memories:
             return ""
@@ -605,7 +605,7 @@ class ContextCompressionService:
         
         return ". ".join(summary_parts)
     
-    def _generate_overall_summary(self, memory_groups: Dict[str, List[Memory]]) -> str:
+    def _generate_overall_summary(self, memory_groups: Dict[str, List[MemorySystemMemory]]) -> str:
         """Generate overall summary from memory groups"""
         summary_parts = []
         
@@ -615,7 +615,7 @@ class ContextCompressionService:
         
         return ", ".join(summary_parts)
     
-    def _extract_entities(self, memories: List[Memory]) -> List[str]:
+    def _extract_entities(self, memories: List[MemorySystemMemory]) -> List[str]:
         """Extract unique entities from memories"""
         entities = set()
         for memory in memories:
@@ -623,7 +623,7 @@ class ContextCompressionService:
                 entities.update(memory.entities)
         return list(entities)[:20]  # Limit to top 20
     
-    def _memory_to_dict(self, memory: Memory) -> Dict[str, Any]:
+    def _memory_to_dict(self, memory: MemorySystemMemory) -> Dict[str, Any]:
         """Convert memory to dictionary format"""
         return {
             "id": str(memory.id),
@@ -635,7 +635,7 @@ class ContextCompressionService:
             "created_at": memory.created_at.isoformat()
         }
     
-    def _estimate_memory_tokens(self, memory: Memory) -> int:
+    def _estimate_memory_tokens(self, memory: MemorySystemMemory) -> int:
         """Estimate token count for a memory"""
         content_chars = len(memory.content) + len(memory.summary or "")
         return int(content_chars * self.token_per_char_ratio)
@@ -653,7 +653,7 @@ class ContextCompressionService:
         
         return int(total_chars * self.token_per_char_ratio)
     
-    def _calculate_compression_ratio(self, original: List[Memory], compressed: CompressedContext) -> float:
+    def _calculate_compression_ratio(self, original: List[MemorySystemMemory], compressed: CompressedContext) -> float:
         """Calculate compression ratio"""
         if not original:
             return 0.0

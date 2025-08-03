@@ -194,11 +194,13 @@ class VectorStore:
     ) -> List[Dict[str, Any]]:
         """Search for similar chunks"""
         try:
+            logger.info(f"Vector search called with vector length: {len(query_vector)}, limit: {limit}, filters: {filters}")
+            
             if self.client is None:
                 raise Exception("Weaviate client not initialized")
             query = (
                 self.client.query
-                .get(self.collection_name, ["chunk_id", "document_id", "source_id", "content", 
+                .get(self.collection_name, ["chunk_index", "doc_id", "source_id", "content", 
                                            "chunk_type", "metadata"])
                 .with_near_vector({"vector": query_vector})
                 .with_limit(limit)
@@ -212,6 +214,8 @@ class VectorStore:
                     query = query.with_where(where_filter)
             
             result = query.do()
+            
+            logger.info(f"Weaviate search result: {result}")
             
             if "errors" in result:
                 logger.error(f"Search errors: {result['errors']}")
@@ -293,3 +297,6 @@ vector_store = VectorStore(
     url=settings.WEAVIATE_URL,
     collection_name=settings.WEAVIATE_COLLECTION_NAME
 )
+
+# Alias for backward compatibility
+weaviate_client = vector_store

@@ -28,6 +28,87 @@ def health_check():
 
 @router.post("/track")
 def track_performance(
+    data: Dict[str, Any] = Body(..., description="Performance tracking data"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Track execution of a command with performance metrics
+    
+    Expected data format:
+    {
+        "operation": "test_operation",
+        "duration_ms": 150,
+        "metadata": {"test": true}
+    }
+    
+    OR the full format:
+    {
+        "command_type": "file_read",
+        "execution_time": 0.5,
+        "success": true,
+        "output_size": 1024,
+        "error_message": null,
+        "project_id": "project123",
+        "session_id": "session123",
+        "command_details": {"file_path": "/path/to/file"},
+        "context": {"working_directory": "/project"}
+    }
+    """
+    try:
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Received performance tracking data: {data}")
+        logger.info(f"Data types: {[(k, type(v).__name__) for k, v in data.items()]}")
+        
+        # Support both formats
+        if "operation" in data:
+            # Simple format
+            command_type = data.get("operation", "unknown")
+            execution_time = data.get("duration_ms", 0) / 1000.0  # Convert ms to seconds
+            success = True
+            command_details = data.get("metadata", {})
+            context = {}
+            output_size = None
+            error_message = None
+            project_id = None
+            session_id = None
+        else:
+            # Full format
+            command_type = data.get("command_type") or data.get("command", "unknown")
+            execution_time = float(data.get("execution_time", 0))  # Ensure it's a float
+            success = bool(data.get("success", True))  # Ensure it's a bool
+            command_details = data.get("command_details", {})
+            context = data.get("context", {})
+            output_size = data.get("output_size")
+            error_message = data.get("error_message")
+            project_id = data.get("project_id")
+            session_id = data.get("session_id")
+        
+        # Add user_id if provided
+        user_id = data.get("user_id", "default-user")
+        
+        logger.info(f"Calling track_command_execution with:")
+        logger.info(f"  command_type: {command_type} (type: {type(command_type).__name__})")
+        logger.info(f"  execution_time: {execution_time} (type: {type(execution_time).__name__})")
+        logger.info(f"  success: {success} (type: {type(success).__name__})")
+        
+        result = performance_tracker.track_command_execution(
+            db, command_type, command_details, execution_time,
+            success, output_size, error_message, context,
+            project_id, session_id
+        )
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error in track_performance: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Full traceback:", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/track-detailed")
+def track_performance_detailed(
     command_type: str = Query(..., description="Type of command executed"),
     execution_time: float = Query(..., description="Execution time in seconds"),
     success: bool = Query(..., description="Whether command succeeded"),

@@ -99,14 +99,31 @@ class PerformanceMetricsTracker:
         self.metrics_history = {}
         if self.metrics_file.exists():
             with open(self.metrics_file, 'r') as f:
-                self.metrics_history = json.load(f)
+                loaded_data = json.load(f)
+                # Convert regular dicts back to defaultdicts
+                for category, data in loaded_data.items():
+                    self.metrics_history[category] = {
+                        "total_executions": data.get("total_executions", 0),
+                        "successful_executions": data.get("successful_executions", 0),
+                        "total_time": data.get("total_time", 0.0),
+                        "patterns_detected": defaultdict(int, data.get("patterns_detected", {})),
+                        "hourly_distribution": defaultdict(int, data.get("hourly_distribution", {}))
+                    }
     
     def _load_execution_patterns(self):
         """Load learned execution patterns"""
         self.execution_patterns = {}
         if self.patterns_file.exists():
             with open(self.patterns_file, 'r') as f:
-                self.execution_patterns = json.load(f)
+                loaded_data = json.load(f)
+                # Convert regular dicts back to defaultdicts where needed
+                for category, data in loaded_data.items():
+                    self.execution_patterns[category] = {
+                        "successful_patterns": data.get("successful_patterns", []),
+                        "failure_patterns": data.get("failure_patterns", []),
+                        "optimization_results": data.get("optimization_results", {}),
+                        "common_contexts": defaultdict(int, data.get("common_contexts", {}))
+                    }
     
     def track_command_execution(self, db: Session,
                               command_type: str,
@@ -495,7 +512,29 @@ class PerformanceMetricsTracker:
         if metrics_data["performance_analysis"]["performance_rating"] == "very_slow":
             tags.append("performance_issue")
         
-        memory_hash = hashlib.sha256(content.encode()).hexdigest()
+        # Include execution_id and timestamp in hash to ensure uniqueness
+        unique_content = f"{content}\n\nExecution ID: {metrics_data['execution_id']}\nTimestamp: {metrics_data['timestamp']}"
+        memory_hash = hashlib.sha256(unique_content.encode()).hexdigest()
+        
+        # Check if memory with this hash already exists
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == memory_hash
+        ).first()
+        
+        if existing_memory:
+            # Update existing memory
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Update metadata with latest execution data
+            existing_memory.meta_data = {
+                "memory_type": "performance_metrics",
+                "importance": existing_memory.meta_data.get("importance", 0.5),
+                **metrics_data
+            }
+            db.commit()
+            db.refresh(existing_memory)
+            return existing_memory
         
         # Calculate importance based on quality score and optimization potential
         base_importance = 0.5
@@ -504,6 +543,7 @@ class PerformanceMetricsTracker:
         
         importance = base_importance + quality_factor + optimization_factor
         
+        # Create new memory
         memory = MemoryItem(
             content=content,
             content_hash=memory_hash,
@@ -519,11 +559,25 @@ class PerformanceMetricsTracker:
             accessed_at=datetime.utcnow()
         )
         
-        db.add(memory)
-        db.commit()
-        db.refresh(memory)
-        
-        return memory
+        try:
+            db.add(memory)
+            db.commit()
+            db.refresh(memory)
+            return memory
+        except Exception as e:
+            db.rollback()
+            # If there's still a duplicate key error, find and update the existing record
+            if "duplicate key" in str(e).lower():
+                existing = db.query(MemoryItem).filter(
+                    MemoryItem.content_hash == memory_hash
+                ).first()
+                if existing:
+                    existing.access_count += 1
+                    existing.accessed_at = datetime.utcnow()
+                    db.commit()
+                    db.refresh(existing)
+                    return existing
+            raise
     
     def _update_metrics_history(self, metrics: Dict[str, Any]):
         """Update local metrics history"""

@@ -18,6 +18,14 @@ def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
     return None
 
 
+def get_current_user_optional(request: Request) -> Optional[Dict[str, Any]]:
+    """Get current authenticated user from request (optional - returns None if not authenticated)"""
+    try:
+        return get_current_user(request)
+    except:
+        return None
+
+
 def require_admin(request: Request) -> Dict[str, Any]:
     """Require admin permissions for endpoint access"""
     # In development mode, allow access without authentication
@@ -85,3 +93,30 @@ def has_permission(request: Request, permission: str) -> bool:
 def is_admin(request: Request) -> bool:
     """Check if user has admin permissions"""
     return has_permission(request, "admin")
+
+
+def verify_token(token: str) -> Optional[Dict[str, Any]]:
+    """Verify authentication token and return user info"""
+    # For MCP server and development use
+    from ..config import settings
+    
+    if settings.APP_ENV == "development":
+        # In development, accept any token
+        return {
+            "id": "dev-user",
+            "name": "Development User",
+            "permissions": ["admin", "read", "write"],
+            "type": "development"
+        }
+    
+    # In production, implement proper token verification
+    # This is a stub for now - should integrate with your auth system
+    if token and len(token) > 10:
+        return {
+            "id": "api-user",
+            "name": "API User",
+            "permissions": ["read", "write"],
+            "type": "api_key"
+        }
+    
+    return None

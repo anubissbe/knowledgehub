@@ -30,9 +30,10 @@ const AI_FEATURES = [
     description: 'Seamless context preservation across sessions',
     color: '#2196F3',
     endpoint: '/api/claude-auto/session/current',
+    statsEndpoint: '/api/claude-auto/memory/stats',
     stats: [
-      { label: 'Sessions', value: '156' },
-      { label: 'Uptime', value: '99.9%' },
+      { label: 'Sessions', value: '0' },
+      { label: 'Memories', value: '0' },
     ],
   },
   {
@@ -41,10 +42,11 @@ const AI_FEATURES = [
     title: 'Mistake Learning',
     description: 'Learn from errors to prevent repetition',
     color: '#FF00FF',
-    endpoint: '/api/mistakes/patterns',
+    endpoint: '/api/mistake-learning/lessons',
+    statsEndpoint: '/api/mistake-learning/stats',
     stats: [
-      { label: 'Patterns', value: '89' },
-      { label: 'Accuracy', value: '94%' },
+      { label: 'Patterns', value: '0' },
+      { label: 'Lessons', value: '0' },
     ],
   },
   {
@@ -53,10 +55,11 @@ const AI_FEATURES = [
     title: 'Proactive Assistant',
     description: 'Anticipate needs and suggest next actions',
     color: '#00FF88',
-    endpoint: '/api/ai-features/summary',
+    endpoint: '/api/proactive/predictions',
+    statsEndpoint: '/api/proactive/task-suggestions',
     stats: [
-      { label: 'Predictions', value: '342' },
-      { label: 'Success', value: '87%' },
+      { label: 'Status', value: 'Active' },
+      { label: 'Predictions', value: '0' },
     ],
   },
   {
@@ -65,10 +68,11 @@ const AI_FEATURES = [
     title: 'Decision Reasoning',
     description: 'Track and explain all technical decisions',
     color: '#FFD700',
-    endpoint: '/api/decisions',
+    endpoint: '/api/decisions/search?query=recent',
+    statsEndpoint: '/api/decisions/categories',
     stats: [
-      { label: 'Decisions', value: '567' },
-      { label: 'Quality', value: '92%' },
+      { label: 'Decisions', value: '0' },
+      { label: 'Categories', value: '0' },
     ],
   },
   {
@@ -77,10 +81,11 @@ const AI_FEATURES = [
     title: 'Code Evolution',
     description: 'Track code changes and refactoring patterns',
     color: '#00FFFF',
-    endpoint: '/api/code-evolution',
+    endpoint: '/api/code-evolution/history?file_path=test',
+    statsEndpoint: '/api/code-evolution/patterns/analytics',
     stats: [
-      { label: 'Changes', value: '1.2K' },
-      { label: 'Improved', value: '78%' },
+      { label: 'Changes', value: '0' },
+      { label: 'Patterns', value: '0' },
     ],
   },
   {
@@ -89,10 +94,11 @@ const AI_FEATURES = [
     title: 'Performance Optimization',
     description: 'Continuous performance monitoring and tuning',
     color: '#8B5CF6',
-    endpoint: '/api/performance/report',
+    endpoint: '/api/performance/stats',
+    statsEndpoint: '/api/performance/recommendations',
     stats: [
-      { label: 'Speed', value: '+45%' },
-      { label: 'Efficiency', value: '96%' },
+      { label: 'Metrics', value: '0' },
+      { label: 'Optimized', value: '0%' },
     ],
   },
   {
@@ -101,7 +107,8 @@ const AI_FEATURES = [
     title: 'Workflow Integration',
     description: 'Seamless integration with development workflows',
     color: '#EC4899',
-    endpoint: '/api/claude-workflow',
+    endpoint: '/api/claude-workflow/stats',
+    statsEndpoint: '/api/claude-workflow/activity',
     stats: [
       { label: 'Workflows', value: '23' },
       { label: 'Automated', value: '85%' },
@@ -113,7 +120,8 @@ const AI_FEATURES = [
     title: 'Pattern Recognition',
     description: 'Identify and apply coding patterns',
     color: '#FF3366',
-    endpoint: '/api/patterns',
+    endpoint: '/api/patterns/recognize',
+    statsEndpoint: '/api/patterns/stats',
     stats: [
       { label: 'Patterns', value: '456' },
       { label: 'Applied', value: '234' },
@@ -175,16 +183,48 @@ export default function AiIntelligence() {
       const updatedFeatures = await Promise.all(
         AI_FEATURES.map(async (feature) => {
           try {
-            await api.get(feature.endpoint)
-            // Update feature with real data if available
-            return {
-              ...feature,
-              progress: Math.floor(Math.random() * 40) + 60, // Would come from real data
+            // Fetch main endpoint
+            const response = await api.get(feature.endpoint)
+            
+            // Try to fetch stats if available
+            let stats = feature.stats
+            if (feature.statsEndpoint) {
+              try {
+                const statsResponse = await api.get(feature.statsEndpoint)
+                // Update stats based on response
+                if (feature.id === 'session-continuity' && statsResponse.data) {
+                  stats = [
+                    { label: 'Sessions', value: statsResponse.data.total_sessions || '0' },
+                    { label: 'Memories', value: statsResponse.data.total_memories || '0' },
+                  ]
+                } else if (feature.id === 'mistake-learning' && Array.isArray(statsResponse.data)) {
+                  stats = [
+                    { label: 'Patterns', value: statsResponse.data.length.toString() },
+                    { label: 'Lessons', value: statsResponse.data.filter((l: any) => l.applied).length.toString() },
+                  ]
+                } else if (feature.id === 'decision-reasoning' && Array.isArray(statsResponse.data)) {
+                  stats = [
+                    { label: 'Decisions', value: statsResponse.data.length.toString() },
+                    { label: 'Categories', value: new Set(statsResponse.data.map((d: any) => d.category)).size.toString() },
+                  ]
+                }
+              } catch (e) {
+                console.warn(`Failed to fetch stats for ${feature.id}:`, e)
+              }
             }
-          } catch {
+            
             return {
               ...feature,
-              progress: Math.floor(Math.random() * 40) + 60,
+              stats,
+              progress: response.status === 200 ? 100 : 50,
+              status: 'active'
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch data for ${feature.id}:`, error)
+            return {
+              ...feature,
+              progress: 0,
+              status: 'error'
             }
           }
         })
@@ -212,6 +252,9 @@ export default function AiIntelligence() {
     }
   }
 
+  console.log('Current features:', features)
+  console.log('Features length:', features.length)
+  
   const tabCategories = [
     { label: 'All Features', features: features },
     { label: 'Learning & Adaptation', features: features.filter(f => ['mistake-learning', 'pattern-recognition', 'code-evolution'].includes(f.id)) },
@@ -282,15 +325,23 @@ export default function AiIntelligence() {
             transition={{ duration: 0.3 }}
           >
             <Grid container spacing={3} sx={{ mb: 4 }}>
-              {tabCategories[selectedTab].features.map((feature, index) => (
-                <Grid item xs={12} sm={6} lg={4} key={feature.id}>
-                  <FeatureCard
-                    {...feature}
-                    delay={index * 0.1}
-                    onClick={() => handleFeatureClick(feature)}
-                  />
+              {tabCategories[selectedTab].features.length > 0 ? (
+                tabCategories[selectedTab].features.map((feature, index) => (
+                  <Grid item xs={12} sm={6} lg={4} key={feature.id}>
+                    <FeatureCard
+                      {...feature}
+                      delay={index * 0.1}
+                      onClick={() => handleFeatureClick(feature)}
+                    />
+                  </Grid>
+                ))
+              ) : (
+                <Grid item xs={12}>
+                  <Typography variant="h6" align="center" color="text.secondary">
+                    No features available. Check console for debugging info.
+                  </Typography>
                 </Grid>
-              ))}
+              )}
             </Grid>
           </motion.div>
         </AnimatePresence>

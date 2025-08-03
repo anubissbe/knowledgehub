@@ -1,0 +1,56 @@
+{
+  "timestamp": "2025-07-22T14:55:51.718566",
+  "overall_percentage": 15.0,
+  "results": {
+    "Memory Creation": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "No memory creation endpoints work"
+    },
+    "Memory Search": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "No search endpoints work"
+    },
+    "Session Management": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "No session management functionality"
+    },
+    "Error Learning": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "No error learning functionality exists"
+    },
+    "Decision Recording": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Decision recording endpoints not implemented"
+    },
+    "Code Evolution": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Code evolution not implemented"
+    },
+    "Proactive Predictions": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "No proactive prediction functionality"
+    },
+    "Web UI": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Web UI works and connects to real API with database"
+    },
+    "WebSocket Events": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "WebSocket not functional"
+    },
+    "Cross-session Continuity": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.5,
+      "details": "Context retrieval works but no session linking"
+    }
+  }
+}

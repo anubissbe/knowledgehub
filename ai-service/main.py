@@ -83,17 +83,22 @@ async def lifespan(app: FastAPI):
     try:
         db_pool = await asyncpg.create_pool(
             host=os.getenv('DB_HOST', 'localhost'),
-            port=int(os.getenv('DB_PORT', 5433)),
+            port=int(os.getenv('DB_PORT', 5432)),  # Within Docker network, postgres is on 5432
             database=os.getenv('DB_NAME', 'knowledgehub'),
-            user=os.getenv('DB_USER', 'postgres'),
-            password=os.getenv('DB_PASSWORD', 'postgres'),
+            user=os.getenv('DB_USER', 'knowledgehub'),
+            password=os.getenv('DB_PASSWORD', 'knowledgehub123'),
             min_size=5,
             max_size=20
         )
         logger.info("Database connection pool created")
     except Exception as e:
         logger.error(f"Failed to create database pool: {e}")
-        raise
+        logger.warning("Continuing without database connection for now...")
+        db_pool = None  # Allow service to start without database
+    
+    # Set app state
+    app.state.embedding_model = embedding_model
+    app.state.db_pool = db_pool
     
     yield
     

@@ -179,7 +179,7 @@ async def search_suggestions(
         
         # Get memory suggestions if requested
         if include_memories and user_id:
-            from ..memory_system.models import Memory, MemorySession
+            from ..memory_system.models import MemorySystemMemory as Memory, MemorySession
             
             memory_suggestions = db.query(Memory.content).join(MemorySession).filter(
                 MemorySession.user_id == user_id,

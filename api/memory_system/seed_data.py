@@ -18,7 +18,7 @@ from typing import Dict, List, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from ..models.memory import MemorySession, Memory, MemoryType
+from ..models.memory import MemorySession, MemorySystemMemory, MemoryType
 from ..core.session_manager import SessionManager
 from ..core.memory_manager import MemoryManager
 from ..core.persistent_context import PersistentContextManager
@@ -402,9 +402,9 @@ class MemorySystemSeedData:
         
         return session
     
-    async def _create_test_memory(self, session_id: uuid.UUID, memory_data: Dict[str, Any]) -> Memory:
+    async def _create_test_memory(self, session_id: uuid.UUID, memory_data: Dict[str, Any]) -> MemorySystemMemory:
         """Create a test memory with realistic content"""
-        memory = Memory(
+        memory = MemorySystemMemory(
             id=uuid.uuid4(),
             session_id=session_id,
             memory_type=memory_data["memory_type"],
@@ -448,8 +448,8 @@ class MemorySystemSeedData:
         
         try:
             # Delete memories first (foreign key constraint)
-            memory_count = self.db.query(Memory).count()
-            self.db.query(Memory).delete()
+            memory_count = self.db.query(MemorySystemMemory).count()
+            self.db.query(MemorySystemMemory).delete()
             results["memories_deleted"] = memory_count
             
             # Delete sessions
@@ -519,7 +519,7 @@ class MemorySystemSeedData:
                     validation_results["sessions"]["duration_set"] += 1
             
             # Validate memories
-            memories = self.db.query(Memory).all()
+            memories = self.db.query(MemorySystemMemory).all()
             validation_results["memories"]["count"] = len(memories)
             
             importance_scores = []

@@ -5,16 +5,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+import asyncio
 import logging
 import time
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Set up basic logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler, project_timeline, admin, exports, claude_simple, claude_working, claude_sync, internal
+from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler, project_timeline, admin, exports, claude_simple, claude_working, claude_sync, internal, scraping_status, ai_features, activity, memory_stats, hybrid_memory, tasks
+
+# Try to import RAG router with fallback
+try:
+    from .routers import rag
+    RAG_ROUTER = rag
+    logger.info("Full RAG router imported successfully")
+except ImportError as e:
+    logger.warning(f"Full RAG router not available: {e}. Using simple RAG router.")
+    from .routers import rag_simple as RAG_ROUTER
 from .routers import (
     claude_auto,
     project_context,
@@ -28,6 +38,15 @@ from .routers import (
     pattern_recognition,
     claude_integration
 )
+
+# Try to import unified search router
+try:
+    from .routers import unified_search
+    UNIFIED_SEARCH_AVAILABLE = True
+    logger.info("Unified search router imported successfully")
+except ImportError as e:
+    logger.warning(f"Unified search router not available: {e}")
+    UNIFIED_SEARCH_AVAILABLE = False
 
 # Try to import new services, gracefully handle import errors
 try:
@@ -47,12 +66,44 @@ except ImportError as e:
     KNOWLEDGE_GRAPH_AVAILABLE = False
 
 try:
-    from .routers import time_series_analytics
+    from .routers import timescale_analytics
     TIME_SERIES_AVAILABLE = True
-    logger.info("Time-series analytics router imported successfully")
+    logger.info("TimescaleDB analytics router imported successfully")
 except ImportError as e:
-    logger.warning(f"Time-series analytics router not available: {e}")
+    logger.warning(f"TimescaleDB analytics router not available: {e}")
     TIME_SERIES_AVAILABLE = False
+
+try:
+    from .routers import object_storage
+    OBJECT_STORAGE_AVAILABLE = True
+    logger.info("Object storage router imported successfully")
+except ImportError as e:
+    logger.warning(f"Object storage router not available: {e}")
+    OBJECT_STORAGE_AVAILABLE = False
+
+try:
+    from .routers import session_management
+    SESSION_MANAGEMENT_AVAILABLE = True
+    logger.info("Session management router imported successfully")
+except ImportError as e:
+    logger.warning(f"Session management router not available: {e}")
+    SESSION_MANAGEMENT_AVAILABLE = False
+
+try:
+    from .routers import error_tracking
+    ERROR_TRACKING_AVAILABLE = True
+    logger.info("Error tracking router imported successfully")
+except ImportError as e:
+    logger.warning(f"Error tracking router not available: {e}")
+    ERROR_TRACKING_AVAILABLE = False
+
+try:
+    from .routers import enhanced_decisions
+    ENHANCED_DECISIONS_AVAILABLE = True
+    logger.info("Enhanced decisions router imported successfully")
+except ImportError as e:
+    logger.warning(f"Enhanced decisions router not available: {e}")
+    ENHANCED_DECISIONS_AVAILABLE = False
 
 try:
     from .routers import workflow_integration
@@ -76,6 +127,7 @@ except ImportError:
     from .routes import analytics_fixed as analytics
 from .routes import auth, cors_security, security_monitoring, security_headers, rate_limiting, persistent_context_simple
 from .services.startup import initialize_services, shutdown_services
+from .services.real_startup_service import startup_handler, shutdown_handler, get_real_services_health, get_real_services_metrics
 from .middleware.auth import SecureAuthMiddleware
 from .middleware.advanced_rate_limit import AdvancedRateLimitMiddleware, DDoSProtectionMiddleware
 from .security.rate_limiting import RateLimitStrategy
@@ -84,6 +136,11 @@ from .middleware.security_headers import SecurityHeadersMiddleware as SecureHead
 from .middleware.session_tracking import SessionTrackingMiddleware
 from .middleware.security_monitoring import SecurityMonitoringMiddleware
 from .middleware.validation import ValidationMiddleware
+from .middleware.prometheus_middleware import PrometheusMiddleware
+from .middleware.tracing_middleware import TracingMiddleware
+from .services.prometheus_metrics import prometheus_metrics
+from .services.opentelemetry_tracing import otel_tracing
+from .services.service_recovery import service_recovery, register_default_services
 from .config import settings
 
 # Reconfigure logging with settings
@@ -100,12 +157,68 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting AI Knowledge Hub API...")
     await initialize_services()
+    
+    # Start real AI and WebSocket services
+    try:
+        await startup_handler()
+        logger.info("Real AI and WebSocket services started")
+    except Exception as e:
+        logger.error(f"Failed to start real services: {e}")
+        # Continue with basic services
+    
+    # Start Prometheus metrics collection
+    try:
+        await prometheus_metrics.start_collection()
+        logger.info("Prometheus metrics collection started")
+    except Exception as e:
+        logger.error(f"Failed to start metrics collection: {e}")
+        # Continue without metrics
+    
+    # Start alert processing system
+    try:
+        from .services.alert_service import real_alert_service
+        # Start in background to not block startup
+        asyncio.create_task(real_alert_service.start_processing())
+        logger.info("Alert processing system started")
+    except Exception as e:
+        logger.error(f"Failed to start alert processing: {e}")
+        # Continue without alerting
+    
+    # Disable service recovery system temporarily to fix performance issues
+    logger.info("Service recovery system disabled to improve API performance")
+    
     logger.info("API startup complete")
     
     yield
     
     # Shutdown
     logger.info("Shutting down AI Knowledge Hub API...")
+    
+    # Stop real services first
+    try:
+        await shutdown_handler()
+        logger.info("Real AI and WebSocket services stopped")
+    except Exception as e:
+        logger.error(f"Error stopping real services: {e}")
+    
+    # Stop Prometheus metrics collection
+    try:
+        await prometheus_metrics.stop_collection()
+        logger.info("Prometheus metrics collection stopped")
+    except Exception as e:
+        logger.error(f"Error stopping metrics collection: {e}")
+    
+    # Shutdown OpenTelemetry tracing
+    try:
+        otel_tracing.shutdown()
+        logger.info("OpenTelemetry tracing shutdown completed")
+    except Exception as e:
+        logger.error(f"Error shutting down tracing: {e}")
+    
+    # Shutdown service recovery system
+    # Service recovery was disabled, no shutdown needed
+    logger.info("Service recovery was disabled - no shutdown required")
+    
     await shutdown_services()
     logger.info("API shutdown complete")
 
@@ -175,6 +288,21 @@ app.add_middleware(SecureAuthMiddleware)
 
 # Add enhanced CORS security middleware
 app.add_middleware(CORSSecurityMiddleware, environment=settings.APP_ENV)
+
+# Add Prometheus metrics middleware
+app.add_middleware(PrometheusMiddleware)
+
+# Add OpenTelemetry tracing middleware
+app.add_middleware(TracingMiddleware)
+
+# Add database recovery middleware
+try:
+    from .middleware.database_recovery_middleware import DatabaseRecoveryMiddleware, DatabaseConnectionPoolMiddleware
+    app.add_middleware(DatabaseRecoveryMiddleware, enable_circuit_breaker=True, read_only_fallback=True)
+    app.add_middleware(DatabaseConnectionPoolMiddleware)
+    logger.info("Database recovery middleware initialized")
+except ImportError as e:
+    logger.warning(f"Database recovery middleware not available: {e}")
 
 # Add security monitoring middleware
 app.add_middleware(SecurityMonitoringMiddleware, environment=settings.APP_ENV)
@@ -247,7 +375,15 @@ app.include_router(rate_limiting.router, prefix="/api", tags=["security"])  # Ra
 app.include_router(persistent_context_simple.router, prefix="/api/persistent-context", tags=["memory"])  # Persistent context
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+
+# Unified Search router
+if UNIFIED_SEARCH_AVAILABLE:
+    app.include_router(unified_search.router, prefix="/api/v1/search", tags=["unified-search"])
+    logger.info("Unified search router added successfully")
+else:
+    logger.warning("Unified search router not available")
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
+app.include_router(tasks.router, prefix="", tags=["tasks"])
 app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["documents"])
 app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"])
@@ -266,11 +402,43 @@ if MEMORY_SYNC_ROUTER_AVAILABLE:
     logger.info("Memory sync router added successfully")
 else:
     logger.warning("Memory sync router not available")
-app.include_router(analytics.router)
+app.include_router(analytics.router, prefix="/api", tags=["analytics"])
 app.include_router(claude_simple.router, tags=["claude-enhancements"])
 app.include_router(claude_working.router, tags=["claude-working"])
 app.include_router(claude_sync.router, tags=["claude-sync"])
 app.include_router(internal.router, prefix="/api/internal", tags=["internal"])
+app.include_router(scraping_status.router, prefix="/api/v1/scraping", tags=["scraping"])
+
+# AI Features Summary
+app.include_router(ai_features.router, tags=["ai-features"])
+
+# Activity Tracking
+app.include_router(activity.router, tags=["activity"])
+
+# Memory Stats - UI compatibility endpoint
+app.include_router(memory_stats.router, tags=["memory-stats"])
+
+# Hybrid Memory System - Nova-style local + distributed
+app.include_router(hybrid_memory.router, prefix="/api/hybrid", tags=["hybrid-memory"])
+
+# RAG (Retrieval-Augmented Generation) System
+app.include_router(RAG_ROUTER.router, tags=["rag"])
+
+# Zep Memory System (Conversational Memory)
+try:
+    from .routers import zep_memory
+    app.include_router(zep_memory.router, tags=["zep-memory"])
+    logger.info("Zep memory router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Zep memory router not available: {e}")
+
+# Multi-Agent System (Complex query processing with specialized agents)
+try:
+    from .routers import multi_agent
+    app.include_router(multi_agent.router, tags=["multi-agent"])
+    logger.info("Multi-agent router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Multi-agent router not available: {e}")
 
 # Claude Auto - Automatic session management
 try:
@@ -336,6 +504,134 @@ try:
 except ImportError as e:
     logger.warning(f"Claude Workflow Integration router not available: {e}")
 
+# Real AI and WebSocket endpoints
+@app.get("/api/real-services/health")
+async def real_services_health():
+    """Get health status of real AI and WebSocket services"""
+    try:
+        return await get_real_services_health()
+    except Exception as e:
+        logger.error(f"Real services health check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.get("/api/real-services/metrics")
+async def real_services_metrics():
+    """Get metrics from real AI and WebSocket services"""
+    try:
+        return await get_real_services_metrics()
+    except Exception as e:
+        logger.error(f"Real services metrics failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+@app.post("/api/ai/analyze-error")
+async def analyze_error_endpoint(request: Request):
+    """Analyze error patterns using real AI intelligence"""
+    try:
+        from .services.real_ai_intelligence import real_ai_intelligence
+        
+        data = await request.json()
+        result = await real_ai_intelligence.analyze_error_patterns(
+            error_text=data["error_text"],
+            error_type=data["error_type"],
+            context=data.get("context", {}),
+            user_id=data["user_id"]
+        )
+        
+        return {
+            "pattern_type": result.pattern_type,
+            "pattern_name": result.pattern_name,
+            "confidence": result.confidence,
+            "recommendations": result.recommendations,
+            "evidence_count": len(result.evidence),
+            "metadata": result.metadata
+        }
+    except Exception as e:
+        logger.error(f"Error analysis failed: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/ai/predict-tasks")
+async def predict_tasks_endpoint(request: Request):
+    """Predict next tasks using real AI intelligence"""
+    try:
+        from .services.real_ai_intelligence import real_ai_intelligence
+        
+        data = await request.json()
+        predictions = await real_ai_intelligence.predict_next_tasks(
+            user_id=data["user_id"],
+            session_id=data["session_id"],
+            current_context=data.get("context", {}),
+            project_id=data.get("project_id")
+        )
+        
+        return {
+            "predictions": [
+                {
+                    "prediction_type": p.prediction_type,
+                    "prediction": p.prediction,
+                    "confidence": p.confidence,
+                    "reasoning": p.reasoning,
+                    "alternatives": p.alternatives
+                }
+                for p in predictions
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Task prediction failed: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/ai/analyze-decision")
+async def analyze_decision_endpoint(request: Request):
+    """Analyze decision patterns using real AI intelligence"""
+    try:
+        from .services.real_ai_intelligence import real_ai_intelligence
+        
+        data = await request.json()
+        result = await real_ai_intelligence.analyze_decision_patterns(
+            decision_context=data["decision_context"],
+            user_id=data["user_id"],
+            session_id=data["session_id"]
+        )
+        
+        return {
+            "pattern_type": result.pattern_type,
+            "pattern_name": result.pattern_name,
+            "confidence": result.confidence,
+            "recommendations": result.recommendations,
+            "evidence_count": len(result.evidence),
+            "metadata": result.metadata
+        }
+    except Exception as e:
+        logger.error(f"Decision analysis failed: {e}")
+        return {"error": str(e)}
+
+@app.post("/api/ai/performance-insights")
+async def performance_insights_endpoint(request: Request):
+    """Generate performance insights using real AI intelligence"""
+    try:
+        from .services.real_ai_intelligence import real_ai_intelligence
+        
+        data = await request.json()
+        insights = await real_ai_intelligence.generate_performance_insights(
+            metrics=data["metrics"],
+            context=data.get("context", {})
+        )
+        
+        return {
+            "insights": [
+                {
+                    "insight_type": i.insight_type,
+                    "description": i.description,
+                    "impact_score": i.impact_score,
+                    "actionable_steps": i.actionable_steps,
+                    "evidence_count": i.evidence_count
+                }
+                for i in insights
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Performance insights failed: {e}")
+        return {"error": str(e)}
+
 # Performance optimization router
 try:
     from .routes import performance
@@ -358,12 +654,36 @@ try:
 except ImportError as e:
     logger.warning(f"Pattern Recognition router not available: {e}")
 
+# Background Jobs router
+try:
+    from .routers import background_jobs
+    app.include_router(background_jobs.router, tags=["background-jobs"])
+    logger.info("Background Jobs router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Background Jobs router not available: {e}")
+
+# Monitoring router
+try:
+    from .routers import monitoring
+    app.include_router(monitoring.router, tags=["monitoring"])
+    logger.info("Monitoring router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Monitoring router not available: {e}")
+
 # Claude Code Integration router
 try:
     app.include_router(claude_integration.router, tags=["claude-integration"])
     logger.info("Claude Code Integration router integrated successfully")
 except ImportError as e:
     logger.warning(f"Claude Code Integration router not available: {e}")
+
+# GitHub Copilot Enhancement router
+try:
+    from .routes import copilot_enhancement
+    app.include_router(copilot_enhancement.router, tags=["copilot-enhancement"])
+    logger.info("GitHub Copilot Enhancement router integrated successfully")
+except ImportError as e:
+    logger.warning(f"GitHub Copilot Enhancement router not available: {e}")
 
 # Code embeddings router
 if CODE_EMBEDDINGS_AVAILABLE:
@@ -375,10 +695,78 @@ if KNOWLEDGE_GRAPH_AVAILABLE:
     app.include_router(knowledge_graph.router, tags=["knowledge-graph"])
     logger.info("Knowledge graph router added successfully")
 
-# Time-series analytics router
+# TimescaleDB analytics router
 if TIME_SERIES_AVAILABLE:
-    app.include_router(time_series_analytics.router, tags=["time-series"])
-    logger.info("Time-series analytics router added successfully")
+    app.include_router(timescale_analytics.router, tags=["timescale-analytics"])
+    logger.info("TimescaleDB analytics router added successfully")
+
+# Object storage router
+if OBJECT_STORAGE_AVAILABLE:
+    app.include_router(object_storage.router, tags=["object-storage"])
+    logger.info("Object storage router added successfully")
+
+# Session management router
+if SESSION_MANAGEMENT_AVAILABLE:
+    app.include_router(session_management.router, tags=["session-management"])
+    logger.info("Session management router added successfully")
+
+# Error tracking router
+if ERROR_TRACKING_AVAILABLE:
+    app.include_router(error_tracking.router, tags=["error-tracking"])
+    logger.info("Error tracking router added successfully")
+
+# Enhanced decisions router
+if ENHANCED_DECISIONS_AVAILABLE:
+    app.include_router(enhanced_decisions.router, prefix="/api/enhanced", tags=["decision-recording"])
+    logger.info("Enhanced decisions router added successfully")
+
+# Health Monitoring - Production health checks and monitoring
+try:
+    from .routes import health_monitoring
+    app.include_router(health_monitoring.router, tags=["health-monitoring"])
+    logger.info("Health Monitoring router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Health Monitoring router not available: {e}")
+
+# Alert Management - Alert processing and notification system
+try:
+    from .routes import alert_management
+    app.include_router(alert_management.router, tags=["alert-management"])
+    logger.info("Alert Management router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Alert Management router not available: {e}")
+
+# Tracing Management - Distributed tracing and performance analysis
+try:
+    from .routes import tracing_management
+    app.include_router(tracing_management.router, tags=["tracing-management"])
+    logger.info("Tracing Management router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Tracing Management router not available: {e}")
+
+# Recovery Management - Service recovery and self-healing system
+try:
+    from .routes import recovery_management
+    app.include_router(recovery_management.router, tags=["recovery-management"])
+    logger.info("Recovery Management router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Recovery Management router not available: {e}")
+
+# Database Recovery - Database connection recovery and retry logic
+try:
+    from .routes import database_recovery
+    app.include_router(database_recovery.router, tags=["database-recovery"])
+    logger.info("Database Recovery router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Database Recovery router not available: {e}")
+
+# Circuit Breaker Management - Circuit breaker patterns for external services
+try:
+    from .routes import circuit_breaker_management
+    app.include_router(circuit_breaker_management.router, tags=["circuit-breaker"])
+    logger.info("Circuit Breaker Management router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Circuit Breaker Management router not available: {e}")
 
 # WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
@@ -390,6 +778,14 @@ try:
     logger.info("Unified search router integrated successfully")
 except ImportError as e:
     logger.warning(f"Unified search router not available: {e}")
+
+# Public search router (no auth required)
+try:
+    from .routers import public_search
+    app.include_router(public_search.router, tags=["public"])
+    logger.info("Public search router integrated successfully")
+except ImportError as e:
+    logger.warning(f"Public search router not available: {e}")
 
 # Memory system routers
 try:
@@ -562,6 +958,34 @@ async def root() -> Dict[str, Any]:
                 "advanced_analytics": "/api/v1/admin/analytics/advanced",
                 "system_logs": "/api/v1/admin/logs/system"
             },
+            "error_tracking": {
+                "record_error": "/api/errors/occurrences",
+                "provide_feedback": "/api/errors/feedback",
+                "get_predictions": "/api/errors/predictions",
+                "error_analytics": "/api/errors/analytics",
+                "list_patterns": "/api/errors/patterns",
+                "pattern_details": "/api/errors/patterns/{pattern_id}",
+                "create_solution": "/api/errors/solutions",
+                "analyzer_start": "/api/errors/analyzer/start",
+                "analyzer_stop": "/api/errors/analyzer/stop",
+                "health": "/api/errors/health"
+            },
+            "decision_recording": {
+                "record_decision": "/api/enhanced/decisions/record",
+                "get_recommendations": "/api/enhanced/decisions/recommend",
+                "record_outcome": "/api/enhanced/decisions/outcomes",
+                "provide_feedback": "/api/enhanced/decisions/feedback",
+                "decision_tree": "/api/enhanced/decisions/tree/{decision_id}",
+                "analyze_impact": "/api/enhanced/decisions/impact/{decision_id}",
+                "analytics": "/api/enhanced/decisions/analytics",
+                "trends": "/api/enhanced/decisions/trends",
+                "success_factors": "/api/enhanced/decisions/success-factors",
+                "insights": "/api/enhanced/decisions/insights",
+                "predict_outcome": "/api/enhanced/decisions/predict",
+                "search": "/api/enhanced/decisions/search",
+                "patterns": "/api/enhanced/decisions/patterns",
+                "health": "/api/enhanced/decisions/health"
+            },
             "security": {
                 "cors_config": "/api/security/cors/config",
                 "cors_stats": "/api/security/cors/security/stats",
@@ -588,6 +1012,13 @@ if os.path.exists(frontend_dist_path):
     # Don't mount on root "/" to avoid conflicts with WebSocket routes
     # Instead, handle static files through a specific route
     pass
+
+
+@app.get("/docs", tags=["docs"])
+async def docs_redirect():
+    """Redirect /docs to /api/docs for compatibility with README badge"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/docs", status_code=301)
 
 
 @app.get("/health", tags=["health"])

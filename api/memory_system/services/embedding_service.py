@@ -7,7 +7,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from ...services.embeddings_client import get_embeddings_client
-from ..models import Memory
+from ...services.local_embeddings import get_local_embedding_service
+from ..models import MemorySystemMemory
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +22,30 @@ class MemoryEmbeddingService:
         except Exception as e:
             logger.warning(f"Failed to initialize embeddings client: {e}")
             self.embeddings_client = None
+        
+        # Always initialize local service as fallback
+        self.local_service = get_local_embedding_service()
     
     async def generate_embedding(self, text: str, normalize: bool = True) -> Optional[List[float]]:
         """Generate embedding for text with fallback support"""
-        if not self.embeddings_client:
-            logger.warning("Embeddings client not available, using fallback")
-            return None
+        # Try remote service first
+        if self.embeddings_client:
+            try:
+                # Check if service is available
+                if await self.embeddings_client.check_availability():
+                    return await self.embeddings_client.generate_embedding(text, normalize=normalize)
+            except Exception as e:
+                logger.warning(f"Remote embeddings service failed: {e}")
         
+        # Fallback to local service
+        logger.info("Using local embedding service")
         try:
-            return await self.embeddings_client.generate_embedding(text, normalize=normalize)
+            return await self.local_service.generate_embedding_async(text, normalize=normalize)
         except Exception as e:
-            logger.error(f"Failed to generate embedding: {e}")
+            logger.error(f"Failed to generate embedding with local service: {e}")
             return None
     
-    async def generate_memory_embedding(self, memory: Memory) -> Optional[List[float]]:
+    async def generate_memory_embedding(self, memory: MemorySystemMemory) -> Optional[List[float]]:
         """Generate embedding for a memory"""
         try:
             # Combine content and summary for richer embedding
@@ -47,13 +58,17 @@ class MemoryEmbeddingService:
                 entities_str = ", ".join(memory.entities)
                 text_to_embed = f"{text_to_embed}\n\nEntities: {entities_str}"
             
-            # Generate embedding
-            embedding = await self.embeddings_client.generate_embedding(
+            # Generate embedding using the method with fallback
+            embedding = await self.generate_embedding(
                 text_to_embed, 
                 normalize=True
             )
             
-            logger.info(f"Generated embedding for memory {memory.id} (dim: {len(embedding)})")
+            if embedding:
+                logger.info(f"Generated embedding for memory {memory.id} (dim: {len(embedding)})")
+            else:
+                logger.warning(f"Failed to generate embedding for memory {memory.id}")
+            
             return embedding
             
         except Exception as e:
@@ -63,7 +78,7 @@ class MemoryEmbeddingService:
     async def update_memory_embedding(self, db: Session, memory_id: UUID) -> bool:
         """Update embedding for a specific memory"""
         try:
-            memory = db.query(Memory).filter_by(id=memory_id).first()
+            memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
             if not memory:
                 logger.error(f"Memory {memory_id} not found")
                 return False
@@ -82,7 +97,7 @@ class MemoryEmbeddingService:
             db.rollback()
             return False
     
-    async def generate_batch_embeddings(self, memories: List[Memory]) -> List[Optional[List[float]]]:
+    async def generate_batch_embeddings(self, memories: List[MemorySystemMemory]) -> List[Optional[List[float]]]:
         """Generate embeddings for multiple memories in batch"""
         if not memories:
             return []
@@ -122,61 +137,62 @@ class MemoryEmbeddingService:
         min_similarity: float = 0.5,
         session_id: Optional[UUID] = None,
         user_id: Optional[str] = None
-    ) -> List[tuple[Memory, float]]:
-        """Find similar memories using cosine similarity search"""
+    ) -> List[tuple[MemorySystemMemory, float]]:
+        """Find similar memories using cosine similarity search in Python"""
         try:
-            from sqlalchemy import text, and_
+            import numpy as np
             from ..models import MemorySession
             
-            # Build the base query with cosine similarity calculation
-            query_parts = [
-                "SELECT m.*, ",
-                "cosine_similarity(m.embedding, :query_embedding) as similarity ",
-                "FROM memories m "
-            ]
+            # Build query
+            query = db.query(MemorySystemMemory)
             
-            # Add joins and filters
-            where_conditions = ["m.embedding IS NOT NULL"]
-            params = {"query_embedding": query_embedding}
-            
+            # Add filters
             if session_id or user_id:
-                query_parts.append("JOIN memory_sessions ms ON m.session_id = ms.id ")
+                query = query.join(MemorySession)
             
             if session_id:
-                where_conditions.append("m.session_id = :session_id")
-                params["session_id"] = str(session_id)
+                query = query.filter(MemorySystemMemory.session_id == session_id)
             
             if user_id:
-                where_conditions.append("ms.user_id = :user_id")
-                params["user_id"] = user_id
+                query = query.filter(MemorySession.user_id == user_id)
             
-            # Add minimum similarity filter
-            where_conditions.append("cosine_similarity(m.embedding, :query_embedding) >= :min_similarity")
-            params["min_similarity"] = min_similarity
+            # Only get memories with embeddings
+            memories_with_embeddings = query.filter(MemorySystemMemory.embedding != None).all()
             
-            # Build final query
-            query_str = "".join(query_parts)
-            if where_conditions:
-                query_str += "WHERE " + " AND ".join(where_conditions) + " "
+            if not memories_with_embeddings:
+                logger.info("No memories with embeddings found")
+                return []
             
-            query_str += "ORDER BY similarity DESC LIMIT :limit"
-            params["limit"] = limit
+            # Convert query embedding to numpy array
+            query_vec = np.array(query_embedding)
+            query_norm = np.linalg.norm(query_vec)
             
-            # Execute query
-            result = db.execute(text(query_str), params)
-            rows = result.fetchall()
+            if query_norm == 0:
+                logger.warning("Query embedding has zero norm")
+                return []
             
-            # Convert results to Memory objects with similarity scores
-            similar_memories = []
-            for row in rows:
-                # Create Memory object from row data
-                memory = db.query(Memory).filter_by(id=row.id).first()
-                if memory:
-                    similarity_score = float(row.similarity)
-                    similar_memories.append((memory, similarity_score))
+            # Calculate similarities
+            results = []
+            for memory in memories_with_embeddings:
+                if memory.embedding and len(memory.embedding) == len(query_embedding):
+                    # Calculate cosine similarity
+                    memory_vec = np.array(memory.embedding)
+                    memory_norm = np.linalg.norm(memory_vec)
+                    
+                    if memory_norm > 0:
+                        similarity = np.dot(query_vec, memory_vec) / (query_norm * memory_norm)
+                        
+                        if similarity >= min_similarity:
+                            results.append((memory, float(similarity)))
             
-            logger.info(f"Found {len(similar_memories)} similar memories with similarity >= {min_similarity}")
-            return similar_memories
+            # Sort by similarity descending
+            results.sort(key=lambda x: x[1], reverse=True)
+            
+            # Apply limit
+            results = results[:limit]
+            
+            logger.info(f"Found {len(results)} similar memories with similarity >= {min_similarity}")
+            return results
             
         except Exception as e:
             logger.error(f"Vector similarity search failed: {e}")
@@ -191,22 +207,22 @@ class MemoryEmbeddingService:
         limit: int,
         session_id: Optional[UUID] = None,
         user_id: Optional[str] = None
-    ) -> List[tuple[Memory, float]]:
+    ) -> List[tuple[MemorySystemMemory, float]]:
         """Fallback similarity search when vector search fails"""
         from ..models import MemorySession
-        query = db.query(Memory)
+        query = db.query(MemorySystemMemory)
         
         if session_id or user_id:
             query = query.join(MemorySession)
         
         if session_id:
-            query = query.filter(Memory.session_id == session_id)
+            query = query.filter(MemorySystemMemory.session_id == session_id)
         
         if user_id:
             query = query.filter(MemorySession.user_id == user_id)
         
         # Get memories with embeddings
-        memories = query.filter(Memory.embedding != None).limit(limit).all()
+        memories = query.filter(MemorySystemMemory.embedding != None).limit(limit).all()
         
         # Return with fallback similarity scores
         return [(memory, 0.6) for memory in memories]

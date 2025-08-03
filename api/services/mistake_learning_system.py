@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import cast, String, desc, and_, func
 
 from ..models.memory import MemoryItem
+from ..models.mistake_tracking import MistakeTracking, ErrorPattern
 
 
 class MistakeLearningSystem:
@@ -68,9 +69,15 @@ class MistakeLearningSystem:
     def _load_learned_patterns(self):
         """Load previously learned error patterns"""
         if self.patterns_file.exists():
-            with open(self.patterns_file, 'r') as f:
-                learned = json.load(f)
-                self.error_patterns.update(learned)
+            try:
+                with open(self.patterns_file, 'r') as f:
+                    learned = json.load(f)
+                    # Validate that loaded patterns are dictionaries
+                    for pattern_name, pattern_config in learned.items():
+                        if isinstance(pattern_config, dict):
+                            self.error_patterns[pattern_name] = pattern_config
+            except Exception as e:
+                print(f"Error loading learned patterns: {e}")
     
     def track_mistake(self, db: Session, error_type: str, error_message: str, 
                      context: Dict[str, Any], attempted_solution: Optional[str] = None,
@@ -171,31 +178,26 @@ class MistakeLearningSystem:
         return pattern_info
     
     def _find_similar_mistakes(self, db: Session, error_type: str, 
-                              error_message: str, project_id: Optional[str]) -> List[MemoryItem]:
+                              error_message: str, project_id: Optional[str]) -> List[MistakeTracking]:
         """Find similar mistakes in history"""
-        # Search for similar errors
-        query = db.query(MemoryItem).filter(
-            and_(
-                cast(MemoryItem.meta_data, String).contains('"mistake_id"'),
-                cast(MemoryItem.meta_data, String).contains(f'"error_type": "{error_type}"')
-            )
+        # Search for similar errors in MistakeTracking table
+        query = db.query(MistakeTracking).filter(
+            MistakeTracking.error_type == error_type
         )
         
         if project_id:
-            query = query.filter(
-                cast(MemoryItem.meta_data, String).contains(f'"project_id": "{project_id}"')
-            )
+            query = query.filter(MistakeTracking.project_id == project_id)
         
-        similar = query.order_by(desc(MemoryItem.created_at)).limit(10).all()
+        similar = query.order_by(desc(MistakeTracking.created_at)).limit(10).all()
         
         # Filter by similarity
         filtered = []
-        for item in similar:
+        for mistake in similar:
             if self._calculate_error_similarity(
                 error_message, 
-                item.meta_data.get("error_message", "")
+                mistake.error_message
             ) > 0.7:
-                filtered.append(item)
+                filtered.append(mistake)
         
         return filtered
     
@@ -245,33 +247,109 @@ class MistakeLearningSystem:
     
     def _store_mistake_memory(self, db: Session, content: str, 
                              mistake_data: Dict[str, Any], 
-                             project_id: Optional[str]) -> MemoryItem:
-        """Store mistake in memory with metadata"""
+                             project_id: Optional[str]) -> MistakeTracking:
+        """Store mistake in dedicated tracking table"""
         tags = ["mistake", mistake_data["pattern"]["category"]]
         if project_id:
             tags.append(f"project:{project_id}")
         
-        memory_hash = hashlib.sha256(content.encode()).hexdigest()
+        # Calculate resolution time if resolved
+        resolution_time = None
+        resolved_at = None
+        if mistake_data.get("successful_solution"):
+            resolution_time = 0.0  # We don't have the actual time in this context
+            resolved_at = datetime.utcnow()
         
-        memory = MemoryItem(
-            content=content,
-            content_hash=memory_hash,
+        mistake = MistakeTracking(
+            error_type=mistake_data["error_type"],
+            error_message=mistake_data["error_message"],
+            error_context=mistake_data.get("context", {}),
+            solution=mistake_data.get("successful_solution"),
+            solution_steps=mistake_data.get("lesson", {}).get("solution_steps", []) if mistake_data.get("lesson") and isinstance(mistake_data.get("lesson"), dict) else [],
+            resolved=bool(mistake_data.get("successful_solution")),
+            resolution_time=resolution_time,
+            pattern=mistake_data["pattern"].get("matched_pattern"),
+            category=mistake_data["pattern"]["category"],
+            severity=mistake_data["pattern"]["severity"],
+            frequency=float(mistake_data["repetition_count"]),
+            user_id=mistake_data.get("context", {}).get("user_id", "claude-code"),
+            session_id=mistake_data.get("context", {}).get("session_id"),
+            project_id=project_id,
             tags=tags,
-            meta_data={
-                "memory_type": "mistake",
-                "importance": 0.9 if mistake_data["is_repeated"] else 0.7,
-                **mistake_data
+            extra_data={
+                "mistake_id": mistake_data["mistake_id"],
+                "attempted_solution": mistake_data.get("attempted_solution"),
+                "lesson": mistake_data.get("lesson"),
+                "pattern_info": mistake_data["pattern"]
             },
-            access_count=1,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
-            accessed_at=datetime.utcnow()
+            resolved_at=resolved_at
         )
-        db.add(memory)
+        db.add(mistake)
         db.commit()
-        db.refresh(memory)
+        db.refresh(mistake)
         
-        return memory
+        # Also store in memory for backward compatibility
+        content_hash = hashlib.sha256(content.encode()).hexdigest()
+        
+        # Check if memory with this hash already exists
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == content_hash
+        ).first()
+        
+        if existing_memory:
+            # Update existing memory
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Update metadata with latest mistake tracking
+            existing_memory.meta_data = {
+                "memory_type": "mistake",
+                "importance": 0.9 if mistake_data["is_repeated"] else 0.7,
+                "mistake_tracking_id": str(mistake.id),
+                **mistake_data
+            }
+            # Merge tags
+            existing_tags = set(existing_memory.tags or [])
+            existing_memory.tags = list(existing_tags.union(set(tags)))
+            db.commit()
+        else:
+            # Create new memory
+            memory = MemoryItem(
+                content=content,
+                content_hash=content_hash,
+                tags=tags,
+                meta_data={
+                    "memory_type": "mistake",
+                    "importance": 0.9 if mistake_data["is_repeated"] else 0.7,
+                    "mistake_tracking_id": str(mistake.id),
+                    **mistake_data
+                },
+                access_count=1,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                accessed_at=datetime.utcnow()
+            )
+            
+            try:
+                db.add(memory)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                # If there's still a duplicate key error, find and update the existing record
+                if "duplicate key" in str(e).lower():
+                    existing = db.query(MemoryItem).filter(
+                        MemoryItem.content_hash == content_hash
+                    ).first()
+                    if existing:
+                        existing.access_count += 1
+                        existing.accessed_at = datetime.utcnow()
+                        db.commit()
+                else:
+                    raise
+        
+        return mistake
     
     def _update_pattern_stats(self, pattern: Dict[str, Any], was_solved: bool):
         """Update statistics for error patterns"""
@@ -372,33 +450,35 @@ class MistakeLearningSystem:
         """Get lessons learned from past mistakes"""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        query = db.query(MemoryItem).filter(
+        # Query MistakeTracking table for resolved mistakes with solutions
+        query = db.query(MistakeTracking).filter(
             and_(
-                cast(MemoryItem.meta_data, String).contains('"lesson"'),
-                MemoryItem.created_at > cutoff_date
+                MistakeTracking.resolved == True,
+                MistakeTracking.created_at > cutoff_date
             )
         )
         
         if category:
-            query = query.filter(
-                cast(MemoryItem.meta_data, String).contains(f'"category": "{category}"')
-            )
+            query = query.filter(MistakeTracking.category == category)
         
         if project_id:
-            query = query.filter(
-                cast(MemoryItem.meta_data, String).contains(f'"project_id": "{project_id}"')
-            )
+            query = query.filter(MistakeTracking.project_id == project_id)
         
-        mistakes = query.order_by(desc(MemoryItem.created_at)).limit(50).all()
+        mistakes = query.order_by(desc(MistakeTracking.created_at)).limit(50).all()
         
         lessons = []
         for mistake in mistakes:
-            if mistake.meta_data.get("lesson"):
+            lesson_data = mistake.extra_data.get("lesson", {}) if mistake.extra_data else {}
+            if mistake.solution or lesson_data:
                 lessons.append({
                     "id": str(mistake.id),
-                    "lesson": mistake.meta_data["lesson"],
-                    "error_type": mistake.meta_data.get("error_type"),
-                    "repetitions": mistake.meta_data.get("repetition_count", 1),
+                    "lesson": lesson_data if lesson_data else {
+                        "summary": f"When encountering {mistake.error_type}, use: {mistake.solution}",
+                        "what_worked": mistake.solution,
+                        "category": mistake.category
+                    },
+                    "error_type": mistake.error_type,
+                    "repetitions": int(mistake.frequency),
                     "created": mistake.created_at.isoformat()
                 })
         

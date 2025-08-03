@@ -1,0 +1,137 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@knowledgehub.local'
+  smtp_auth_username: 'alerts@knowledgehub.local'
+  smtp_auth_password: 'your-email-password'
+
+# Templates for alert notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing tree for alerts
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'web.hook'
+  routes:
+    # Critical alerts route immediately
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+      
+    # Service down alerts
+    - match:
+        alertname: ServiceDown
+      receiver: 'service-down-alerts'
+      group_wait: 0s
+      repeat_interval: 2m
+      
+    # Performance alerts
+    - match_re:
+        alertname: MemorySearchTooSlow|HighResponseTime|AIProcessingTooSlow
+      receiver: 'performance-alerts'
+      repeat_interval: 15m
+      
+    # System resource alerts
+    - match_re:
+        alertname: HighCPUUsage|HighMemoryUsage|LowDiskSpace
+      receiver: 'system-alerts'
+      repeat_interval: 30m
+
+# Alert receivers
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://knowledgehub-api:3000/api/health/alerts/webhook'
+        send_resolved: true
+        http_config:
+          bearer_token: 'your-webhook-token'
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@knowledgehub.local'
+        subject: 'CRITICAL: {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}'
+        body: |
+          Alert: {{ .GroupLabels.alertname }}
+          Severity: {{ .CommonLabels.severity }}
+          Service: {{ .GroupLabels.service }}
+          
+          {{ range .Alerts }}
+          - {{ .Annotations.summary }}
+            {{ .Annotations.description }}
+          {{ end }}
+          
+          View in Grafana: http://grafana:3000/d/knowledgehub-overview
+    webhook_configs:
+      - url: 'http://knowledgehub-api:3000/api/health/alerts/webhook'
+        send_resolved: true
+        http_config:
+          bearer_token: 'your-webhook-token'
+    # Slack integration (uncomment and configure)
+    # slack_configs:
+    #   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    #     channel: '#alerts'
+    #     title: 'CRITICAL Alert: {{ .GroupLabels.alertname }}'
+    #     text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+  - name: 'service-down-alerts'
+    email_configs:
+      - to: 'ops@knowledgehub.local'
+        subject: 'Service Down: {{ .GroupLabels.service }}'
+        body: |
+          Service {{ .GroupLabels.service }} is DOWN
+          
+          {{ range .Alerts }}
+          - {{ .Annotations.description }}
+          {{ end }}
+          
+          Check service status: http://grafana:3000/d/knowledgehub-overview
+    webhook_configs:
+      - url: 'http://knowledgehub-api:3000/api/health/alerts/webhook'
+        send_resolved: true
+
+  - name: 'performance-alerts'
+    email_configs:
+      - to: 'dev@knowledgehub.local'
+        subject: 'Performance Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          Performance issue detected:
+          
+          {{ range .Alerts }}
+          - {{ .Annotations.summary }}
+            {{ .Annotations.description }}
+          {{ end }}
+          
+          Performance Dashboard: http://grafana:3000/d/knowledgehub-ai-performance
+
+  - name: 'system-alerts'
+    email_configs:
+      - to: 'sysadmin@knowledgehub.local'
+        subject: 'System Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          System resource alert:
+          
+          {{ range .Alerts }}
+          - {{ .Annotations.summary }}
+            {{ .Annotations.description }}
+          {{ end }}
+
+# Inhibition rules to prevent spam
+inhibit_rules:
+  # Inhibit any warning-level alerts if the same alert is already critical
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+  # Inhibit service-specific alerts if the whole service is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: 'HighResponseTime|MemorySearchTooSlow'
+    equal: ['service']

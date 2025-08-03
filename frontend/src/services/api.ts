@@ -5,6 +5,7 @@ import { getBaseUrlForPath, MOCK_RESPONSES } from './apiConfig'
 export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 })
 
@@ -33,7 +34,8 @@ api.interceptors.request.use((config) => {
   if (settings) {
     const { apiKey } = JSON.parse(settings)
     if (apiKey) {
-      config.headers.Authorization = `Bearer ${apiKey}`
+      // Use X-API-Key header as expected by the backend
+      config.headers['X-API-Key'] = apiKey
     }
   }
   return config

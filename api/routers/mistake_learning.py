@@ -29,12 +29,7 @@ def health_check():
 
 @router.post("/track")
 def track_mistake(
-    error_type: str = Query(..., description="Type of error (e.g., ImportError)"),
-    error_message: str = Query(..., description="Full error message"),
-    context: Dict[str, Any] = Body({}, description="Context when error occurred"),
-    attempted_solution: Optional[str] = Query(None, description="What was tried first"),
-    successful_solution: Optional[str] = Query(None, description="What actually worked"),
-    project_id: Optional[str] = Query(None, description="Project ID for isolation"),
+    data: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -43,10 +38,31 @@ def track_mistake(
     This helps Claude learn from errors and avoid repetition
     """
     try:
-        result = learning_system.track_mistake(
-            db, error_type, error_message, context,
-            attempted_solution, successful_solution, project_id
-        )
+        # Extract parameters from JSON body
+        error_type = data.get("error_type")
+        error_message = data.get("error_message")
+        context = data.get("context", {})
+        attempted_solution = data.get("attempted_solution")
+        successful_solution = data.get("successful_solution") or data.get("solution")
+        resolved = data.get("resolved")
+        project_id = data.get("project_id")
+        
+        # Validate required fields
+        if not error_type or not error_message:
+            raise HTTPException(
+                status_code=422,
+                detail="Missing required fields: error_type, error_message"
+            )
+            
+        try:
+            result = learning_system.track_mistake(
+                db, error_type, error_message, context,
+                attempted_solution, successful_solution, project_id
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
         
         # Add advice based on tracking
         if result["is_repeated"]:
@@ -211,6 +227,43 @@ def find_similar_mistakes(
                 "solution": mistake.meta_data.get("successful_solution"),
                 "lesson": mistake.meta_data.get("lesson", {}).get("summary"),
                 "created": mistake.created_at.isoformat()
+            })
+        
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=[])
+
+
+@router.post("/search")
+def search_mistakes(
+    query: Dict[str, Any] = Body(..., description="Search query"),
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """
+    Search for mistakes based on query
+    """
+    try:
+        # Extract query string from body
+        query_str = query.get("query", "")
+        
+        # Use the learning system to find similar mistakes
+        from ..models.mistake_tracking import MistakeTracking
+        
+        # Search in database
+        mistakes = db.query(MistakeTracking).filter(
+            (MistakeTracking.error_type.contains(query_str)) |
+            (MistakeTracking.error_message.contains(query_str))
+        ).limit(10).all()
+        
+        results = []
+        for mistake in mistakes:
+            results.append({
+                "id": str(mistake.id),
+                "error_type": mistake.error_type,
+                "error_message": mistake.error_message[:200],
+                "solution": mistake.solution,
+                "resolved": mistake.resolved,
+                "created_at": mistake.created_at.isoformat()
             })
         
         return results

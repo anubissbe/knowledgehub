@@ -38,7 +38,7 @@ async def list_jobs(
         from datetime import datetime
         
         # Connect to Redis
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_url = os.getenv("REDIS_URL", "redis://192.168.1.25:6381/0")
         redis_client = redis.from_url(redis_url, decode_responses=True)
         
         jobs = []
@@ -53,7 +53,7 @@ async def list_jobs(
             try:
                 from sqlalchemy import create_engine, text
                 import os
-                database_url = os.getenv('DATABASE_URL', 'postgresql://khuser:nq3okTS7f4tyEHz2UZvLfft2C@postgres:5432/knowledgehub')
+                database_url = os.getenv('DATABASE_URL', 'postgresql://knowledgehub:knowledgehub123@postgres:5432/knowledgehub')
                 engine = create_engine(database_url)
                 with engine.connect() as conn:
                     result = conn.execute(text("SELECT name FROM knowledge_sources WHERE id = :id"), {"id": source_id_from_key})
@@ -87,7 +87,7 @@ async def list_jobs(
                         try:
                             from sqlalchemy import create_engine, text
                             import os
-                            database_url = os.getenv('DATABASE_URL', 'postgresql://khuser:nq3okTS7f4tyEHz2UZvLfft2C@postgres:5432/knowledgehub')
+                            database_url = os.getenv('DATABASE_URL', 'postgresql://knowledgehub:knowledgehub@192.168.1.25:5433/knowledgehub')
                             engine = create_engine(database_url)
                             with engine.connect() as conn:
                                 result = conn.execute(text("SELECT name FROM knowledge_sources WHERE id = :id"), {"id": job_source_id})

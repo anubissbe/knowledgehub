@@ -123,7 +123,11 @@ class JobService:
         return await self.create_job(
             source_id=source_id,
             job_type="scraping",
-            config={"url": str(url)}
+            config={
+                "url": str(url),
+                "max_pages": 50,  # Default reasonable limit
+                "max_depth": 2
+            }
         )
     
     async def create_deletion_job(self, source_id: UUID) -> Job:
@@ -146,6 +150,7 @@ class JobService:
         job_data = {
             "job_id": str(job_id),
             "source_id": str(source_id),
+            "url": str(url),  # Add the URL field
             "job_type": "initial_crawl"
         }
         

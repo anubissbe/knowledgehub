@@ -270,10 +270,13 @@ class SearchService:
             embeddings haven't been generated for the content.
         """
         from .vector_store import vector_store
+        import logging
+        logger = logging.getLogger(__name__)
         
         # Generate query embedding using the embedding service
         # The vector store handles similarity search against stored embeddings
         if not vector_store.client:
+            logger.warning("Vector store client is not initialized")
             return []
         
         # Get embedding from embeddings service or use mock as fallback
@@ -281,6 +284,7 @@ class SearchService:
         
         client = get_embeddings_client()
         query_vector = await client.generate_embedding(query.query)
+        logger.info(f"Generated query vector of length: {len(query_vector)}")
         
         # Search vector store
         results = await vector_store.search(
@@ -288,12 +292,24 @@ class SearchService:
             limit=query.limit,
             filters=self._build_vector_filters(query)
         )
+        logger.info(f"Vector search returned {len(results)} results")
         
         # Enhance with database metadata
         enhanced_results = []
         for result in results:
-            chunk = db.query(DocumentChunk).filter(
-                DocumentChunk.id == result.get("chunk_id")
+            # The vector store returns doc_id and chunk_index from Weaviate
+            doc_id = result.get("doc_id")
+            chunk_index = result.get("chunk_index")
+            
+            if not doc_id:
+                logger.warning(f"No doc_id in result: {result}")
+                continue
+            
+            # Find the chunk by doc_id and chunk_index
+            from ..models.document import Document
+            chunk = db.query(DocumentChunk).join(Document).filter(
+                Document.id == doc_id,
+                DocumentChunk.chunk_index == chunk_index
             ).first()
             
             if chunk:
@@ -312,6 +328,27 @@ class SearchService:
                     "score": result.get("score", 0),
                     "chunk_type": chunk.chunk_type.value if hasattr(chunk.chunk_type, "value") else str(chunk.chunk_type),
                     "metadata": chunk.chunk_metadata or {}
+                })
+            else:
+                # Fallback: Use data directly from Weaviate if not found in PostgreSQL
+                logger.warning(f"Chunk not found in PostgreSQL for doc_id: {doc_id}, chunk_index: {chunk_index}")
+                
+                # Parse metadata if it's a string
+                metadata = result.get("metadata", {})
+                if isinstance(metadata, str):
+                    import json
+                    try:
+                        metadata = json.loads(metadata)
+                    except:
+                        metadata = {}
+                
+                enhanced_results.append({
+                    "content": result.get("content", ""),
+                    "source_name": "Checkmarx Docs",  # Default source name
+                    "url": metadata.get("url", ""),
+                    "score": result.get("score", 0),
+                    "chunk_type": result.get("chunk_type", "text"),
+                    "metadata": metadata
                 })
         
         return enhanced_results

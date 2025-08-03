@@ -27,7 +27,7 @@ import {
 import { Network } from 'vis-network/standalone'
 import { DataSet } from 'vis-data'
 import { motion } from 'framer-motion'
-import PageContainer from '../components/ultra/PageContainer'
+import PageWrapper from '../components/PageWrapper'
 import UltraHeader from '../components/ultra/UltraHeader'
 import GlassCard from '../components/GlassCard'
 import { api } from '../services/api'
@@ -328,13 +328,13 @@ export default function KnowledgeGraph() {
   }
 
   return (
-    <PageContainer>
+    <PageWrapper>
       <UltraHeader 
         title="Knowledge Graph" 
         subtitle="NEURAL NETWORK VISUALIZATION"
       />
 
-      <Box sx={{ px: 3, pb: 6 }}>
+      <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pb: 6, maxWidth: '100%', overflow: 'hidden' }}>
         {/* Controls */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -556,6 +556,6 @@ export default function KnowledgeGraph() {
           </motion.div>
         </Box>
       </Box>
-    </PageContainer>
+    </PageWrapper>
   )
 }

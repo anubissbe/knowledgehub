@@ -1,6 +1,6 @@
 """Memory schemas"""
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -15,12 +15,12 @@ class MemoryCreate(BaseModel):
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    @validator('content')
+    @field_validator('content')
     def sanitize_content(cls, v):
         """Sanitize memory content"""
         return InputSanitizer.sanitize_text(v, max_length=10000, allow_html=False)
     
-    @validator('content_hash')
+    @field_validator('content_hash')
     def sanitize_content_hash(cls, v):
         """Sanitize content hash"""
         if v is not None:
@@ -31,14 +31,14 @@ class MemoryCreate(BaseModel):
             return sanitized
         return v
     
-    @validator('tags')
+    @field_validator('tags')
     def sanitize_tags(cls, v):
         """Sanitize memory tags"""
         if v is not None:
             return InputSanitizer.sanitize_list(v)
         return v
     
-    @validator('metadata')
+    @field_validator('metadata')
     def sanitize_metadata(cls, v):
         """Sanitize memory metadata"""
         if v is not None:
@@ -59,6 +59,5 @@ class MemoryResponse(BaseModel):
     updated_at: datetime
     accessed_at: datetime
     
-    class Config:
-        from_attributes = True
-        populate_by_name = True
+    model_config = ConfigDict(from_attributes=True,
+                            populate_by_name=True)

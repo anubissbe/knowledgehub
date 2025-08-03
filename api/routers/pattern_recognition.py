@@ -51,7 +51,7 @@ class LearnPatternRequest(BaseModel):
 @router.get("/health")
 async def health_check():
     """Check pattern recognition engine health"""
-    engine = get_pattern_engine()
+    engine = await get_pattern_engine()
     return {
         "status": "healthy",
         "service": "pattern-recognition",
@@ -305,3 +305,32 @@ async def batch_analyze(
         "total_patterns": len(total_patterns),
         "aggregated_suggestions": all_suggestions
     }
+
+
+@router.get("/user/{user_id}")
+async def get_user_patterns(
+    user_id: str,
+    limit: int = 20,
+    engine: PatternRecognitionEngine = Depends(get_pattern_engine)
+) -> List[Dict[str, Any]]:
+    """Get patterns detected for a specific user"""
+    try:
+        # In a real implementation, this would query a database
+        # For now, return empty list as the feature is not fully implemented
+        return []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/recent")
+async def get_recent_patterns(
+    limit: int = 10,
+    engine: PatternRecognitionEngine = Depends(get_pattern_engine)
+) -> List[Dict[str, Any]]:
+    """Get recently detected patterns"""
+    try:
+        # In a real implementation, this would query recent patterns from database
+        # For now, return empty list as the feature is not fully implemented
+        return []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

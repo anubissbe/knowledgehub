@@ -75,7 +75,7 @@ class SecurityEvent:
 class SecurityMonitor:
     """Central security monitoring and alerting system"""
     
-    def __init__(self, log_directory: str = "/app/logs/security"):
+    def __init__(self, log_directory: str = "/opt/projects/knowledgehub/logs/security"):
         self.log_directory = Path(log_directory)
         self.log_directory.mkdir(parents=True, exist_ok=True)
         

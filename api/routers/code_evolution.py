@@ -25,6 +25,38 @@ def health_check():
     }
 
 
+@router.post("/track")
+def track_code_change_simple(
+    data: Dict[str, Any] = Body(..., description="Code change data"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Track a code change (simplified endpoint)
+    
+    Expected data format:
+    {
+        "file_path": "test.py",
+        "change_type": "refactor",
+        "description": "Test refactoring",
+        "user_id": "test_user"
+    }
+    """
+    try:
+        file_path = data.get("file_path", "")
+        change_type = data.get("change_type", "modification")
+        description = data.get("description", "")
+        user_id = data.get("user_id", "unknown")
+        
+        # For simple tracking, we'll just record metadata
+        result = evolution_tracker.track_simple_change(
+            db, file_path, change_type, description, user_id
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/track-change")
 def track_code_change(
     file_path: str = Query(..., description="Path to the file that changed"),
@@ -80,6 +112,31 @@ def get_evolution_history(
             db, file_path, project_id, change_type, limit
         )
         return history
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/{file_path:path}/history")
+def get_file_history(
+    file_path: str,
+    limit: int = Query(20, le=100, description="Maximum results"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get evolution history for a specific file
+    """
+    try:
+        # Get all changes for this file
+        history = evolution_tracker.get_evolution_history(
+            db, file_path=file_path, project_id=None, change_type=None, limit=limit
+        )
+        
+        return {
+            "file_path": file_path,
+            "changes": history,
+            "total_changes": len(history),
+            "change_types": list(set(change.get("change_type", "unknown") for change in history))
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

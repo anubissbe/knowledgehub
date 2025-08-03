@@ -24,7 +24,7 @@ import {
   Insights,
 } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
-import PageContainer from '../components/ultra/PageContainer'
+import PageWrapper from '../components/PageWrapper'
 import UltraHeader from '../components/ultra/UltraHeader'
 import GlassCard from '../components/GlassCard'
 import { api } from '../services/api'
@@ -38,13 +38,14 @@ interface SearchResult {
     source: string
     timestamp: string
     tags?: string[]
+    url?: string
   }
 }
 
 
 const SEARCH_TYPES = [
   { 
-    id: 'semantic', 
+    id: 'vector', 
     label: 'Semantic Search', 
     icon: <Psychology />,
     description: 'AI-powered understanding of context and meaning',
@@ -58,7 +59,7 @@ const SEARCH_TYPES = [
     color: '#FF00FF',
   },
   { 
-    id: 'text', 
+    id: 'keyword', 
     label: 'Text Search', 
     icon: <TextFields />,
     description: 'Traditional full-text search',
@@ -80,7 +81,7 @@ export default function SearchKnowledge() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
-  const [tabValue, setTabValue] = useState(0)
+  const [tabValue, setTabValue] = useState(1) // Default to hybrid search
   const [searchStats, setSearchStats] = useState({
     totalResults: 0,
     searchTime: 0,
@@ -94,26 +95,46 @@ export default function SearchKnowledge() {
     const startTime = Date.now()
     
     try {
-      const endpoint = searchType === 'semantic' 
-        ? '/api/search/semantic'
-        : searchType === 'hybrid'
-        ? '/api/search/hybrid'
-        : '/api/search/text'
+      // Use the public search endpoint which we know works
+      const endpoint = '/api/public/search'
 
-      const response = await api.post(endpoint, {
-        query,
-        limit: 20,
+      const response = await api.get(endpoint, {
+        params: {
+          q: query,
+          search_type: searchType,
+          limit: 20
+        }
       })
       
-      const searchResults = response.data.results || []
-      setResults(searchResults)
+      // Log response for debugging
+      console.log('Search response:', response.data)
+      
+      // Extract results from the response
+      const searchResults = response.data.documents || response.data.results || []
+      const totalResults = response.data.total_results || searchResults.length
+      
+      // Transform results to match SearchResult interface
+      const transformedResults = searchResults.map((item: any, index: number) => ({
+        id: item.id || `result-${index}`,
+        content: item.content || '',
+        score: item.score || 0,
+        metadata: {
+          type: item.chunk_type?.toLowerCase() || item.type || 'document',
+          source: item.source || item.source_name || 'Unknown',
+          timestamp: item.created_at || new Date().toISOString(),
+          tags: item.tags || [],
+          url: item.url || ''
+        }
+      }))
+      
+      setResults(transformedResults)
       
       // Calculate stats
       const searchTime = Date.now() - startTime
-      const avgScore = searchResults.reduce((acc: number, r: SearchResult) => acc + r.score, 0) / searchResults.length || 0
+      const avgScore = transformedResults.reduce((acc: number, r: SearchResult) => acc + r.score, 0) / transformedResults.length || 0
       
       setSearchStats({
-        totalResults: searchResults.length,
+        totalResults: totalResults,
         searchTime,
         relevanceScore: avgScore * 100,
       })
@@ -131,13 +152,13 @@ export default function SearchKnowledge() {
   }
 
   return (
-    <PageContainer>
+    <PageWrapper>
       <UltraHeader 
         title="Knowledge Search" 
         subtitle="INTELLIGENT INFORMATION DISCOVERY"
       />
 
-      <Box sx={{ px: 3, pb: 6 }}>
+      <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pb: 6, maxWidth: '100%', overflow: 'hidden' }}>
         {/* Search Input */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -508,6 +529,6 @@ export default function SearchKnowledge() {
           ) : null}
         </AnimatePresence>
       </Box>
-    </PageContainer>
+    </PageWrapper>
   )
 }

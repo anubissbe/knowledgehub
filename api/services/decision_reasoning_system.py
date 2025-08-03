@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import cast, String, desc, and_, func, or_
 
 from ..models.memory import MemoryItem
+from ..models.decision import Decision, DecisionAlternative
 
 
 class DecisionReasoningSystem:
@@ -45,7 +46,22 @@ class DecisionReasoningSystem:
             "experimental": 0.5         # Experimental approach
         }
         
+        # Initialize decision history
+        self.decision_history = defaultdict(list)
+        self.reasoning_patterns = defaultdict(dict)
+        
         self._load_reasoning_patterns()
+        self._load_decision_history()
+    
+    def _load_decision_history(self):
+        """Load decision history from file"""
+        try:
+            if self.decisions_file.exists():
+                with open(self.decisions_file, 'r') as f:
+                    data = json.load(f)
+                    self.decision_history = defaultdict(list, data)
+        except Exception:
+            self.decision_history = defaultdict(list)
     
     def _load_reasoning_patterns(self):
         """Load learned reasoning patterns"""
@@ -124,7 +140,7 @@ class DecisionReasoningSystem:
         
         # Store in database
         content = self._format_decision_content(decision_record)
-        memory = self._store_decision_memory(db, content, decision_record, project_id)
+        decision_stored = self._store_decision_memory(db, content, decision_record, project_id)
         
         # Update decision history
         self._update_decision_history(decision_record)
@@ -138,7 +154,8 @@ class DecisionReasoningSystem:
             "category": category,
             "confidence": adjusted_confidence,
             "alternatives_considered": len(alternatives),
-            "memory_id": str(memory.id)
+            "id": str(decision_stored.id),
+            "decision": decision_stored.to_dict()
         }
     
     def _categorize_decision(self, title: str, reasoning: str) -> str:
@@ -227,33 +244,120 @@ class DecisionReasoningSystem:
     
     def _store_decision_memory(self, db: Session, content: str,
                               decision_data: Dict[str, Any],
-                              project_id: Optional[str]) -> MemoryItem:
-        """Store decision in memory with metadata"""
+                              project_id: Optional[str]) -> Decision:
+        """Store decision in dedicated decision table"""
         tags = ["decision", decision_data["category"]]
         if project_id:
             tags.append(f"project:{project_id}")
         
-        memory_hash = hashlib.sha256(content.encode()).hexdigest()
-        
-        memory = MemoryItem(
-            content=content,
-            content_hash=memory_hash,
+        # Create the Decision record
+        decision = Decision(
+            decision_id=decision_data["decision_id"],
+            title=decision_data["title"],
+            chosen_solution=decision_data["chosen_solution"],
+            reasoning=decision_data["reasoning"],
+            confidence=decision_data["confidence"]["initial"],
+            adjusted_confidence=decision_data["confidence"]["adjusted"],
+            impact_score=decision_data.get("impact_score"),
+            complexity_score=decision_data.get("complexity_score"),
+            category=decision_data["category"],
+            context=decision_data.get("context", {}),
+            evidence=decision_data.get("evidence", []),
+            trade_offs=decision_data.get("trade_offs", {}),
+            user_id=decision_data.get("user_id", "claude-code"),
+            session_id=decision_data.get("session_id"),
+            project_id=project_id,
             tags=tags,
-            meta_data={
+            extra_data={
+                "factors_considered": decision_data.get("factors_considered", []),
+                "confidence_factors": decision_data["confidence"].get("factors", {})
+            },
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(decision)
+        db.flush()  # Flush to get the decision ID
+        
+        # Add alternatives
+        for alt_data in decision_data.get("alternatives", []):
+            alternative = DecisionAlternative(
+                decision_id=decision.id,
+                solution=alt_data.get("solution", ""),
+                pros=alt_data.get("pros", []),
+                cons=alt_data.get("cons", []),
+                risk_level=alt_data.get("risk_level", "medium"),
+                complexity=alt_data.get("complexity", "moderate"),
+                estimated_effort=alt_data.get("estimated_effort"),
+                feasibility_score=alt_data.get("feasibility_score"),
+                risk_score=alt_data.get("risk_score"),
+                benefit_score=alt_data.get("benefit_score"),
+                rejection_reason=alt_data.get("rejection_reason")
+            )
+            db.add(alternative)
+        
+        db.commit()
+        db.refresh(decision)
+        
+        # Also store in memory for backward compatibility
+        content_hash = hashlib.sha256(f"{content}{datetime.utcnow().isoformat()}".encode()).hexdigest()
+        
+        # Check if memory with this hash already exists (though unlikely with timestamp)
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == content_hash
+        ).first()
+        
+        if existing_memory:
+            # Update existing memory (unlikely to happen due to timestamp)
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Update metadata
+            existing_memory.meta_data = {
                 "memory_type": "decision",
                 "importance": 0.8 + (decision_data["confidence"]["adjusted"] * 0.2),
+                "decision_table_id": str(decision.id),
                 **decision_data
-            },
-            access_count=1,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            accessed_at=datetime.utcnow()
-        )
-        db.add(memory)
-        db.commit()
-        db.refresh(memory)
+            }
+            # Merge tags
+            existing_tags = set(existing_memory.tags or [])
+            existing_memory.tags = list(existing_tags.union(set(tags)))
+            db.commit()
+        else:
+            # Create new memory
+            memory = MemoryItem(
+                content=content,
+                content_hash=content_hash,
+                tags=tags,
+                meta_data={
+                    "memory_type": "decision",
+                    "importance": 0.8 + (decision_data["confidence"]["adjusted"] * 0.2),
+                    "decision_table_id": str(decision.id),
+                    **decision_data
+                },
+                access_count=1,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                accessed_at=datetime.utcnow()
+            )
+            
+            try:
+                db.add(memory)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                # If there's still a duplicate key error, find and update the existing record
+                if "duplicate key" in str(e).lower():
+                    existing = db.query(MemoryItem).filter(
+                        MemoryItem.content_hash == content_hash
+                    ).first()
+                    if existing:
+                        existing.access_count += 1
+                        existing.accessed_at = datetime.utcnow()
+                        db.commit()
+                else:
+                    raise
         
-        return memory
+        return decision
     
     def _update_decision_history(self, decision: Dict[str, Any]):
         """Update local decision history"""

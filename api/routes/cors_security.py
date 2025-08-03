@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import logging
 from datetime import datetime
+from shared.config import Config
 
 from ..cors_config import (
     get_cors_origins,

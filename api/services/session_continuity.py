@@ -3,7 +3,7 @@ Session Continuity Service for Claude Code
 Enables linking sessions and maintaining context across conversations
 """
 
-from typing import Optional, List, Dict, Any
+from typing import Optio, TYPE_CHECKINGnal, List, Dict, Any
 from datetime import datetime, timedelta
 from uuid import UUID
 import json

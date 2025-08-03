@@ -13,11 +13,11 @@ from .base import Base
 
 class ChunkType(str, enum.Enum):
     """Type of document chunk"""
-    TEXT = "text"
-    CODE = "code"
-    TABLE = "table"
-    LIST = "list"
-    HEADING = "heading"
+    TEXT = "TEXT"
+    CODE = "CODE"
+    TABLE = "TABLE"
+    LIST = "LIST"
+    HEADING = "HEADING"
 
 
 class Document(Base):

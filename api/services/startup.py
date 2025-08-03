@@ -81,6 +81,28 @@ async def initialize_services():
         # Don't fail startup if performance system fails
         logger.warning("Continuing without performance optimization system")
     
+    # Initialize background job manager for AI Intelligence features
+    try:
+        from .background_jobs import get_job_manager
+        job_manager = await get_job_manager()
+        await job_manager.start()
+        logger.info("Background job manager started for AI Intelligence features")
+    except Exception as e:
+        logger.error(f"Failed to start background job manager: {e}")
+        # Don't fail startup if job manager fails
+        logger.warning("Continuing without background jobs for AI features")
+    
+    # Initialize pattern recognition workers
+    try:
+        from .pattern_workers import get_pattern_workers
+        pattern_workers = await get_pattern_workers()
+        await pattern_workers.start_workers()
+        logger.info("Pattern recognition workers started")
+    except Exception as e:
+        logger.error(f"Failed to start pattern workers: {e}")
+        # Don't fail startup if pattern workers fail
+        logger.warning("Continuing without pattern recognition workers")
+    
     logger.info("All services initialized successfully")
 
 
@@ -126,5 +148,23 @@ async def shutdown_services():
         logger.info("Performance optimization system shut down")
     except Exception as e:
         logger.error(f"Error shutting down performance system: {e}")
+    
+    # Stop background job manager
+    try:
+        from .background_jobs import get_job_manager
+        job_manager = await get_job_manager()
+        await job_manager.stop()
+        logger.info("Background job manager stopped")
+    except Exception as e:
+        logger.error(f"Error stopping background job manager: {e}")
+    
+    # Stop pattern recognition workers
+    try:
+        from .pattern_workers import get_pattern_workers
+        pattern_workers = await get_pattern_workers()
+        await pattern_workers.stop_workers()
+        logger.info("Pattern recognition workers stopped")
+    except Exception as e:
+        logger.error(f"Error stopping pattern workers: {e}")
     
     logger.info("All services shut down")

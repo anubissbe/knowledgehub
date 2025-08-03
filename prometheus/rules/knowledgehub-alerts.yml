@@ -1,0 +1,106 @@
+groups:
+  - name: knowledgehub.rules
+    rules:
+      # Service health alerts
+      - alert: ServiceDown
+        expr: knowledgehub_service_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.service }} is down"
+          description: "Service {{ $labels.service }} of type {{ $labels.type }} has been down for more than 30 seconds."
+          
+      - alert: HighResponseTime
+        expr: knowledgehub_service_response_time_seconds > 1.0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time for service {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has response time {{ $value }}s which is above 1 second."
+          
+      # Performance alerts
+      - alert: MemorySearchTooSlow
+        expr: histogram_quantile(0.95, rate(knowledgehub_memory_search_duration_seconds_bucket[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory search performance degraded"
+          description: "95th percentile memory search time is {{ $value }}s, exceeding 50ms target."
+          
+      - alert: HighErrorRate
+        expr: rate(knowledgehub_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/second for {{ $labels.component }}."
+          
+      # System resource alerts
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent{core="all"} > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% which is above 80%."
+          
+      - alert: HighMemoryUsage
+        expr: system_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% which is above 85%."
+          
+      - alert: LowDiskSpace
+        expr: system_disk_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage on {{ $labels.mountpoint }} is {{ $value }}% which is above 90%."
+          
+      # Application-specific alerts
+      - alert: WebSocketConnectionsDrop
+        expr: decrease(knowledgehub_websocket_connections_active[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket connections dropping"
+          description: "WebSocket connections dropped by {{ $value }} in the last 5 minutes."
+          
+      - alert: DatabaseConnectionsHigh
+        expr: knowledgehub_database_connections_active > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connections"
+          description: "Database has {{ $value }} active connections, approaching limit."
+          
+      - alert: AIProcessingTooSlow
+        expr: histogram_quantile(0.95, rate(knowledgehub_ai_processing_duration_seconds_bucket[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI processing too slow"
+          description: "95th percentile AI processing time is {{ $value }}s, which may impact user experience."
+          
+      # Cache performance alerts
+      - alert: LowCacheHitRatio
+        expr: rate(knowledgehub_cache_operations_total{result="hit"}[5m]) / rate(knowledgehub_cache_operations_total[5m]) < 0.7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit ratio"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}, below 70% threshold."

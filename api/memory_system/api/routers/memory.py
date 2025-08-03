@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
 from ....models import get_db
-from ...models import Memory, MemoryType
+from ...models import MemorySystemMemory, MemoryType
 from ..schemas import (
     MemoryCreate, MemoryUpdate, MemoryResponse,
     MemoryBatchCreate, MemoryBatchResponse,
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def memory_to_response(memory: Memory) -> MemoryResponse:
+def memory_to_response(memory: MemorySystemMemory) -> MemoryResponse:
     """Convert SQLAlchemy model to response schema"""
     return MemoryResponse(
         id=memory.id,
@@ -60,7 +60,7 @@ async def create_memory(
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Create memory
-        memory = Memory(
+        memory = MemorySystemMemory(
             session_id=memory_data.session_id,
             content=memory_data.content,
             summary=memory_data.summary,
@@ -104,7 +104,7 @@ async def get_memory(
     db: Session = Depends(get_db)
 ):
     """Get a specific memory"""
-    memory = db.query(Memory).filter_by(id=memory_id).first()
+    memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     
@@ -122,7 +122,7 @@ async def update_memory(
     db: Session = Depends(get_db)
 ):
     """Update a memory"""
-    memory = db.query(Memory).filter_by(id=memory_id).first()
+    memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     
@@ -175,7 +175,7 @@ async def delete_memory(
     db: Session = Depends(get_db)
 ) -> dict:
     """Delete a memory"""
-    memory = db.query(Memory).filter_by(id=memory_id).first()
+    memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
     if not memory:
         raise HTTPException(status_code=404, detail="Memory not found")
     
@@ -202,18 +202,18 @@ async def get_session_memories(
     db: Session = Depends(get_db)
 ):
     """Get all memories for a session"""
-    query = db.query(Memory).filter_by(session_id=session_id)
+    query = db.query(MemorySystemMemory).filter_by(session_id=session_id)
     
     if memory_type:
         try:
-            query = query.filter(Memory.memory_type == memory_type)
+            query = query.filter(MemorySystemMemory.memory_type == memory_type)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid memory type")
     
     if min_importance > 0:
-        query = query.filter(Memory.importance >= min_importance)
+        query = query.filter(MemorySystemMemory.importance >= min_importance)
     
-    memories = query.order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
+    memories = query.order_by(desc(MemorySystemMemory.created_at)).offset(offset).limit(limit).all()
     
     return [memory_to_response(m) for m in memories]
 
@@ -236,7 +236,7 @@ async def create_memories_batch(
     
     for memory_data in batch_data.memories:
         try:
-            memory = Memory(
+            memory = MemorySystemMemory(
                 session_id=batch_data.session_id,
                 content=memory_data.content,
                 summary=memory_data.summary,
@@ -318,7 +318,7 @@ async def _fallback_memory_search(
     from ...models import MemorySession
     
     # Base query
-    query = db.query(Memory).join(MemorySession)
+    query = db.query(MemorySystemMemory).join(MemorySession)
     
     # Apply filters
     if search_request.user_id:
@@ -329,18 +329,18 @@ async def _fallback_memory_search(
     
     if search_request.memory_types:
         type_values = [t.value for t in search_request.memory_types]
-        query = query.filter(Memory.memory_type.in_(type_values))
+        query = query.filter(MemorySystemMemory.memory_type.in_(type_values))
     
     if search_request.min_importance > 0:
-        query = query.filter(Memory.importance >= search_request.min_importance)
+        query = query.filter(MemorySystemMemory.importance >= search_request.min_importance)
     
     # Text search (simple ILIKE)
     if search_request.query:
         search_term = f"%{search_request.query}%"
         query = query.filter(
             or_(
-                Memory.content.ilike(search_term),
-                Memory.summary.ilike(search_term)
+                MemorySystemMemory.content.ilike(search_term),
+                MemorySystemMemory.summary.ilike(search_term)
             )
         )
     
@@ -349,8 +349,8 @@ async def _fallback_memory_search(
     
     # Apply pagination and ordering
     memories = query.order_by(
-        desc(Memory.importance),
-        desc(Memory.created_at)
+        desc(MemorySystemMemory.importance),
+        desc(MemorySystemMemory.created_at)
     ).offset(search_request.offset).limit(search_request.limit).all()
     
     return MemorySearchResponse(

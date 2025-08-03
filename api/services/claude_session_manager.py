@@ -32,11 +32,15 @@ class ClaudeSessionManager:
     def _run_memory_cli(self, *args) -> Optional[str]:
         """Run memory-cli command and return output"""
         try:
+            # Check if memory-cli exists and is executable
+            if not os.path.exists(self.memory_cli_path):
+                return None
+            
             cmd = [self.memory_cli_path] + list(args)
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            print(f"Memory CLI error: {e.stderr}")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            # Silently fail - memory-cli is optional
             return None
     
     def _get_project_id(self, cwd: str) -> str:
@@ -108,13 +112,14 @@ class ClaudeSessionManager:
             context["project_patterns"] = project_context.get("project", {}).get("patterns", {})
             context["project_memories"] = [m["content"][:100] + "..." for m in project_context.get("memories", [])[:5]]
         
-        # Store session start in memory
-        self._run_memory_cli(
-            "add",
-            f"Claude Code session started: {session_id} for project {project_path.name}",
-            "-t", "fact",
-            "-p", "high"
-        )
+        # Store session start in memory (if memory-cli is available)
+        if os.path.exists(self.memory_cli_path):
+            self._run_memory_cli(
+                "add",
+                f"Claude Code session started: {session_id} for project {project_path.name}",
+                "-t", "fact",
+                "-p", "high"
+            )
         
         return {
             "session": session_data,
@@ -132,31 +137,32 @@ class ClaudeSessionManager:
             "project_patterns": []
         }
         
-        # Get recent memories from memory CLI
-        recent_output = self._run_memory_cli("context", "-n", "20")
-        if recent_output:
-            context["memories"] = recent_output.split('\n')[:5]  # First 5 lines
-        
-        # Search for project-specific memories
-        project_search = self._run_memory_cli("search", f"project {project_id}")
-        if project_search:
-            context["project_patterns"] = project_search.split('\n')[:3]
-        
-        # Look for handoff notes
-        handoff_search = self._run_memory_cli("search", "handoff")
-        if handoff_search:
-            context["handoff_notes"] = handoff_search.split('\n')[:3]
-        
-        # Find recent errors
-        error_search = self._run_memory_cli("search", "-t", "error")
-        if error_search:
-            context["recent_errors"] = error_search.split('\n')[:3]
-        
-        # Check for unfinished tasks from previous session
-        if previous_session:
-            task_search = self._run_memory_cli("search", f"TODO session:{previous_session.get('session_id')}")
-            if task_search:
-                context["unfinished_tasks"] = task_search.split('\n')[:5]
+        # Get recent memories from memory CLI if available
+        if os.path.exists(self.memory_cli_path):
+            recent_output = self._run_memory_cli("context", "--limit", "20")
+            if recent_output:
+                context["memories"] = recent_output.split('\n')[:5]  # First 5 lines
+            
+            # Search for project-specific memories
+            project_search = self._run_memory_cli("search", f"project {project_id}")
+            if project_search:
+                context["project_patterns"] = project_search.split('\n')[:3]
+            
+            # Look for handoff notes
+            handoff_search = self._run_memory_cli("search", "handoff")
+            if handoff_search:
+                context["handoff_notes"] = handoff_search.split('\n')[:3]
+            
+            # Find recent errors
+            error_search = self._run_memory_cli("search", "-t", "error")
+            if error_search:
+                context["recent_errors"] = error_search.split('\n')[:3]
+            
+            # Check for unfinished tasks from previous session
+            if previous_session:
+                task_search = self._run_memory_cli("search", f"TODO session:{previous_session.get('session_id')}")
+                if task_search:
+                    context["unfinished_tasks"] = task_search.split('\n')[:5]
         
         # Save context for quick access
         with open(self.context_file, 'w') as f:
@@ -202,19 +208,20 @@ class ClaudeSessionManager:
         
         handoff_content = "\n".join(handoff_lines)
         
-        # Store in memory system
-        self._run_memory_cli(
-            "add",
-            handoff_content,
-            "-t", "context",
-            "-p", "critical"
-        )
-        
-        # Create checkpoint
-        self._run_memory_cli(
-            "checkpoint",
-            "-d", f"Session {session_id} handoff: {content[:50]}..."
-        )
+        # Store in memory system (if available)
+        if os.path.exists(self.memory_cli_path):
+            self._run_memory_cli(
+                "add",
+                handoff_content,
+                "-t", "context",
+                "-p", "critical"
+            )
+            
+            # Create checkpoint
+            self._run_memory_cli(
+                "checkpoint",
+                "-d", f"Session {session_id} handoff: {content[:50]}..."
+            )
         
         return {
             "handoff_id": f"handoff-{session_id}",
@@ -247,13 +254,14 @@ class ClaudeSessionManager:
         else:
             error_content.append("Solution: Not found yet")
         
-        # Store in memory
-        self._run_memory_cli(
-            "add",
-            "\n".join(error_content),
-            "-t", "error",
-            "-p", "high" if not worked else "medium"
-        )
+        # Store in memory (if available)
+        if os.path.exists(self.memory_cli_path):
+            self._run_memory_cli(
+                "add",
+                "\n".join(error_content),
+                "-t", "error",
+                "-p", "high" if not worked else "medium"
+            )
         
         # Track with mistake learning system if db available
         mistake_result = None
@@ -284,28 +292,30 @@ class ClaudeSessionManager:
     
     def get_similar_errors(self, error_type: str, error_message: str) -> List[Dict[str, Any]]:
         """Find similar errors with solutions from memory"""
-        # Search for similar errors
-        search_results = self._run_memory_cli("search", f"ERROR Type: {error_type}")
-        
         similar_errors = []
-        if search_results:
-            lines = search_results.split('\n')
-            current_error = {}
+        
+        # Search for similar errors (if memory-cli is available)
+        if os.path.exists(self.memory_cli_path):
+            search_results = self._run_memory_cli("search", f"ERROR Type: {error_type}")
             
-            for line in lines:
-                if line.startswith("ERROR"):
-                    if current_error:
-                        similar_errors.append(current_error)
-                    current_error = {"description": line}
-                elif "Solution [WORKED]:" in line:
-                    current_error["solution"] = line.split("Solution [WORKED]:")[1].strip()
-                    current_error["worked"] = True
-                elif "Solution [FAILED]:" in line:
-                    current_error["solution"] = line.split("Solution [FAILED]:")[1].strip()
-                    current_error["worked"] = False
-            
-            if current_error:
-                similar_errors.append(current_error)
+            if search_results:
+                lines = search_results.split('\n')
+                current_error = {}
+                
+                for line in lines:
+                    if line.startswith("ERROR"):
+                        if current_error:
+                            similar_errors.append(current_error)
+                        current_error = {"description": line}
+                    elif "Solution [WORKED]:" in line:
+                        current_error["solution"] = line.split("Solution [WORKED]:")[1].strip()
+                        current_error["worked"] = True
+                    elif "Solution [FAILED]:" in line:
+                        current_error["solution"] = line.split("Solution [FAILED]:")[1].strip()
+                        current_error["worked"] = False
+                
+                if current_error:
+                    similar_errors.append(current_error)
         
         return similar_errors[:5]  # Return top 5
     
@@ -357,8 +367,8 @@ class ClaudeSessionManager:
         
         session_id = session_data.get("session_id", "unknown")
         
-        # Create session summary
-        if summary:
+        # Create session summary (if memory-cli is available)
+        if summary and os.path.exists(self.memory_cli_path):
             self._run_memory_cli(
                 "add",
                 f"Session {session_id} ended: {summary}",
@@ -366,8 +376,10 @@ class ClaudeSessionManager:
                 "-p", "high"
             )
         
-        # Get session stats
-        stats_output = self._run_memory_cli("stats")
+        # Get session stats (if available)
+        stats_output = None
+        if os.path.exists(self.memory_cli_path):
+            stats_output = self._run_memory_cli("stats")
         
         return {
             "session_id": session_id,

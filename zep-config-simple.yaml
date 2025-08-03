@@ -1,0 +1,33 @@
+store:
+  type: postgres
+  postgres:
+    dsn: postgres://zep:zep123@zep-postgres:5432/zep?sslmode=disable
+
+server:
+  port: 8000
+
+log:
+  level: info
+
+auth:
+  required: false
+  secret: "do-not-use-this-secret-in-production"
+
+llm:
+  anthropic_api_key: "dummy-key-for-development"
+  openai_api_key: "dummy-key-for-development"
+
+memory:
+  message_window: 12
+
+nlp:
+  server_url: "http://localhost:5557"
+
+extractors:
+  messages:
+    summarizer:
+      enabled: false
+    entities:
+      enabled: false
+    intent:
+      enabled: false

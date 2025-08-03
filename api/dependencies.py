@@ -1,6 +1,6 @@
 """FastAPI dependencies"""
 
-from typing import Generator
+from typing import Generator, Optional
 from sqlalchemy.orm import Session
 
 from .models import get_db
@@ -46,6 +46,25 @@ def get_current_user(request):
     return {"id": "system", "name": "system", "permissions": ["read"], "type": "system"}
 
 
+def get_user_id(request) -> str:
+    """Get current user ID from request"""
+    user = get_current_user(request)
+    return user["id"]
+
+
+async def get_current_session(request) -> Optional[str]:
+    """Get current session ID from request headers or create new one"""
+    session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        # Check for Claude-Code specific headers
+        session_id = request.headers.get("X-Claude-Session-ID")
+    if not session_id:
+        # Generate a new session ID if none provided
+        import uuid
+        session_id = str(uuid.uuid4())
+    return session_id
+
+
 # Re-export commonly used dependencies
 __all__ = [
     "get_db",
@@ -56,5 +75,7 @@ __all__ = [
     "get_job_service",
     "get_search_service",
     "get_memory_service",
-    "get_current_user"
+    "get_current_user",
+    "get_user_id",
+    "get_current_session"
 ]

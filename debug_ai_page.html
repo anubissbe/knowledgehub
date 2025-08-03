@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug AI Intelligence Page</title>
+</head>
+<body>
+    <h1>Testing AI Intelligence Features</h1>
+    <div id="results"></div>
+    
+    <script>
+        const API_KEY = 'knhub_V05H0-fZ_kUJB93um_pS00Nxv3i60gZogNGhMLtTFbM';
+        const API_URL = 'http://192.168.1.25:3000';
+        
+        const AI_FEATURES = [
+            { id: 'session-continuity', endpoint: '/api/claude-auto/session/current' },
+            { id: 'mistake-learning', endpoint: '/api/mistake-learning/patterns' },
+            { id: 'proactive-assistant', endpoint: '/api/proactive/health' },
+            { id: 'decision-reasoning', endpoint: '/api/decisions/search?query=recent' },
+            { id: 'code-evolution', endpoint: '/api/code-evolution/history?file_path=test' },
+            { id: 'performance-optimization', endpoint: '/api/performance/stats' },
+            { id: 'pattern-recognition', endpoint: '/api/patterns/recent' },
+            { id: 'workflow-integration', endpoint: '/api/claude-workflow/stats' }
+        ];
+        
+        async function testEndpoints() {
+            const results = document.getElementById('results');
+            
+            for (const feature of AI_FEATURES) {
+                try {
+                    const response = await fetch(`${API_URL}${feature.endpoint}`, {
+                        headers: { 'X-API-Key': API_KEY }
+                    });
+                    
+                    const status = response.ok ? '✅' : '❌';
+                    const statusCode = response.status;
+                    
+                    results.innerHTML += `
+                        <p>${status} ${feature.id}: ${statusCode} - ${feature.endpoint}</p>
+                    `;
+                } catch (error) {
+                    results.innerHTML += `
+                        <p>❌ ${feature.id}: ERROR - ${error.message}</p>
+                    `;
+                }
+            }
+        }
+        
+        testEndpoints();
+    </script>
+</body>
+</html>

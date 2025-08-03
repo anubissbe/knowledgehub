@@ -23,7 +23,7 @@ class MemoryType(PyEnum):
     ENTITY = "entity"           # Entity information
 
 
-class Memory(Base):
+class MemorySystemMemory(Base):
     """Model for storing extracted memories from conversations"""
     
     __tablename__ = 'memories'
@@ -180,5 +180,5 @@ class Memory(Base):
         }
     
     def __repr__(self) -> str:
-        return (f"<Memory(id={self.id}, type={self.memory_type}, "
+        return (f"<MemorySystemMemory(id={self.id}, type={self.memory_type}, "
                 f"importance={self.importance}, session={self.session_id})>")

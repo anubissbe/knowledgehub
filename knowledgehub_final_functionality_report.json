@@ -1,0 +1,60 @@
+{
+  "timestamp": "2025-07-22T14:58:11.545451",
+  "overall_percentage": 22.5,
+  "test_results": {
+    "Memory Creation": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Memory creation failed: 201"
+    },
+    "Memory Search": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Search failed: 405"
+    },
+    "Session Management": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.5,
+      "details": "Session created but memory linking failed"
+    },
+    "Error Learning": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Error tracking failed: 404"
+    },
+    "Decision Recording": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Decision recording endpoints not implemented"
+    },
+    "Code Evolution": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Code evolution endpoints not implemented"
+    },
+    "Proactive Predictions": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Proactive predictions not implemented"
+    },
+    "Web UI": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.75,
+      "details": "Web UI partially working (3/4 endpoints)"
+    },
+    "WebSocket Events": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "WebSocket not functional: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+    },
+    "Cross-session Continuity": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Cross-session continuity fully working"
+    }
+  },
+  "test_data": {
+    "session_id": "claude-20250722-145810"
+  },
+  "user_id": "test_user_da4d3294"
+}

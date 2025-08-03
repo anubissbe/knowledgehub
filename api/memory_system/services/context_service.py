@@ -9,7 +9,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, text
 
-from ..models import Memory, MemorySession
+from ..models import MemorySystemMemory, MemorySession
 from ..api.context_schemas import (
     ContextRequest, ContextResponse, ContextMemory, ContextSection,
     ContextTypeEnum, ContextRelevanceEnum, ContextStats
@@ -85,7 +85,7 @@ class ContextService:
         self, 
         db: Session, 
         request: ContextRequest
-    ) -> Dict[ContextTypeEnum, List[Memory]]:
+    ) -> Dict[ContextTypeEnum, List[MemorySystemMemory]]:
         """Retrieve memories by context type"""
         context_memories = {}
         
@@ -111,33 +111,33 @@ class ContextService:
         
         return context_memories
     
-    async def _get_recent_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_recent_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get recent memories from current or related sessions"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         
         # Filter by user
         query = query.filter(MemorySession.user_id == request.user_id)
         
         # Filter by session if specified
         if request.session_id:
-            query = query.filter(Memory.session_id == request.session_id)
+            query = query.filter(MemorySystemMemory.session_id == request.session_id)
         
         # Apply time window
         if request.time_window_hours:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=request.time_window_hours)
-            query = query.filter(Memory.created_at >= cutoff)
+            query = query.filter(MemorySystemMemory.created_at >= cutoff)
         
         # Apply memory type filter
         if request.memory_types:
-            query = query.filter(Memory.memory_type.in_(request.memory_types))
+            query = query.filter(MemorySystemMemory.memory_type.in_(request.memory_types))
         
         # Order by creation time (most recent first)
-        memories = query.order_by(desc(Memory.created_at)).limit(10).all()
+        memories = query.order_by(desc(MemorySystemMemory.created_at)).limit(10).all()
         
         logger.info(f"Retrieved {len(memories)} recent memories")
         return memories
     
-    async def _get_similar_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_similar_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get semantically similar memories"""
         if not request.query:
             return []
@@ -171,7 +171,7 @@ class ContextService:
             logger.error(f"Similar memory search failed: {e}")
             return []
     
-    async def _get_entity_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_entity_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get memories related to entities mentioned in query"""
         if not request.query:
             return []
@@ -185,82 +185,82 @@ class ContextService:
         if not query_words:
             return []
         
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         query = query.filter(MemorySession.user_id == request.user_id)
         
         # Find memories that contain any of the query entities
         entity_filters = []
         for word in query_words[:5]:  # Limit to 5 words to avoid too complex query
-            entity_filters.append(Memory.entities.any(text(f"'{word}'::text")))
+            entity_filters.append(MemorySystemMemory.entities.any(text(f"'{word}'::text")))
         
         if entity_filters:
             query = query.filter(or_(*entity_filters))
         
-        memories = query.order_by(desc(Memory.importance)).limit(5).all()
+        memories = query.order_by(desc(MemorySystemMemory.importance)).limit(5).all()
         logger.info(f"Retrieved {len(memories)} entity-related memories")
         return memories
     
-    async def _get_decision_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_decision_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get important decision memories"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         query = query.filter(
             MemorySession.user_id == request.user_id,
-            Memory.memory_type == 'decision',
-            Memory.importance >= 0.7  # High importance decisions only
+            MemorySystemMemory.memory_type == 'decision',
+            MemorySystemMemory.importance >= 0.7  # High importance decisions only
         )
         
-        memories = query.order_by(desc(Memory.importance)).limit(5).all()
+        memories = query.order_by(desc(MemorySystemMemory.importance)).limit(5).all()
         logger.info(f"Retrieved {len(memories)} decision memories")
         return memories
     
-    async def _get_error_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_error_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get error and solution memories"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         query = query.filter(
             MemorySession.user_id == request.user_id,
-            Memory.memory_type == 'error'
+            MemorySystemMemory.memory_type == 'error'
         )
         
         # Apply time window for errors (more recent errors are more relevant)
         if request.time_window_hours:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=request.time_window_hours * 2)
-            query = query.filter(Memory.created_at >= cutoff)
+            query = query.filter(MemorySystemMemory.created_at >= cutoff)
         
-        memories = query.order_by(desc(Memory.created_at)).limit(3).all()
+        memories = query.order_by(desc(MemorySystemMemory.created_at)).limit(3).all()
         logger.info(f"Retrieved {len(memories)} error memories")
         return memories
     
-    async def _get_pattern_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_pattern_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get pattern recognition memories"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         query = query.filter(
             MemorySession.user_id == request.user_id,
-            Memory.memory_type == 'pattern',
-            Memory.importance >= 0.6
+            MemorySystemMemory.memory_type == 'pattern',
+            MemorySystemMemory.importance >= 0.6
         )
         
-        memories = query.order_by(desc(Memory.importance)).limit(3).all()
+        memories = query.order_by(desc(MemorySystemMemory.importance)).limit(3).all()
         logger.info(f"Retrieved {len(memories)} pattern memories")
         return memories
     
-    async def _get_preference_memories(self, db: Session, request: ContextRequest) -> List[Memory]:
+    async def _get_preference_memories(self, db: Session, request: ContextRequest) -> List[MemorySystemMemory]:
         """Get user preference memories"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         query = query.filter(
             MemorySession.user_id == request.user_id,
-            Memory.memory_type == 'preference'
+            MemorySystemMemory.memory_type == 'preference'
         )
         
-        memories = query.order_by(desc(Memory.importance)).limit(5).all()
+        memories = query.order_by(desc(MemorySystemMemory.importance)).limit(5).all()
         logger.info(f"Retrieved {len(memories)} preference memories")
         return memories
     
     async def _score_and_filter_memories(
         self, 
         db: Session,
-        context_memories: Dict[ContextTypeEnum, List[Memory]],
+        context_memories: Dict[ContextTypeEnum, List[MemorySystemMemory]],
         request: ContextRequest
-    ) -> List[Tuple[Memory, ContextTypeEnum, float, str]]:
+    ) -> List[Tuple[MemorySystemMemory, ContextTypeEnum, float, str]]:
         """Score memories for relevance and filter"""
         scored_memories = []
         
@@ -287,7 +287,7 @@ class ContextService:
     
     def _calculate_relevance_score(
         self, 
-        memory: Memory, 
+        memory: MemorySystemMemory, 
         context_type: ContextTypeEnum,
         request: ContextRequest
     ) -> float:
@@ -322,7 +322,7 @@ class ContextService:
     
     def _generate_relevance_reason(
         self, 
-        memory: Memory, 
+        memory: MemorySystemMemory, 
         context_type: ContextTypeEnum,
         relevance_score: float
     ) -> str:
@@ -357,7 +357,7 @@ class ContextService:
     
     def _organize_into_sections(
         self, 
-        scored_memories: List[Tuple[Memory, ContextTypeEnum, float, str]],
+        scored_memories: List[Tuple[MemorySystemMemory, ContextTypeEnum, float, str]],
         request: ContextRequest
     ) -> List[ContextSection]:
         """Organize memories into logical sections"""

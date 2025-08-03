@@ -1,0 +1,64 @@
+{
+  "timestamp": "2025-07-22T15:21:55.260923",
+  "overall_percentage": 84.00000000000001,
+  "test_results": {
+    "Memory Creation with Embeddings": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Memory created with embeddings (ID: ad6aa83c-3773-4312-a242-964ad9350b92)"
+    },
+    "Memory Search with Vectors": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Vector search working - found 1 relevant results"
+    },
+    "Error Learning System": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.5,
+      "details": "Error tracking works but similar search failed"
+    },
+    "Decision Recording System": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.7,
+      "details": "Decision recording works but search needs improvement"
+    },
+    "Code Evolution Tracking": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Code evolution fully working - change tracked & history available"
+    },
+    "Proactive AI Predictions": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Proactive predictions working - session analysis & predictions available"
+    },
+    "Session Management & Context": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Session management working - sessions, memories, and context all functional"
+    },
+    "Performance Tracking": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.7,
+      "details": "Performance tracking works but reports need data"
+    },
+    "Web UI Integration": {
+      "status": "\u2705",
+      "score": 1.0,
+      "details": "Web UI fully functional - all 7 AI endpoints working"
+    },
+    "WebSocket Real-time Events": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.5,
+      "details": "WebSocket connects but unexpected response: {'type': 'subscribe', 'data': {'channel': 'system', 'status': 'subscribed'}, 'timestamp': '2025-07-22T15:21:55.259441', 'message_id': '005f0399-2da9-4251-ba4a-f398bcc5367e'}"
+    }
+  },
+  "test_data": {
+    "memory_id": "ad6aa83c-3773-4312-a242-964ad9350b92",
+    "mistake_id": "42e0f6f58915",
+    "decision_id": "c312a06776f3",
+    "change_id": "b0548416-6de3-4e05-9d81-2eb7d07c87c5"
+  },
+  "user_id": "test_user_f575ce7f",
+  "assessment": "comprehensive_ai_intelligence"
+}

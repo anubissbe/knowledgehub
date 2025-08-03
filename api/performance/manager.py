@@ -363,8 +363,11 @@ async def initialize_performance_system():
 async def shutdown_performance_system():
     """Shutdown the complete performance system"""
     global performance_manager
-    if performance_manager:
-        await performance_manager.shutdown()
+    if performance_manager is not None:
+        try:
+            await performance_manager.shutdown()
+        except Exception as e:
+            logger.error(f"Error during performance systems shutdown: {e}")
 
 
 # Convenience decorators and context managers

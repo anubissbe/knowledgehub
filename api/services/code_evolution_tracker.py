@@ -571,6 +571,11 @@ class CodeEvolutionTracker:
         
         memory_hash = hashlib.sha256(content.encode()).hexdigest()
         
+        # Check if memory with this hash already exists
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == memory_hash
+        ).first()
+        
         # Calculate importance based on quality improvement and patterns
         base_importance = 0.6
         quality_bonus = min(0.3, evolution_data["quality_improvement"]["overall_improvement"])
@@ -578,24 +583,59 @@ class CodeEvolutionTracker:
         
         importance = base_importance + quality_bonus + pattern_bonus
         
-        memory = MemoryItem(
-            content=content,
-            content_hash=memory_hash,
-            tags=tags,
-            meta_data={
+        if existing_memory:
+            # Update existing memory
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Update metadata with latest evolution data
+            existing_memory.meta_data = {
                 "memory_type": "code_evolution",
                 "importance": importance,
                 **evolution_data
-            },
-            access_count=1,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            accessed_at=datetime.utcnow()
-        )
-        
-        db.add(memory)
-        db.commit()
-        db.refresh(memory)
+            }
+            # Merge tags
+            existing_tags = set(existing_memory.tags or [])
+            existing_memory.tags = list(existing_tags.union(set(tags)))
+            db.commit()
+            db.refresh(existing_memory)
+            memory = existing_memory
+        else:
+            # Create new memory
+            memory = MemoryItem(
+                content=content,
+                content_hash=memory_hash,
+                tags=tags,
+                meta_data={
+                    "memory_type": "code_evolution",
+                    "importance": importance,
+                    **evolution_data
+                },
+                access_count=1,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                accessed_at=datetime.utcnow()
+            )
+            
+            try:
+                db.add(memory)
+                db.commit()
+                db.refresh(memory)
+            except Exception as e:
+                db.rollback()
+                # If there's still a duplicate key error, find and update the existing record
+                if "duplicate key" in str(e).lower():
+                    existing = db.query(MemoryItem).filter(
+                        MemoryItem.content_hash == memory_hash
+                    ).first()
+                    if existing:
+                        existing.access_count += 1
+                        existing.accessed_at = datetime.utcnow()
+                        db.commit()
+                        db.refresh(existing)
+                        memory = existing
+                else:
+                    raise
         
         return memory
     
@@ -942,3 +982,78 @@ class CodeEvolutionTracker:
                         "common_reasons": dict(data["common_reasons"])
                     }
                 json.dump(serializable_patterns, f, indent=2)
+    
+    def track_simple_change(self, db: Session, file_path: str, 
+                           change_type: str, description: str,
+                           user_id: str) -> Dict[str, Any]:
+        """Track a simple code change without before/after comparison"""
+        
+        # Create a memory for the change
+        content = f"Code change in {file_path}: {description}"
+        content_hash = hashlib.sha256(content.encode()).hexdigest()
+        
+        # Check if memory with this hash already exists
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == content_hash
+        ).first()
+        
+        if existing_memory:
+            # Update existing memory
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Update metadata
+            existing_memory.meta_data = {
+                "memory_type": "code_evolution",
+                "file_path": file_path,
+                "change_type": change_type,
+                "change_description": description,
+                "user_id": user_id,
+                "source": "code_evolution",
+                "importance": 0.6,
+                "simple_tracking": True
+            }
+            db.commit()
+            memory = existing_memory
+        else:
+            # Create new memory
+            memory = MemoryItem(
+                content=content,
+                content_hash=content_hash,
+                tags=["code_evolution", f"change_type:{change_type}", f"file:{file_path}"],
+                meta_data={
+                    "memory_type": "code_evolution",
+                    "file_path": file_path,
+                    "change_type": change_type,
+                    "change_description": description,
+                    "user_id": user_id,
+                    "source": "code_evolution",
+                    "importance": 0.6,
+                    "simple_tracking": True
+                }
+            )
+            
+            try:
+                db.add(memory)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                # If there's still a duplicate key error, find and update the existing record
+                if "duplicate key" in str(e).lower():
+                    existing = db.query(MemoryItem).filter(
+                        MemoryItem.content_hash == content_hash
+                    ).first()
+                    if existing:
+                        existing.access_count += 1
+                        existing.accessed_at = datetime.utcnow()
+                        db.commit()
+                        memory = existing
+                else:
+                    raise
+        
+        return {
+            "tracked": True,
+            "change_id": str(memory.id),
+            "file_path": file_path,
+            "change_type": change_type
+        }

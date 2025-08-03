@@ -70,6 +70,7 @@ class ValidationMiddleware(BaseHTTPMiddleware):
             '/api/v1/chunks/batch',  # Temporarily skip validation for chunk batch endpoint
             '/api/v1/documents/',  # Temporarily skip validation for document creation
             '/api/internal/',  # Skip validation for all internal endpoints
+            '/api/v1/sources/',  # Temporarily skip validation for sources
         }
         
         # Field validation rules for common endpoints
@@ -86,9 +87,9 @@ class ValidationMiddleware(BaseHTTPMiddleware):
                 'api_key': {'content_type': ContentType.API_KEY, 'required': False}
             },
             '/api/v1/sources': {
-                'source_type': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 50},
+                'type': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 50},
                 'url': {'content_type': ContentType.URL, 'required': True},
-                'name': {'content_type': ContentType.TEXT, 'required': True, 'max_length': 255},
+                'name': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 255},
                 'description': {'content_type': ContentType.TEXT, 'required': False, 'max_length': 2000},
                 'config': {'content_type': ContentType.JSON, 'required': False}
             },

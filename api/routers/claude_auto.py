@@ -2,9 +2,10 @@
 Claude Auto - Automatic session management for Claude Code
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from ..models import get_db
 from ..services.claude_session_manager import ClaudeSessionManager
@@ -23,7 +24,7 @@ def health_check():
 
 @router.post("/session/start")
 def start_session(
-    cwd: str = Query(..., description="Current working directory"),
+    data: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
@@ -37,6 +38,14 @@ def start_session(
     5. Returns everything Claude needs to continue work
     """
     try:
+        # Accept both 'cwd' and 'project_root' for compatibility
+        cwd = data.get("cwd") or data.get("project_root")
+        if not cwd:
+            raise HTTPException(
+                status_code=422,
+                detail="Missing required field: cwd or project_root"
+            )
+        
         result = session_manager.start_session(cwd, db)
         
         # Add helpful instructions
@@ -162,26 +171,47 @@ def get_current_session() -> Dict[str, Any]:
 
 
 @router.get("/memory/stats")
-def get_memory_stats() -> Dict[str, Any]:
+def get_memory_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get memory system statistics"""
     try:
-        import subprocess
-        result = subprocess.run(
-            [session_manager.memory_cli_path, "stats"],
-            capture_output=True,
-            text=True
-        )
+        from ..models.memory import MemoryItem
+        from ..models.document import Document
+        from ..models.chunk import Chunk
         
-        if result.returncode == 0:
-            # Parse stats output
-            lines = result.stdout.strip().split('\n')
-            stats = {}
-            for line in lines:
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    stats[key.strip()] = value.strip()
-            return {"status": "success", "stats": stats}
-        else:
-            return {"status": "error", "message": result.stderr}
+        # Get memory statistics from database
+        stats = {}
+        
+        # Memory items count
+        memory_count = db.query(func.count(MemoryItem.id)).scalar()
+        stats["total_memories"] = memory_count
+        
+        # Document count
+        doc_count = db.query(func.count(Document.id)).scalar()
+        stats["total_documents"] = doc_count
+        
+        # Chunk count
+        chunk_count = db.query(func.count(Chunk.id)).scalar()
+        stats["total_chunks"] = chunk_count
+        
+        # Tags breakdown (since there's no memory_type field)
+        # Get unique tags and their counts
+        all_memories = db.query(MemoryItem.tags).all()
+        tag_counts = {}
+        for memory in all_memories:
+            if memory.tags:
+                for tag in memory.tags:
+                    tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        
+        stats["tag_counts"] = tag_counts
+        
+        # Recent memories (last 24 hours)
+        from datetime import datetime, timedelta
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_count = db.query(func.count(MemoryItem.id)).filter(
+            MemoryItem.created_at >= yesterday
+        ).scalar()
+        stats["memories_last_24h"] = recent_count
+        
+        return {"status": "success", "stats": stats}
     except Exception as e:
         return {"status": "error", "message": str(e)}

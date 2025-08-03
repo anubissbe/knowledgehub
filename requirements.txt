@@ -2,11 +2,13 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 websockets==15.0.1
 wsproto==1.2.0
+PyJWT==2.8.0
 sqlalchemy==2.0.23
 alembic==1.12.1
 psycopg2-binary==2.9.9
 redis==5.0.1
-weaviate-client==3.25.3
+minio==7.2.0
+weaviate-client==3.26.2
 sentence-transformers>=2.3.0
 huggingface-hub>=0.19.3
 tiktoken==0.5.2
@@ -18,12 +20,23 @@ asyncpg==0.29.0
 pandas==2.1.4
 numpy==1.24.4
 plotly==5.17.0
-beautifulsoup4==4.12.2
+beautifulsoup4>=4.12.3
 python-dotenv==1.0.0
 playwright==1.40.0
 APScheduler==3.10.4
+
+# RAG System Dependencies (Optional - see requirements-rag-optional.txt)
+# Core dependencies that work with existing system
+qdrant-client>=1.7.0
+anthropic>=0.25.0
+robotexclusionrulesparser==1.7.1
+
+# Phase 2 - Zep Memory System
+zep-python>=2.0.0
 httpx==0.25.2
 aiohttp==3.9.1
+aiofiles==23.2.1
+aiosqlite==0.19.0
 python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 openpyxl==3.1.2
@@ -39,3 +52,15 @@ black==23.11.0
 flake8==6.1.0
 mypy==1.7.1
 bleach==6.1.0
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation==0.42b0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-instrumentation-sqlalchemy==0.42b0
+opentelemetry-instrumentation-redis==0.42b0
+opentelemetry-instrumentation-httpx==0.42b0
+opentelemetry-instrumentation-asyncpg==0.42b0
+opentelemetry-exporter-jaeger-thrift==1.21.0
+opentelemetry-exporter-otlp-proto-grpc==1.21.0
+opentelemetry-propagator-b3==1.21.0
+opentelemetry-propagator-jaeger==1.21.0

@@ -5,7 +5,8 @@ from typing import List, Optional
 import logging
 
 from ..dependencies import get_memory_service, get_db
-from ..schemas.memory import MemoryCreate, MemoryResponse
+from ..schemas.memory import MemoryCreate
+from ..models.memory import MemoryResponse
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,8 @@ async def get_memories(
             skip=skip,
             limit=limit
         )
-        # Convert SQLAlchemy models to dict for proper serialization
-        return [memory.to_dict() for memory in memories]
+        # Convert SQLAlchemy models to MemoryResponse
+        return [memory_service._memory_to_response(memory) for memory in memories]
         
     except Exception as e:
         logger.error(f"Error fetching memories: {e}")
@@ -45,14 +46,79 @@ async def create_memory(
     db: Session = Depends(get_db),
     memory_service=Depends(get_memory_service)
 ):
-    """Store a new memory item"""
+    """Store a new memory item using the proper memory service"""
     try:
-        result = await memory_service.create_memory(db, memory)
+        # Convert from router schema to service schema
+        from ..models.memory import MemoryCreate as ServiceMemoryCreate, MemoryType, MemoryImportance
+        
+        service_memory = ServiceMemoryCreate(
+            user_id="api_user",  # Default user for API calls
+            session_id="api_session",  # Default session for API calls
+            content=memory.content,
+            memory_type=MemoryType.CONVERSATION,  # Default type
+            context={},
+            metadata=memory.metadata or {},
+            tags=memory.tags or [],
+            importance=MemoryImportance.MEDIUM
+        )
+        
+        # Use the proper memory service WITH embeddings and AI features
+        result = await memory_service.create_memory(
+            service_memory,
+            generate_embeddings=True,
+            auto_cluster=True
+        )
         return result
         
     except Exception as e:
         logger.error(f"Error creating memory: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create memory")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to create memory: {str(e)}")
+
+
+@router.get("/stats")
+async def get_memory_stats(
+    db: Session = Depends(get_db),
+    memory_service=Depends(get_memory_service)
+):
+    """Get memory statistics"""
+    try:
+        from sqlalchemy import func
+        from ..models.memory import Memory
+        
+        # Get total count
+        total = db.query(func.count(Memory.id)).scalar() or 0
+        
+        # Get count by type
+        type_counts = db.query(
+            Memory.memory_type,
+            func.count(Memory.id)
+        ).group_by(Memory.memory_type).all()
+        
+        # Get count by source
+        source_counts = db.query(
+            Memory.source,
+            func.count(Memory.id)
+        ).group_by(Memory.source).all()
+        
+        # Get recent activity
+        recent = db.query(func.count(Memory.id)).filter(
+            Memory.created_at >= func.now() - text("INTERVAL '1 day'")
+        ).scalar() or 0
+        
+        return {
+            "total_memories": total,
+            "memories_by_type": {t: c for t, c in type_counts if t},
+            "memories_by_source": {s: c for s, c in source_counts if s},
+            "recent_24h": recent,
+            "storage_used_mb": round(total * 0.1, 2),  # Estimate ~100KB per memory
+            "active_sessions": 1  # Placeholder
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching memory stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch memory statistics")
 
 
 @router.get("/recent", response_model=List[MemoryResponse])
@@ -109,19 +175,31 @@ async def delete_memory(
     """Delete a memory by ID"""
     try:
         from uuid import UUID
-        memory = memory_service.get_memory(db, UUID(memory_id))
+        from ..models.memory import Memory
+        
+        # Convert string to UUID
+        try:
+            memory_uuid = UUID(memory_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid memory ID format")
+        
+        # Find the memory directly in the database
+        memory = db.query(Memory).filter(Memory.id == memory_uuid).first()
         if not memory:
             raise HTTPException(status_code=404, detail="Memory not found")
         
+        # Delete the memory
         db.delete(memory)
         db.commit()
         
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid memory ID format")
+        logger.info(f"Deleted memory: {memory_id}")
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error deleting memory: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete memory")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete memory: {str(e)}")
 
 

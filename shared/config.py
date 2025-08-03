@@ -18,6 +18,12 @@ class Config:
             "postgresql://khuser:khpassword@postgres:5432/knowledgehub"
         )
         
+        # TimescaleDB (dedicated instance for time-series data)
+        self.TIMESCALE_URL = os.getenv(
+            "TIMESCALE_URL",
+            "postgresql://knowledgehub:knowledgehub123@localhost:5434/knowledgehub_analytics"
+        )
+        
         # Redis
         self.REDIS_URL = os.getenv(
             "REDIS_URL",

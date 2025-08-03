@@ -1,7 +1,7 @@
 """Scheduler router for managing automatic source refresh schedules"""
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, List
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import logging
 

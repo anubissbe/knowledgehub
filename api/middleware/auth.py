@@ -1,5 +1,6 @@
 """Secure Authentication middleware"""
 
+import os
 import hashlib
 import hmac
 import time
@@ -44,6 +45,7 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/workflow/health",  # Workflow integration health check
         "/api/v1/sync/health",  # Memory sync health check
         "/api/v1/sync/count",  # Memory sync count check
+        "/ws/notifications",  # WebSocket endpoint for real-time notifications
         # Claude working endpoints
         "/api/claude-working/health",
         "/api/claude-working/initialize",
@@ -150,7 +152,16 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/claude-workflow/save/discovery",
         "/api/claude-workflow/extract/insights",
         "/api/claude-workflow/stats",
-        "/api/claude-workflow/capture/batch"
+        "/api/claude-workflow/capture/batch",
+        # Real-time streaming endpoints
+        "/api/realtime/stream",  # SSE endpoint for real-time events
+        "/api/realtime/health",
+        "/api/realtime/stats",
+        # Public search endpoints
+        "/api/public/search",
+        "/api/public/search/suggest",
+        "/api/public/topics",
+        "/api/public/stats"
     ]
     
     # Claude endpoints (temporary for testing)
@@ -175,7 +186,9 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/analytics/",  # Temporarily allow analytics access
         "/api/v1/health",  # Health check
         "/api/v1/memories/",  # Temporarily allow memories access
-        "/api/v1/sync/",  # Allow memory sync access</        
+        "/api/v1/sync/",  # Allow memory sync access
+        "/api/ai-features/",  # AI features endpoints
+        "/api/activity/",  # Activity endpoints</        
         "/api/v1/search",  # Allow search access
         "/api/v1/documents/",  # Allow documents access
         "/api/v1/chunks/",  # Allow chunks access
@@ -260,8 +273,18 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         """Secure API key validation for protected endpoints"""
+        # Check if authentication is disabled for development
+        if os.getenv("DISABLE_AUTH", "false").lower() == "true":
+            logger.info(f"Auth disabled for development - allowing request to {request.url.path}")
+            return await call_next(request)
+            
         # Allow CORS preflight OPTIONS requests
         if request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # Allow WebSocket upgrade requests
+        if request.headers.get("upgrade", "").lower() == "websocket":
+            logger.info(f"WebSocket upgrade request allowed for {request.url.path}")
             return await call_next(request)
         
         # Skip auth for public paths

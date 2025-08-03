@@ -19,7 +19,7 @@ from ...services.vector_store import vector_store
 from ...services.embeddings_client import get_embeddings_client
 from ...services.cache import redis_client
 from ...schemas.search import SearchQuery, SearchType, SearchResponse
-from ..models import Memory, MemorySession, MemoryType
+from ..models import MemorySystemMemory, MemorySession, MemoryType
 from ..api.schemas import MemorySearchRequest, MemorySearchResponse, MemoryResponse
 from .embedding_service import memory_embedding_service
 
@@ -179,7 +179,7 @@ class MemorySearchService(SearchService):
         request: MemorySearchRequest
     ) -> List[MemoryResponse]:
         """Execute keyword search on memory content"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         
         # Apply user/project filters
         if request.user_id:
@@ -190,11 +190,11 @@ class MemorySearchService(SearchService):
         # Apply memory type filters
         if request.memory_types:
             type_values = [t.value for t in request.memory_types]
-            query = query.filter(Memory.memory_type.in_(type_values))
+            query = query.filter(MemorySystemMemory.memory_type.in_(type_values))
         
         # Apply importance filter
         if request.min_importance:
-            query = query.filter(Memory.importance >= request.min_importance)
+            query = query.filter(MemorySystemMemory.importance >= request.min_importance)
         
         # Apply text search
         if request.query:
@@ -203,8 +203,8 @@ class MemorySearchService(SearchService):
                 search_query = func.plainto_tsquery('english', request.query)
                 query = query.filter(
                     or_(
-                        func.to_tsvector('english', Memory.content).op('@@')(search_query),
-                        func.to_tsvector('english', Memory.summary).op('@@')(search_query)
+                        func.to_tsvector('english', MemorySystemMemory.content).op('@@')(search_query),
+                        func.to_tsvector('english', MemorySystemMemory.summary).op('@@')(search_query)
                     )
                 )
             else:
@@ -212,15 +212,15 @@ class MemorySearchService(SearchService):
                 search_term = f"%{request.query}%"
                 query = query.filter(
                     or_(
-                        Memory.content.ilike(search_term),
-                        Memory.summary.ilike(search_term)
+                        MemorySystemMemory.content.ilike(search_term),
+                        MemorySystemMemory.summary.ilike(search_term)
                     )
                 )
         
         # Order by importance and recency
         memories = query.order_by(
-            desc(Memory.importance),
-            desc(Memory.created_at)
+            desc(MemorySystemMemory.importance),
+            desc(MemorySystemMemory.created_at)
         ).limit(request.limit * 2).all()  # Get more for merging
         
         # Convert to response objects
@@ -239,7 +239,7 @@ class MemorySearchService(SearchService):
         request: MemorySearchRequest
     ) -> List[MemoryResponse]:
         """Search memories using only filters (no text query)"""
-        query = db.query(Memory).join(MemorySession)
+        query = db.query(MemorySystemMemory).join(MemorySession)
         
         # Apply all filters
         if request.user_id:
@@ -248,14 +248,14 @@ class MemorySearchService(SearchService):
             query = query.filter(MemorySession.project_id == request.project_id)
         if request.memory_types:
             type_values = [t.value for t in request.memory_types]
-            query = query.filter(Memory.memory_type.in_(type_values))
+            query = query.filter(MemorySystemMemory.memory_type.in_(type_values))
         if request.min_importance:
-            query = query.filter(Memory.importance >= request.min_importance)
+            query = query.filter(MemorySystemMemory.importance >= request.min_importance)
         
         # Order by importance and recency
         memories = query.order_by(
-            desc(Memory.importance),
-            desc(Memory.created_at)
+            desc(MemorySystemMemory.importance),
+            desc(MemorySystemMemory.created_at)
         ).offset(request.offset).limit(request.limit).all()
         
         return [self._memory_to_response(memory) for memory in memories]
@@ -291,7 +291,7 @@ class MemorySearchService(SearchService):
         
         return merged
     
-    def _memory_to_response(self, memory: Memory) -> MemoryResponse:
+    def _memory_to_response(self, memory: MemorySystemMemory) -> MemoryResponse:
         """Convert Memory model to MemoryResponse"""
         return MemoryResponse(
             id=memory.id,
@@ -342,7 +342,7 @@ class MemorySearchService(SearchService):
         query: str,
         session_ids: Optional[List[UUID]] = None,
         limit: int = 20
-    ) -> List[Tuple[Memory, float, MemorySession]]:
+    ) -> List[Tuple[MemorySystemMemory, float, MemorySession]]:
         """Search memories across multiple sessions with session context
         
         This method is useful for finding memories across a user's entire
@@ -356,10 +356,10 @@ class MemorySearchService(SearchService):
             limit: Maximum number of results
             
         Returns:
-            List of tuples containing (Memory, relevance_score, MemorySession)
+            List of tuples containing (MemorySystemMemory, relevance_score, MemorySession)
         """
         # Build base query
-        base_query = db.query(Memory, MemorySession).join(MemorySession)
+        base_query = db.query(MemorySystemMemory, MemorySession).join(MemorySession)
         base_query = base_query.filter(MemorySession.user_id == user_id)
         
         if session_ids:
@@ -399,12 +399,12 @@ class MemorySearchService(SearchService):
         if not results:
             memories_with_sessions = base_query.filter(
                 or_(
-                    Memory.content.ilike(f"%{query}%"),
-                    Memory.summary.ilike(f"%{query}%")
+                    MemorySystemMemory.content.ilike(f"%{query}%"),
+                    MemorySystemMemory.summary.ilike(f"%{query}%")
                 )
             ).order_by(
-                desc(Memory.importance),
-                desc(Memory.created_at)
+                desc(MemorySystemMemory.importance),
+                desc(MemorySystemMemory.created_at)
             ).limit(limit).all()
             
             results = [(m, m.importance, s) for m, s in memories_with_sessions]

@@ -26,6 +26,25 @@ def health_check():
     }
 
 
+@router.post("/analyze")
+def analyze_session_post(
+    context: Dict[str, Any] = Body(..., description="Context to analyze"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Analyze provided context and provide proactive insights (POST version)
+    """
+    try:
+        # Extract session_id and project_id from context if provided
+        session_id = context.get("session_id", "default")
+        project_id = context.get("project_id")
+        
+        analysis = assistant.analyze_session_state(db, session_id, project_id)
+        return analysis
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/analyze")
 def analyze_session(
     session_id: str = Query(..., description="Current session ID"),
@@ -162,6 +181,24 @@ def get_preloaded_context(
     try:
         analysis = assistant.analyze_session_state(db, session_id, project_id)
         return analysis.get("preloaded_context", {})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/suggestions")
+def get_suggestions_post(
+    context: Dict[str, Any] = Body(..., description="Context for suggestions"),
+    db: Session = Depends(get_db)
+) -> List[str]:
+    """
+    Get proactive suggestions based on context (POST version)
+    """
+    try:
+        session_id = context.get("session_id", "default")
+        project_id = context.get("project_id")
+        analysis = assistant.analyze_session_state(db, session_id, project_id)
+        suggestions = analysis.get("proactive_suggestions", [])
+        return suggestions[:5]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

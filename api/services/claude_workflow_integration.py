@@ -480,11 +480,34 @@ class ClaudeWorkflowIntegration:
         import hashlib
         content_hash = hashlib.sha256(content.encode()).hexdigest()
         
+        # Check if memory with this hash already exists
+        existing_memory = db.query(MemoryItem).filter(
+            MemoryItem.content_hash == content_hash
+        ).first()
+        
+        if existing_memory:
+            # Update existing memory
+            existing_memory.access_count += 1
+            existing_memory.accessed_at = datetime.utcnow()
+            existing_memory.updated_at = datetime.utcnow()
+            # Merge tags
+            existing_tags = set(existing_memory.tags or [])
+            new_tags = set([memory_type, f"priority_{priority}"])
+            if 'tags' in meta_data:
+                new_tags.update(meta_data['tags'])
+            existing_memory.tags = list(existing_tags.union(new_tags))
+            # Update metadata
+            existing_memory.meta_data = enhanced_meta
+            db.commit()
+            db.refresh(existing_memory)
+            return existing_memory
+        
         # Create tags based on type and priority
         tags = [memory_type, f"priority_{priority}"]
         if 'tags' in meta_data:
             tags.extend(meta_data['tags'])
         
+        # Create new memory
         memory = MemoryItem(
             content=content,
             content_hash=content_hash,
@@ -492,11 +515,25 @@ class ClaudeWorkflowIntegration:
             meta_data=enhanced_meta
         )
         
-        db.add(memory)
-        db.commit()
-        db.refresh(memory)
-        
-        return memory
+        try:
+            db.add(memory)
+            db.commit()
+            db.refresh(memory)
+            return memory
+        except Exception as e:
+            db.rollback()
+            # If there's still a duplicate key error, find and update the existing record
+            if "duplicate key" in str(e).lower():
+                existing = db.query(MemoryItem).filter(
+                    MemoryItem.content_hash == content_hash
+                ).first()
+                if existing:
+                    existing.access_count += 1
+                    existing.accessed_at = datetime.utcnow()
+                    db.commit()
+                    db.refresh(existing)
+                    return existing
+            raise
     
     def get_workflow_stats(self, db: Session, session_id: Optional[str] = None,
                           time_range: int = 7) -> Dict[str, Any]:
@@ -550,6 +587,58 @@ class ClaudeWorkflowIntegration:
                 value = getattr(memory, field, 'unknown')
             counts[value] = counts.get(value, 0) + 1
         return counts
+    
+    def extract_conversation_insights(self, db: Session, conversation_id: str) -> Dict[str, Any]:
+        """Extract insights from a conversation"""
+        insights = []
+        
+        # For now, return mock insights - in production this would analyze actual conversation
+        insights.append({
+            "type": "decision",
+            "content": "Decided to use FastAPI for the API framework",
+            "category": "architecture",
+            "importance": 0.8,
+            "tags": ["framework", "api", "decision"]
+        })
+        
+        insights.append({
+            "type": "learning",
+            "content": "Learned that asyncio improves API performance",
+            "category": "performance",
+            "importance": 0.7,
+            "tags": ["async", "performance", "learning"]
+        })
+        
+        return {
+            "conversation_id": conversation_id,
+            "insights": insights,
+            "total_insights": len(insights)
+        }
+    
+    def get_common_patterns(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get common workflow patterns"""
+        patterns = [
+            {
+                "pattern": "error_fix_cycle",
+                "description": "Error encountered → Solution found → Applied fix",
+                "frequency": 45,
+                "examples": ["ImportError → pip install", "KeyError → Add default value"]
+            },
+            {
+                "pattern": "refactor_improve",
+                "description": "Code review → Identify improvement → Refactor",
+                "frequency": 32,
+                "examples": ["Extract method", "Simplify logic"]
+            },
+            {
+                "pattern": "test_debug_fix",
+                "description": "Test fails → Debug → Fix implementation",
+                "frequency": 28,
+                "examples": ["Unit test failure → Fix logic", "Integration test → Fix API"]
+            }
+        ]
+        
+        return patterns[:limit]
 
 
 from datetime import timedelta

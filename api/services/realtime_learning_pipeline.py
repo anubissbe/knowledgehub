@@ -50,8 +50,13 @@ class RealtimeLearningPipeline:
     """
     
     def __init__(self, redis_url: str = None):
-        # Use environment variable or default to container name
-        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://knowledgehub-redis:6379")
+        # Use environment variable or construct from REDIS_HOST and REDIS_PORT
+        if not redis_url:
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            redis_port = os.getenv("REDIS_PORT", "6381")
+            self.redis_url = f"redis://{redis_host}:{redis_port}"
+        else:
+            self.redis_url = redis_url
         self.redis_client: Optional[redis.Redis] = None
         self.consumer_group = "knowledgehub-learners"
         self.consumer_name = f"learner-{hashlib.md5(str(datetime.utcnow()).encode()).hexdigest()[:8]}"

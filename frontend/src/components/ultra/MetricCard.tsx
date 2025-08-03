@@ -41,8 +41,13 @@ export default function MetricCard({
       }}
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
     >
-      <GlassCard gradient hover>
-        <Box sx={{ p: 3 }}>
+      <GlassCard gradient hover sx={{ height: '100%' }}>
+        <Box sx={{ 
+          p: { xs: 2, sm: 3 }, 
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column' 
+        }}>
           <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
             <Avatar
               sx={{
@@ -91,8 +96,11 @@ export default function MetricCard({
             </Box>
           )}
           
-          {sparkline.length > 0 && (
-            <Box sx={{ height: 40, mt: 2 }}>
+          <Box sx={{ flexGrow: 1 }} />
+          
+          {/* Always render sparkline container for consistent height */}
+          <Box sx={{ height: 40, mt: 2 }}>
+            {sparkline.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={sparklineData}>
                   <Line
@@ -104,8 +112,8 @@ export default function MetricCard({
                   />
                 </LineChart>
               </ResponsiveContainer>
-            </Box>
-          )}
+            )}
+          </Box>
         </Box>
       </GlassCard>
     </motion.div>

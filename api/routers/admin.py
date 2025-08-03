@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_
+from sqlalchemy import func, desc, and_, or_
 from pydantic import BaseModel, Field
 
 from ..models import get_db
@@ -167,30 +167,70 @@ async def get_user_management_data(
     """Get user management data with pagination and filtering"""
     
     try:
-        # This would typically query a users table
-        # For now, return mock data structure
-        users = []
-        total_users = 0
+        from ..models.user import User, UserStatus, UserRole
+        from sqlalchemy import or_
         
-        # TODO: Implement actual user management once user model is defined
-        # query = db.query(User)
-        # if search:
-        #     query = query.filter(User.username.ilike(f"%{search}%"))
-        # if status_filter:
-        #     query = query.filter(User.status == status_filter)
-        # if role_filter:
-        #     query = query.filter(User.role == role_filter)
+        # Build query with filters
+        query = db.query(User)
         
-        # total_users = query.count()
-        # users = query.offset((page - 1) * page_size).limit(page_size).all()
+        # Apply search filter
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    User.username.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                    User.full_name.ilike(search_pattern)
+                )
+            )
+        
+        # Apply status filter
+        if status_filter:
+            try:
+                status = UserStatus(status_filter)
+                query = query.filter(User.status == status)
+            except ValueError:
+                # Invalid status value, ignore filter
+                pass
+        
+        # Apply role filter
+        if role_filter:
+            try:
+                role = UserRole(role_filter)
+                query = query.filter(User.role == role)
+            except ValueError:
+                # Invalid role value, ignore filter
+                pass
+        
+        # Get total count before pagination
+        total_users = query.count()
+        
+        # Apply pagination
+        users = query.offset((page - 1) * page_size).limit(page_size).all()
+        
+        # Format users for response
+        users_data = []
+        for user in users:
+            users_data.append({
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.value if user.role else "user",
+                "status": user.status.value if user.status else "pending",
+                "permissions": user.permissions or [],
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "last_activity": user.last_activity.isoformat() if user.last_activity else None,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            })
         
         return {
-            "users": users,
+            "users": users_data,
             "pagination": {
                 "page": page,
                 "page_size": page_size,
                 "total": total_users,
-                "total_pages": (total_users + page_size - 1) // page_size
+                "total_pages": (total_users + page_size - 1) // page_size if total_users > 0 else 0
             },
             "filters": {
                 "search": search,
@@ -212,35 +252,152 @@ async def manage_user(
     """Manage user accounts (create, update, delete, activate, deactivate)"""
     
     try:
-        # TODO: Implement user management operations
-        # This would interact with a user model to perform CRUD operations
+        from ..models.user import User, UserStatus, UserRole
+        import bcrypt
         
         action = request.action.lower()
         
         if action == "create":
             # Create new user
-            logger.info(f"Creating new user: {request.user_data}")
-            return {"message": "User created successfully", "action": "create"}
+            if not request.user_data:
+                raise HTTPException(status_code=400, detail="User data required for creation")
+            
+            # Check if username/email already exists
+            existing_user = db.query(User).filter(
+                or_(
+                    User.username == request.user_data.get("username"),
+                    User.email == request.user_data.get("email")
+                )
+            ).first()
+            
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Username or email already exists")
+            
+            # Create new user
+            new_user = User(
+                username=request.user_data["username"],
+                email=request.user_data["email"],
+                full_name=request.user_data.get("full_name"),
+                role=UserRole(request.user_data.get("role", "user")),
+                status=UserStatus(request.user_data.get("status", "pending")),
+                permissions=request.user_data.get("permissions", []),
+                metadata=request.user_data.get("metadata", {})
+            )
+            
+            # Hash password if provided
+            if request.user_data.get("password"):
+                password_bytes = request.user_data["password"].encode('utf-8')
+                salt = bcrypt.gensalt()
+                new_user.hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+            
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            
+            logger.info(f"Created new user: {new_user.username}")
+            return {
+                "message": "User created successfully",
+                "action": "create",
+                "user": new_user.to_dict()
+            }
             
         elif action == "update":
             # Update existing user
-            logger.info(f"Updating user {request.user_id}: {request.user_data}")
-            return {"message": "User updated successfully", "action": "update"}
+            if not request.user_id:
+                raise HTTPException(status_code=400, detail="User ID required for update")
+            
+            user = db.query(User).filter(User.id == request.user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Update fields if provided
+            if request.user_data:
+                if "email" in request.user_data:
+                    user.email = request.user_data["email"]
+                if "full_name" in request.user_data:
+                    user.full_name = request.user_data["full_name"]
+                if "role" in request.user_data:
+                    user.role = UserRole(request.user_data["role"])
+                if "status" in request.user_data:
+                    user.status = UserStatus(request.user_data["status"])
+                if "permissions" in request.user_data:
+                    user.permissions = request.user_data["permissions"]
+                if "metadata" in request.user_data:
+                    user.user_metadata = {**user.user_metadata, **request.user_data["metadata"]}
+                
+                # Update password if provided
+                if request.user_data.get("password"):
+                    password_bytes = request.user_data["password"].encode('utf-8')
+                    salt = bcrypt.gensalt()
+                    user.hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+            
+            db.commit()
+            db.refresh(user)
+            
+            logger.info(f"Updated user {user.username}")
+            return {
+                "message": "User updated successfully",
+                "action": "update",
+                "user": user.to_dict()
+            }
             
         elif action == "delete":
             # Delete user
-            logger.info(f"Deleting user {request.user_id}")
-            return {"message": "User deleted successfully", "action": "delete"}
+            if not request.user_id:
+                raise HTTPException(status_code=400, detail="User ID required for deletion")
+            
+            user = db.query(User).filter(User.id == request.user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            username = user.username
+            db.delete(user)
+            db.commit()
+            
+            logger.info(f"Deleted user {username}")
+            return {
+                "message": "User deleted successfully",
+                "action": "delete",
+                "user_id": str(request.user_id)
+            }
             
         elif action == "activate":
             # Activate user
-            logger.info(f"Activating user {request.user_id}")
-            return {"message": "User activated successfully", "action": "activate"}
+            if not request.user_id:
+                raise HTTPException(status_code=400, detail="User ID required for activation")
+            
+            user = db.query(User).filter(User.id == request.user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            user.status = UserStatus.ACTIVE
+            db.commit()
+            
+            logger.info(f"Activated user {user.username}")
+            return {
+                "message": "User activated successfully",
+                "action": "activate",
+                "user": user.to_dict()
+            }
             
         elif action == "deactivate":
             # Deactivate user
-            logger.info(f"Deactivating user {request.user_id}")
-            return {"message": "User deactivated successfully", "action": "deactivate"}
+            if not request.user_id:
+                raise HTTPException(status_code=400, detail="User ID required for deactivation")
+            
+            user = db.query(User).filter(User.id == request.user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            user.status = UserStatus.INACTIVE
+            db.commit()
+            
+            logger.info(f"Deactivated user {user.username}")
+            return {
+                "message": "User deactivated successfully",
+                "action": "deactivate",
+                "user": user.to_dict()
+            }
             
         else:
             raise HTTPException(status_code=400, detail="Invalid action")
@@ -527,13 +684,43 @@ async def _get_system_overview(db: Session) -> Dict[str, Any]:
 async def _get_user_summary(db: Session) -> UserSummary:
     """Get user summary statistics"""
     
-    # TODO: Implement with actual user model
+    from ..models.user import User, UserStatus, UserRole
+    
+    # Get total users
+    total_users = db.query(User).count()
+    
+    # Get active users
+    active_users = db.query(User).filter(User.status == UserStatus.ACTIVE).count()
+    
+    # Get admin users
+    admin_users = db.query(User).filter(User.role == UserRole.ADMIN).count()
+    
+    # Get recent registrations (last 7 days)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    recent_registrations = db.query(User).filter(User.created_at >= week_ago).count()
+    
+    # Get most active users (by login count)
+    most_active = db.query(User).filter(
+        User.status == UserStatus.ACTIVE
+    ).order_by(desc(User.login_count)).limit(5).all()
+    
+    most_active_users = []
+    for user in most_active:
+        most_active_users.append({
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value if user.role else "user",
+            "login_count": user.login_count,
+            "last_activity": user.last_activity.isoformat() if user.last_activity else None
+        })
+    
     return UserSummary(
-        total_users=0,
-        active_users=0,
-        admin_users=0,
-        recent_registrations=0,
-        most_active_users=[]
+        total_users=total_users,
+        active_users=active_users,
+        admin_users=admin_users,
+        recent_registrations=recent_registrations,
+        most_active_users=most_active_users
     )
 
 async def _get_system_stats(db: Session) -> SystemStats:

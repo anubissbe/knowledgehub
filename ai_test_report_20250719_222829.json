@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-07-19T22:28:29.823369",
+  "url": "http://localhost:3100/ai",
+  "screenshots_dir": "ai_test_screenshots_20250719_222730",
+  "results": [
+    {
+      "check": "Feature cards visible",
+      "status": "FAIL",
+      "error": "Page.wait_for_selector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\".grid.grid-cols-1\") to be visible\n"
+    },
+    {
+      "check": "Tab 'All Features'",
+      "status": "PARTIAL"
+    },
+    {
+      "check": "Tab 'Learning & Adaptation'",
+      "status": "PARTIAL"
+    },
+    {
+      "check": "Tab 'Automation'",
+      "status": "PARTIAL"
+    },
+    {
+      "check": "Tab 'Intelligence'",
+      "status": "PARTIAL"
+    },
+    {
+      "check": "Feature card clickable",
+      "status": "FAIL",
+      "error": "Locator.text_content: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".bg-white.rounded-lg.shadow-md\").first.locator(\".text-lg.font-semibold\")\n"
+    },
+    {
+      "check": "Performance chart",
+      "status": "PASS"
+    },
+    {
+      "check": "AI Insights panel",
+      "status": "PASS"
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 2,
+    "failed": 2,
+    "partial": 4,
+    "success_rate": "25.0%"
+  }
+}

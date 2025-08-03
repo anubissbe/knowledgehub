@@ -30,7 +30,7 @@ from .alerting import init_alerting_system, get_alerting_system
 class EnhancedSecurityMonitor(BaseSecurityMonitor):
     """Enhanced security monitor with metrics and alerting"""
     
-    def __init__(self, log_directory: str = "/app/logs/security"):
+    def __init__(self, log_directory: str = "/opt/projects/knowledgehub/logs/security"):
         super().__init__(log_directory)
         
         # Initialize metrics collector
@@ -143,7 +143,7 @@ enhanced_security_monitor = None
 def init_enhanced_monitoring(log_directory: Optional[str] = None):
     """Initialize enhanced security monitoring"""
     global enhanced_security_monitor
-    log_dir = log_directory or "/app/logs/security"
+    log_dir = log_directory or "/opt/projects/knowledgehub/logs/security"
     enhanced_security_monitor = EnhancedSecurityMonitor(log_dir)
     return enhanced_security_monitor
 

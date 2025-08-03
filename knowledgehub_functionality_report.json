@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-07-22T14:52:39.523163",
+  "overall_percentage": 5.0,
+  "test_results": {
+    "Memory Creation": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to create memory: 307"
+    },
+    "Memory Search": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Search failed: 404"
+    },
+    "Session Management": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to create session: 404"
+    },
+    "Error Learning": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to record error: 404"
+    },
+    "Decision Recording": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to record decision: 404"
+    },
+    "Code Evolution": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to track code change: 404"
+    },
+    "Proactive Predictions": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to get predictions: 404"
+    },
+    "Web UI": {
+      "status": "\u26a0\ufe0f",
+      "score": 0.5,
+      "details": "Web UI partially working - 1/4 endpoints"
+    },
+    "WebSocket Events": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "WebSocket connects but no events received"
+    },
+    "Cross-session Continuity": {
+      "status": "\u274c",
+      "score": 0.0,
+      "details": "Failed to create first session"
+    }
+  },
+  "test_data": {
+    "memory_id": null,
+    "session_id": null,
+    "error_id": null,
+    "decision_id": null,
+    "code_change_id": null
+  }
+}

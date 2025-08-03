@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func, text
 from sqlalchemy.dialects.postgresql import insert
 
-from ..models import Memory, MemorySession, MemoryType
+from ..models import MemorySystemMemory, MemorySession, MemoryType
 from ..services.embedding_service import MemoryEmbeddingService
 from ...services.cache import redis_client
 from ...services.vector_store import vector_store
@@ -145,9 +145,9 @@ class PersistentContextManager:
         """Build context graph from database memories"""
         try:
             # Get all memories with high importance
-            memories = self.db.query(Memory).filter(
-                Memory.importance_score > 0.5
-            ).order_by(desc(Memory.importance_score)).limit(self.max_context_vectors).all()
+            memories = self.db.query(MemorySystemMemory).filter(
+                MemorySystemMemory.importance_score > 0.5
+            ).order_by(desc(MemorySystemMemory.importance_score)).limit(self.max_context_vectors).all()
             
             vectors = []
             for memory in memories:

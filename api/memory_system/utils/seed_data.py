@@ -5,8 +5,9 @@ from datetime import datetime, timedelta
 from typing import List
 from uuid import uuid4
 from sqlalchemy.orm import Session
+from typing import Optional
 
-from ..models import MemorySession, Memory, MemoryType
+from ..models import MemorySession, MemorySystemMemory, MemoryType
 
 
 class SeedDataGenerator:
@@ -105,7 +106,7 @@ class SeedDataGenerator:
         return sessions
     
     def generate_memories(self, sessions: List[MemorySession], 
-                          avg_per_session: int = 20) -> List[Memory]:
+                          avg_per_session: int = 20) -> List[MemorySystemMemory]:
         """Generate memories for sessions"""
         memories = []
         
@@ -116,7 +117,7 @@ class SeedDataGenerator:
                 memory_type = random.choice(list(MemoryType))
                 content = self._generate_content(memory_type)
                 
-                memory = Memory(
+                memory = MemorySystemMemory(
                     session_id=session.id,
                     content=content,
                     summary=content[:100] if len(content) > 100 else None,

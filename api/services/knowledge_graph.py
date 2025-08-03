@@ -6,6 +6,7 @@ decision dependencies, and impact analysis.
 """
 
 import logging
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import json
@@ -16,8 +17,8 @@ from neo4j import GraphDatabase, Result
 from neo4j.exceptions import Neo4jError
 import networkx as nx
 
-from ...shared.config import Config
-from ...shared.logging import setup_logging
+from shared.config import Config
+from shared.logging import setup_logging
 
 logger = setup_logging("knowledge_graph")
 
@@ -84,9 +85,9 @@ class KnowledgeGraphService:
         self.config = Config()
         
         # Neo4j connection settings
-        self.uri = uri or self.config.get("NEO4J_URI", "bolt://localhost:7687")
-        self.user = user or self.config.get("NEO4J_USER", "neo4j")
-        self.password = password or self.config.get("NEO4J_PASSWORD", "password")
+        self.uri = uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        self.user = user or os.getenv("NEO4J_USER", "neo4j")
+        self.password = password or os.getenv("NEO4J_PASSWORD", "password")
         
         self.driver = None
         self._initialized = False
@@ -112,7 +113,10 @@ class KnowledgeGraphService:
             
         except Exception as e:
             logger.error(f"Failed to initialize Neo4j: {str(e)}")
-            raise
+            logger.warning("Neo4j not available - knowledge graph features will use mock data")
+            # Don't raise - allow service to work with limited functionality
+            self.driver = None
+            self._initialized = False
     
     async def _create_constraints(self):
         """Create database constraints and indexes"""

@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/realtime", tags=["realtime-learning"])
 
 class EventRequest(BaseModel):
     """Request model for publishing events"""
-    event_type: EventType
+    event_type: str  # Accept string and convert to EventType
     session_id: Optional[str] = None
     user_id: Optional[str] = None
     data: Dict[str, Any]
@@ -86,8 +86,28 @@ async def publish_event(
 ) -> Dict[str, Any]:
     """Publish an event to the real-time pipeline"""
     try:
+        # Convert event_type string to EventType enum
+        # Handle both uppercase and lowercase formats
+        event_type_str = event.event_type.lower()
+        
+        # Map common variations
+        event_type_map = {
+            "code_change": EventType.CODE_CHANGE,
+            "memory_created": EventType.MEMORY_CREATED,
+            "decision_made": EventType.DECISION_MADE,
+            "error_occurred": EventType.ERROR_OCCURRED,
+            "pattern_detected": EventType.PATTERN_DETECTED,
+            "context_updated": EventType.CONTEXT_UPDATED,
+            "session_event": EventType.SESSION_EVENT,
+            "learning_insight": EventType.LEARNING_INSIGHT
+        }
+        
+        event_type_enum = event_type_map.get(event_type_str)
+        if not event_type_enum:
+            raise ValueError(f"Invalid event type: {event.event_type}")
+        
         stream_event = StreamEvent(
-            event_type=event.event_type,
+            event_type=event_type_enum,
             session_id=event.session_id,
             user_id=event.user_id,
             data=event.data,
@@ -265,9 +285,18 @@ async def event_stream_generator(
 @router.get("/stream")
 async def stream_events(
     event_types: Optional[str] = None,
+    token: Optional[str] = None,  # Optional auth token
     pipeline: RealtimeLearningPipeline = Depends(get_learning_pipeline)
 ):
-    """Stream real-time events using Server-Sent Events"""
+    """Stream real-time events using Server-Sent Events
+    
+    Authentication is optional - pass token as query parameter if needed
+    """
+    # Log connection info
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"SSE connection established (authenticated: {bool(token)})")
+    
     # Parse event types
     types = None
     if event_types:
@@ -279,7 +308,8 @@ async def stream_events(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*"  # Allow CORS for SSE
         }
     )
 

@@ -6,7 +6,7 @@ Provides Pydantic models with built-in security validation for all API endpoints
 
 import re
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, root_validator
 from datetime import datetime
 from enum import Enum
 
@@ -145,17 +145,17 @@ class SecureSourceCreate(SecureBaseModel):
     url: SecureUrlField = Field(..., description="Source URL")
     config: Optional[Dict[str, Any]] = Field(None, description="Source configuration")
     
-    @validator('name')
+    @field_validator('name')
     def validate_name(cls, v):
         return validate_text(v, max_length=255)
     
-    @validator('description')
+    @field_validator('description')
     def validate_description(cls, v):
         if v is None:
             return v
         return validate_text(v, max_length=2000, required=False)
     
-    @validator('source_type')
+    @field_validator('source_type')
     def validate_source_type(cls, v):
         # Only allow specific source types
         allowed_types = {
@@ -169,7 +169,7 @@ class SecureSourceCreate(SecureBaseModel):
         
         return v.lower()
     
-    @validator('config')
+    @field_validator('config')
     def validate_config(cls, v):
         if v is None:
             return v
@@ -196,7 +196,7 @@ class SecureSearchRequest(SecureBaseModel):
     offset: Optional[int] = Field(0, ge=0, description="Result offset")
     include_memories: Optional[bool] = Field(False, description="Include memory search")
     
-    @validator('query')
+    @field_validator('query')
     def validate_query(cls, v):
         # Validate search query
         validated = validate_text(v, max_length=1000)
@@ -215,7 +215,7 @@ class SecureSearchRequest(SecureBaseModel):
         
         return validated
     
-    @validator('filters')
+    @field_validator('filters')
     def validate_filters(cls, v):
         if v is None:
             return v
@@ -252,11 +252,11 @@ class SecureMemoryCreate(SecureBaseModel):
     session_id: Optional[str] = Field(None, description="Session ID")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
     
-    @validator('content')
+    @field_validator('content')
     def validate_content(cls, v):
         return validate_text(v, max_length=50000)
     
-    @validator('memory_type')
+    @field_validator('memory_type')
     def validate_memory_type(cls, v):
         allowed_types = {
             'fact', 'decision', 'context', 'preference', 
@@ -269,7 +269,7 @@ class SecureMemoryCreate(SecureBaseModel):
         
         return v.lower()
     
-    @validator('importance')
+    @field_validator('importance')
     def validate_importance(cls, v):
         if v is None:
             return "medium"
@@ -282,13 +282,13 @@ class SecureMemoryCreate(SecureBaseModel):
         
         return v.lower()
     
-    @validator('context')
+    @field_validator('context')
     def validate_context(cls, v):
         if v is None:
             return v
         return validate_text(v, max_length=10000, required=False)
     
-    @validator('session_id')
+    @field_validator('session_id')
     def validate_session_id(cls, v):
         if v is None:
             return v
@@ -300,7 +300,7 @@ class SecureMemoryCreate(SecureBaseModel):
         
         return v.lower()
     
-    @validator('metadata')
+    @field_validator('metadata')
     def validate_metadata(cls, v):
         if v is None:
             return v
@@ -323,7 +323,7 @@ class SecureUserCreate(SecureBaseModel):
     password: str = Field(..., min_length=8, max_length=128, description="Password")
     full_name: Optional[str] = Field(None, max_length=255, description="Full name")
     
-    @validator('username')
+    @field_validator('username')
     def validate_username(cls, v):
         # Username should only contain alphanumeric characters and underscores
         if not re.match(r'^[a-zA-Z0-9_]+$', v):
@@ -340,7 +340,7 @@ class SecureUserCreate(SecureBaseModel):
         
         return validate_text(v, max_length=50)
     
-    @validator('password')
+    @field_validator('password')
     def validate_password(cls, v):
         # Basic password strength validation
         if len(v) < 8:
@@ -356,7 +356,7 @@ class SecureUserCreate(SecureBaseModel):
         
         return v
     
-    @validator('full_name')
+    @field_validator('full_name')
     def validate_full_name(cls, v):
         if v is None:
             return v
@@ -376,7 +376,7 @@ class SecureFileUpload(SecureBaseModel):
     file_size: int = Field(..., ge=1, le=100*1024*1024, description="File size in bytes")  # 100MB max
     description: Optional[str] = Field(None, max_length=1000, description="File description")
     
-    @validator('content_type')
+    @field_validator('content_type')
     def validate_content_type(cls, v):
         # Only allow specific MIME types
         allowed_types = {
@@ -392,7 +392,7 @@ class SecureFileUpload(SecureBaseModel):
         
         return v
     
-    @validator('description')
+    @field_validator('description')
     def validate_description(cls, v):
         if v is None:
             return v
@@ -406,11 +406,11 @@ class SecureAPIKeyCreate(SecureBaseModel):
     permissions: List[str] = Field(..., description="API key permissions")
     expires_in_days: Optional[int] = Field(None, ge=1, le=365, description="Expiration in days")
     
-    @validator('name')
+    @field_validator('name')
     def validate_name(cls, v):
         return validate_text(v, max_length=255)
     
-    @validator('permissions')
+    @field_validator('permissions')
     def validate_permissions(cls, v):
         if not isinstance(v, list):
             raise ValueError("Permissions must be a list")
@@ -434,7 +434,7 @@ class SecureConfigUpdate(SecureBaseModel):
     
     settings: Dict[str, Any] = Field(..., description="Configuration settings")
     
-    @validator('settings')
+    @field_validator('settings')
     def validate_settings(cls, v):
         if not isinstance(v, dict):
             raise ValueError("Settings must be a dictionary")

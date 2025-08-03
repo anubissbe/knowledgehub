@@ -136,8 +136,12 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
         source_ip = self._get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
         
-        # Check if IP is blocked
-        if security_monitor.is_ip_blocked(source_ip):
+        # Whitelist LAN IPs (192.168.x.x) - don't block them
+        if source_ip.startswith("192.168."):
+            # Skip blocking checks for LAN IPs but continue with other security checks
+            pass
+        elif security_monitor.is_ip_blocked(source_ip):
+            # Check if IP is blocked (only for non-LAN IPs)
             logger.warning(f"Blocked request from banned IP: {source_ip}")
             return self._create_blocked_response("IP address is blocked")
         

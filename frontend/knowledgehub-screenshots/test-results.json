@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-07-19T22:58:05.688Z",
+  "tests": [
+    {
+      "test": "Basic accessibility",
+      "status": "PASS",
+      "details": "Page loaded successfully via LAN IP"
+    },
+    {
+      "test": "Navigation sidebar",
+      "status": "FAIL",
+      "details": "No sidebar found"
+    },
+    {
+      "test": "API calls",
+      "status": "PASS",
+      "details": {
+        "totalCalls": 0,
+        "notFoundCalls": 0,
+        "notFoundUrls": []
+      }
+    },
+    {
+      "test": "AI Intelligence features",
+      "status": "FAIL",
+      "details": "Found 0 AI feature elements"
+    },
+    {
+      "test": "Console errors",
+      "status": "PASS",
+      "details": {
+        "errorCount": 0,
+        "errors": []
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@ and basic functionality without complex dependencies.
 
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 router = APIRouter()
 

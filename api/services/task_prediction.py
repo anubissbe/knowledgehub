@@ -4,7 +4,7 @@ Anticipates next actions and preloads relevant context
 """
 
 import re
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optio, TYPE_CHECKINGnal, List, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 from sqlalchemy.orm import Session

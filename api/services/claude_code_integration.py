@@ -424,7 +424,7 @@ class ClaudeCodeIntegration:
     ):
         """Analyze code for patterns and update context"""
         
-        pattern_engine = get_pattern_engine()
+        pattern_engine = await get_pattern_engine()
         patterns = await pattern_engine.analyze_code(code, "python")
         
         if patterns:

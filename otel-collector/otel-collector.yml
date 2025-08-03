@@ -1,0 +1,140 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+        
+  zipkin:
+    endpoint: 0.0.0.0:9411
+    
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['localhost:8888']
+
+processors:
+  # Batch processor for better performance
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+    
+  # Resource processor to add service information
+  resource:
+    attributes:
+      - key: service.instance.id
+        value: "knowledgehub-collector"
+        action: upsert
+      - key: deployment.environment
+        value: "production"
+        action: upsert
+        
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+    
+  # Probabilistic sampler for high-volume environments
+  probabilistic_sampler:
+    sampling_percentage: 100  # 100% for development, reduce for production
+    
+  # Span processor for custom span modifications
+  span:
+    name:
+      # Rename spans for better organization
+      to_attributes:
+        rules:
+          - pattern: '^(GET|POST|PUT|DELETE|PATCH) (.+)$'
+            name: 'HTTP ${http.method}'
+            
+  # Attribute processor for data enrichment
+  attributes:
+    actions:
+      # Add custom attributes
+      - key: collector.version
+        value: "0.88.0"
+        action: insert
+      - key: processed_by
+        value: "knowledgehub-otel-collector"
+        action: insert
+      # Remove sensitive data
+      - key: http.request.header.authorization
+        action: delete
+      - key: user.password
+        action: delete
+
+exporters:
+  # Jaeger exporter
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+      
+  # OTLP exporter to Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+      
+  # Zipkin exporter
+  zipkin:
+    endpoint: "http://zipkin:9411/api/v2/spans"
+    
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    
+  # Logging exporter for debugging
+  logging:
+    loglevel: info
+    
+  # File exporter for backup
+  file:
+    path: /tmp/traces.json
+    
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    
+  pprof:
+    endpoint: 0.0.0.0:1777
+    
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+  
+  pipelines:
+    traces:
+      receivers: [otlp, jaeger, zipkin]
+      processors: [memory_limiter, resource, batch, probabilistic_sampler, span, attributes]
+      exporters: [jaeger, otlp/tempo, zipkin, logging, file]
+      
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch, attributes]
+      exporters: [prometheus, logging]
+      
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch, attributes]
+      exporters: [logging, file]
+
+  telemetry:
+    logs:
+      level: "info"
+    metrics:
+      address: 0.0.0.0:8888

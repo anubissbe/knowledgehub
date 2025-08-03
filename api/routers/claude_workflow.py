@@ -258,3 +258,91 @@ async def batch_capture(
         'failed': sum(1 for r in results if not r['success']),
         'results': results
     }
+
+
+@router.post("/capture-conversation")
+async def capture_conversation_alt(
+    data: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Capture conversation (alternative endpoint for compatibility)"""
+    # Extract messages from the data
+    messages = data.get("messages", [])
+    context = data.get("context", {})
+    
+    # Convert messages to conversation text
+    conversation_text = ""
+    for msg in messages:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        conversation_text += f"{role}: {content}\n"
+    
+    # Use the existing capture method
+    result = workflow_integration.capture_conversation_memory(
+        db, 
+        conversation_text, 
+        context.get("session_id"),
+        context.get("project", context.get("project_id"))
+    )
+    
+    return result
+
+
+@router.post("/extract-memories")
+def extract_memories_from_conversation(
+    data: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Extract and categorize memories from a conversation
+    """
+    try:
+        conversation_id = data.get("conversation_id")
+        auto_categorize = data.get("auto_categorize", True)
+        
+        # Extract insights from the workflow service
+        insights = workflow_integration.extract_conversation_insights(
+            db, conversation_id
+        )
+        
+        # Transform insights into memories
+        memories = []
+        for insight in insights.get("insights", []):
+            memory = {
+                "type": insight.get("type", "insight"),
+                "content": insight.get("content"),
+                "category": insight.get("category", "general"),
+                "importance": insight.get("importance", 0.5),
+                "tags": insight.get("tags", [])
+            }
+            memories.append(memory)
+        
+        return {
+            "conversation_id": conversation_id,
+            "memories_extracted": len(memories),
+            "memories": memories,
+            "auto_categorized": auto_categorize
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/patterns")
+def get_workflow_patterns(
+    user_id: Optional[str] = Query(None),
+    limit: int = Query(10)
+) -> Dict[str, Any]:
+    """
+    Get identified workflow patterns
+    """
+    try:
+        # Get patterns from workflow_integration service
+        patterns = workflow_integration.get_common_patterns(limit)
+        
+        return {
+            "patterns": patterns,
+            "total": len(patterns),
+            "user_id": user_id
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

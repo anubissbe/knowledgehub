@@ -147,7 +147,7 @@ async def provide_context_feedback(
         from ...models import Memory
         
         for memory_id in feedback_request.memory_ids:
-            memory = db.query(Memory).filter_by(id=memory_id).first()
+            memory = db.query(MemorySystemMemory).filter_by(id=memory_id).first()
             if memory:
                 memory.access_count += 1
                 memory.last_accessed = memory.updated_at
@@ -186,7 +186,7 @@ async def get_context_stats(
     Provides insights into context usage patterns and effectiveness.
     """
     try:
-        from ...models import Memory, MemorySession
+        from ...models import MemorySystemMemory, MemorySession
         from sqlalchemy import func
         from datetime import datetime, timedelta, timezone
         
@@ -194,24 +194,24 @@ async def get_context_stats(
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         
         # Get statistics
-        query = db.query(Memory).join(MemorySession).filter(
+        query = db.query(MemorySystemMemory).join(MemorySession).filter(
             MemorySession.user_id == user_id,
-            Memory.created_at >= cutoff
+            MemorySystemMemory.created_at >= cutoff
         )
         
         total_memories = query.count()
-        accessed_memories = query.filter(Memory.access_count > 0).count()
-        avg_importance = query.with_entities(func.avg(Memory.importance)).scalar() or 0
-        avg_confidence = query.with_entities(func.avg(Memory.confidence)).scalar() or 0
+        accessed_memories = query.filter(MemorySystemMemory.access_count > 0).count()
+        avg_importance = query.with_entities(func.avg(MemorySystemMemory.importance)).scalar() or 0
+        avg_confidence = query.with_entities(func.avg(MemorySystemMemory.confidence)).scalar() or 0
         
         # Memory type distribution
         type_counts = db.query(
-            Memory.memory_type,
+            MemorySystemMemory.memory_type,
             func.count(Memory.id)
         ).join(MemorySession).filter(
             MemorySession.user_id == user_id,
-            Memory.created_at >= cutoff
-        ).group_by(Memory.memory_type).all()
+            MemorySystemMemory.created_at >= cutoff
+        ).group_by(MemorySystemMemory.memory_type).all()
         
         stats = {
             "user_id": user_id,

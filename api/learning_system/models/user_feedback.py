@@ -108,7 +108,7 @@ class UserFeedback(Base):
     )
     
     # Relationships
-    memory = relationship('Memory', backref='feedback')
+    memory = relationship('MemorySystemMemory', backref='feedback')
     
     # Indexes for performance
     __table_args__ = (

@@ -13,10 +13,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import hashlib
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import re
 import time
 from playwright.async_api import async_playwright
+from scraper_db_storage import store_scraped_document
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,7 @@ class ScraperWorker:
         self.redis_client = redis.from_url(redis_url)
         self.api_base = api_base
         self.session = None
+        self.current_job_id = None
         
     async def start(self):
         """Start the worker and process jobs"""
@@ -47,52 +49,70 @@ class ScraperWorker:
         finally:
             await self.session.close()
     
+    async def check_job_cancelled(self, job_id: str) -> bool:
+        """Check if job has been cancelled"""
+        try:
+            cancelled = self.redis_client.exists(f"job:cancelled:{job_id}")
+            return bool(cancelled)
+        except:
+            return False
+    
     async def process_job(self, job: Dict):
         """Process a single scraping job"""
-        logger.info(f"Processing job: {job['id']} for source: {job['source_name']}")
+        job_id = job.get('job_id')
+        source_id = job.get('source_id')
+        self.current_job_id = job_id
+        logger.info(f"Processing job: {job_id} for source: {source_id}")
         
         try:
             # Update job status
-            await self.update_job_status(job['id'], 'PROCESSING')
+            await self.update_job_status(job_id, 'running')
             
-            # Get source configuration
-            source = job['source']
+            # Get source information from API
+            source = await self.get_source_info(source_id)
+            if not source:
+                raise Exception(f"Source {source_id} not found")
+            
             config = source.get('config', {})
             
             # Scrape the source
             if source['type'] == 'website':
-                await self.scrape_website(source, job['id'])
+                await self.scrape_website(source, job_id)
             elif source['type'] == 'documentation':
-                await self.scrape_documentation(source, job['id'])
+                await self.scrape_documentation(source, job_id)
             elif source['type'] == 'repository':
-                await self.scrape_repository(source, job['id'])
+                await self.scrape_repository(source, job_id)
             elif source['type'] == 'api':
-                await self.scrape_api(source, job['id'])
+                await self.scrape_api(source, job_id)
             
             # Update job status to completed
-            await self.update_job_status(job['id'], 'COMPLETED')
-            logger.info(f"Job {job['id']} completed successfully")
+            await self.update_job_status(job_id, 'completed')
+            logger.info(f"Job {job_id} completed successfully")
             
         except Exception as e:
-            logger.error(f"Error processing job {job['id']}: {str(e)}")
-            await self.update_job_status(job['id'], 'FAILED', str(e))
+            logger.error(f"Error processing job {job_id}: {str(e)}")
+            await self.update_job_status(job_id, 'failed', str(e))
     
     async def scrape_website(self, source: Dict, job_id: str):
         """Scrape a website source"""
         config = source.get('config', {})
         
         # Check if this is a JavaScript-heavy site that needs special handling
-        js_required_domains = ['stoplight.io', 'swagger.io', 'redoc.ly']
+        js_required_domains = ['stoplight.io', 'swagger.io', 'redoc.ly', 'gitbook.com', 'readme.io']
         needs_js = any(domain in source['url'] for domain in js_required_domains)
+        
+        # Also check if JS rendering is explicitly requested in config
+        if config.get('use_javascript', False):
+            needs_js = True
         
         if needs_js:
             logger.info(f"Using JavaScript rendering for {source['url']}")
             await self.scrape_js_website(source, job_id)
             return
         
-        max_depth = config.get('max_depth', 3)
-        max_pages = config.get('max_pages', 500)
-        crawl_delay = config.get('crawl_delay', 1.0)
+        max_depth = config.get('max_depth', 2)
+        max_pages = min(config.get('max_pages', 30), 100)  # Cap at 100 pages max
+        crawl_delay = config.get('crawl_delay', 0.5)  # Faster crawling
         follow_patterns = config.get('follow_patterns', [])
         exclude_patterns = config.get('exclude_patterns', [])
         
@@ -101,6 +121,12 @@ class ScraperWorker:
         pages_scraped = 0
         
         while to_visit and pages_scraped < max_pages:
+            # Check if job was cancelled
+            if await self.check_job_cancelled(job_id):
+                logger.info(f"Job {job_id} was cancelled")
+                await self.update_job_status(job_id, 'cancelled', error="Job cancelled by user")
+                return
+                
             url, depth = to_visit.pop(0)
             
             if url in visited or depth > max_depth:
@@ -152,6 +178,14 @@ class ScraperWorker:
                     # Store the document
                     await self.store_document(source['id'], text, metadata)
                     
+                    # Update job progress periodically
+                    if pages_scraped % 10 == 0:
+                        await self.update_job_status(job_id, 'running', stats={
+                            'pages_scraped': pages_scraped,
+                            'max_pages': max_pages,
+                            'progress': f"{pages_scraped}/{max_pages}"
+                        })
+                    
                     # Extract links for further crawling
                     if depth < max_depth:
                         for link in soup.find_all('a', href=True):
@@ -174,8 +208,8 @@ class ScraperWorker:
     async def scrape_js_website(self, source: Dict, job_id: str):
         """Scrape JavaScript-heavy websites using Playwright"""
         config = source.get('config', {})
-        max_pages = config.get('max_pages', 500)  # Increase default for API docs
-        crawl_delay = config.get('crawl_delay', 1.0)  # Reduce delay
+        max_pages = min(config.get('max_pages', 50), 200)  # Cap at 200 for JS sites
+        crawl_delay = config.get('crawl_delay', 0.5)  # Reduce delay
         
         pages_scraped = 0
         visited_urls = set()
@@ -189,6 +223,9 @@ class ScraperWorker:
             )
             page = await context.new_page()
             
+            # Capture console messages
+            page.on("console", lambda msg: logger.debug(f"Browser console: {msg.text}"))
+            
             try:
                 # Navigate to the main page
                 logger.info(f"Loading JavaScript page: {source['url']}")
@@ -197,12 +234,20 @@ class ScraperWorker:
                 # Wait for content to load and sidebar to appear
                 await page.wait_for_timeout(5000)
                 
+                # Debug: Check if page loaded correctly
+                page_title = await page.title()
+                logger.info(f"Page title: {page_title}")
+                
+                # Debug: Check total links on page
+                total_links = await page.evaluate('document.querySelectorAll("a[href]").length')
+                logger.info(f"Total links on page: {total_links}")
+                
                 # For Stoplight specifically, we need to find the navigation tree
                 # First, let's scrape the current page
                 visited_urls.add(source['url'])
                 
                 # First, we need to expand all navigation items to reveal API endpoints
-                logger.info("Expanding Stoplight navigation to find all API endpoints...")
+                logger.info("Discovering all Stoplight documentation pages...")
                 
                 # Click all expandable items in the sidebar to reveal nested endpoints
                 await page.evaluate('''() => {
@@ -245,90 +290,114 @@ class ScraperWorker:
                 # Wait for navigation to fully expand
                 await page.wait_for_timeout(3000)
                 
-                # Now extract all links including API endpoints
-                all_links = await page.evaluate('''() => {
-                    const links = [];
-                    const seen = new Set();
-                    
-                    // Specifically look for API endpoint patterns in Stoplight
-                    const apiPatterns = [
-                        /\/(get|post|put|patch|delete|options|head)-/i,  // REST verbs in URL
-                        /\/[a-z0-9-]+api[a-z0-9-]*$/i,  // API endpoints
-                        /\/(v1|v2|v3|api)\//i,  // Version patterns
-                        /\/endpoints?\//i,  // Endpoint paths
-                        /\/operations?\//i,  // Operation paths
-                    ];
-                    
-                    // Get all links from the navigation
-                    const linkElements = document.querySelectorAll([
-                        'nav a[href]',
-                        '[role="navigation"] a[href]',
-                        'aside a[href]',
-                        '[class*="sidebar"] a[href]',
-                        '[class*="navigation"] a[href]',
-                        '[class*="menu"] a[href]',
-                        '[class*="tree"] a[href]',
-                        '[class*="nav"] a[href]',
-                        'a[href*="/docs/"]'
-                    ].join(', '));
-                    
-                    linkElements.forEach(a => {
-                        const href = a.href;
-                        const text = a.textContent.trim();
-                        
-                        // Skip if we've seen this URL
-                        if (!href || seen.has(href)) return;
-                        
-                        // Skip non-content links
-                        if (href.includes('#') && !href.includes('/docs/')) return;
-                        if (href.includes('github.com') || href.includes('twitter.com')) return;
-                        
-                        // Include if it matches our patterns or is in docs
-                        const isApiEndpoint = apiPatterns.some(pattern => pattern.test(href));
-                        const isDocsPage = href.includes('/docs/');
-                        
-                        if (isApiEndpoint || isDocsPage) {
-                            seen.add(href);
+                # Now extract all links including API endpoints - Enhanced for Stoplight
+                try:
+                    all_links = await page.evaluate('''() => {
+                        try {
+                            const links = [];
+                            const seen = new Set();
                             
-                            // Try to determine the type of content
-                            let contentType = 'page';
-                            if (text.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)/i)) {
-                                contentType = 'endpoint';
-                            } else if (text.toLowerCase().includes('api')) {
-                                contentType = 'api-section';
-                            }
+                            // Simply get ALL links that contain /docs/
+                            const allLinks = document.querySelectorAll('a[href]');
+                            console.log('Total anchor tags found:', allLinks.length);
                             
-                            // Get the parent section for context
-                            const section = a.closest('[class*="group"], [class*="section"], li')
-                                ?.querySelector('[class*="heading"], [class*="title"]')
-                                ?.textContent?.trim() || 'General';
-                            
-                            links.push({
-                                url: href,
-                                text: text || 'Untitled',
-                                contentType: contentType,
-                                section: section
+                            allLinks.forEach(link => {
+                                const href = link.href;
+                                const text = (link.textContent || '').trim();
+                                
+                                // Skip if already seen or not a docs link
+                                if (!href || seen.has(href) || !href.includes('/docs/')) return;
+                                
+                                // Only include checkmarx docs
+                                if (href.includes('checkmarx')) {
+                                    seen.add(href);
+                                    
+                                    // Determine content type
+                                    let contentType = 'page';
+                                    if (text.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)/i)) {
+                                        contentType = 'endpoint';
+                                    } else if (text.toLowerCase().includes('api') || href.includes('-api')) {
+                                        contentType = 'api-section';
+                                    }
+                                    
+                                    links.push({
+                                        url: href,
+                                        text: text || 'Untitled',
+                                        contentType: contentType,
+                                        section: 'API Documentation'
+                                    });
+                                }
                             });
+                            
+                            console.log('Found ' + links.length + ' documentation links');
+                            return {success: true, links: links};
+                        } catch (e) {
+                            console.error('Error in link extraction:', e);
+                            return {success: false, error: e.toString(), links: []};
                         }
-                    });
+                    }''')
                     
-                    // Also look for any OpenAPI/Swagger spec links
-                    document.querySelectorAll('a[href*="openapi"], a[href*="swagger"], a[href*=".json"], a[href*=".yaml"]').forEach(a => {
-                        if (!seen.has(a.href)) {
-                            seen.add(a.href);
-                            links.push({
-                                url: a.href,
-                                text: 'OpenAPI Specification',
-                                contentType: 'openapi',
-                                section: 'API Specification'
-                            });
-                        }
-                    });
+                    # Check what we got back
+                    logger.info(f"Link extraction result type: {type(all_links)}")
+                    logger.info(f"Link extraction result: {all_links if isinstance(all_links, dict) else f'List with {len(all_links)} items'}")
                     
-                    return links;
-                }''')
+                    if isinstance(all_links, dict):
+                        if all_links.get('success', False):
+                            all_links = all_links.get('links', [])
+                        else:
+                            logger.error(f"Link extraction failed: {all_links.get('error', 'Unknown error')}")
+                            all_links = []
+                    # If it's already a list, use it as is
+                        
+                except Exception as e:
+                    logger.error(f"Failed to extract links: {e}")
+                    all_links = []
                 
                 logger.info(f"Found {len(all_links)} potential documentation links")
+                
+                # For Stoplight, also check for API reference or index pages
+                if len(all_links) < 20:  # If we found few links, try to find index pages
+                    logger.info("Looking for API index pages...")
+                    index_patterns = ['api-reference', 'api-overview', 'reference', 'endpoints']
+                    
+                    for link_data in all_links[:5]:  # Check first few links
+                        if any(pattern in link_data['url'].lower() for pattern in index_patterns):
+                            try:
+                                logger.info(f"Visiting potential index page: {link_data['text']}")
+                                await page.goto(link_data['url'], wait_until='domcontentloaded', timeout=30000)
+                                await page.wait_for_timeout(3000)
+                                
+                                # Extract more links from index page
+                                index_links = await page.evaluate('''() => {
+                                    const urls = new Set();
+                                    document.querySelectorAll('a[href*="/docs/"]').forEach(a => {
+                                        if (a.href.includes('checkmarx')) {
+                                            urls.add(a.href);
+                                        }
+                                    });
+                                    return Array.from(urls).map(url => ({
+                                        url: url,
+                                        text: 'API Endpoint',
+                                        contentType: 'endpoint',
+                                        section: 'API Reference'
+                                    }));
+                                }''')
+                                
+                                logger.info(f"Found {len(index_links)} more links from index page")
+                                all_links.extend(index_links)
+                                
+                            except Exception as e:
+                                logger.error(f"Error visiting index page: {e}")
+                
+                # Remove duplicates
+                unique_urls = {}
+                for link in all_links:
+                    url = link['url'] if isinstance(link, dict) else link
+                    if url not in unique_urls:
+                        unique_urls[url] = link
+                
+                all_links = list(unique_urls.values())
+                logger.info(f"Total unique links after deduplication: {len(all_links)}")
                 
                 # Process all found links
                 for link_data in all_links:
@@ -475,7 +544,7 @@ class ScraperWorker:
         # Update source stats to reflect scraped pages
         try:
             async with self.session.patch(
-                f"{self.api_base}/api/sources/{source['id']}/stats",
+                f"{self.api_base}/api/v1/sources/{source['id']}/stats",
                 json={'documents': pages_scraped}
             ) as response:
                 if response.status == 200:
@@ -510,48 +579,19 @@ class ScraperWorker:
         logger.info(f"API scraping not yet implemented for {source['name']}")
     
     async def store_document(self, source_id: str, content: str, metadata: Dict):
-        """Store document and create chunks for vector search"""
-        # Create document
-        doc_data = {
-            'source_id': source_id,
-            'content': content,
-            'metadata': metadata,
-            'url': metadata['url'],
-            'title': metadata.get('title', ''),
-            'hash': hashlib.sha256(content.encode()).hexdigest()
-        }
-        
-        # Store via API
-        async with self.session.post(
-            f"{self.api_base}/api/documents/",
-            json=doc_data
-        ) as response:
-            if response.status == 200:
-                doc = await response.json()
-                logger.info(f"Stored document: {doc['id']}")
-                
-                # Create chunks for vector search
-                chunks = self.create_chunks(content, chunk_size=1000, overlap=200)
-                for i, chunk in enumerate(chunks):
-                    chunk_data = {
-                        'document_id': doc['id'],
-                        'content': chunk,
-                        'position': i,
-                        'metadata': {
-                            'url': metadata['url'],
-                            'title': metadata['title'],
-                            'chunk_index': i,
-                            'total_chunks': len(chunks)
-                        }
-                    }
-                    
-                    # Store chunk
-                    async with self.session.post(
-                        f"{self.api_base}/api/chunks/",
-                        json=chunk_data
-                    ) as chunk_response:
-                        if chunk_response.status == 200:
-                            logger.debug(f"Stored chunk {i+1}/{len(chunks)}")
+        """Store document directly to database"""
+        try:
+            # Use direct database storage
+            doc_id = store_scraped_document(
+                source_id=source_id,
+                url=metadata['url'],
+                title=metadata.get('title', ''),
+                content=content,
+                metadata=metadata
+            )
+            logger.info(f"Stored document: {doc_id}")
+        except Exception as e:
+            logger.error(f"Failed to store document: {str(e)}")
     
     def create_chunks(self, text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
         """Split text into overlapping chunks for vector search"""
@@ -565,7 +605,20 @@ class ScraperWorker:
         
         return chunks
     
-    async def update_job_status(self, job_id: str, status: str, error: Optional[str] = None):
+    async def get_source_info(self, source_id: str) -> Optional[Dict]:
+        """Get source information from API"""
+        try:
+            async with self.session.get(f"{self.api_base}/api/v1/sources/{source_id}") as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logger.error(f"Failed to get source {source_id}: {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error getting source info: {e}")
+            return None
+    
+    async def update_job_status(self, job_id: str, status: str, error: Optional[str] = None, stats: Optional[Dict[str, Any]] = None):
         """Update job status via API"""
         data = {
             'status': status,
@@ -573,13 +626,20 @@ class ScraperWorker:
         }
         if error:
             data['error'] = error
+        if stats:
+            data['stats'] = stats
         
-        async with self.session.patch(
-            f"{self.api_base}/api/jobs/{job_id}",
-            json=data
-        ) as response:
-            if response.status == 200:
-                logger.info(f"Updated job {job_id} status to {status}")
+        try:
+            async with self.session.patch(
+                f"{self.api_base}/api/v1/jobs/{job_id}",
+                json=data
+            ) as response:
+                if response.status == 200:
+                    logger.info(f"Updated job {job_id} status to {status}")
+                else:
+                    logger.error(f"Failed to update job status: {response.status}")
+        except Exception as e:
+            logger.error(f"Error updating job status: {e}")
 
 async def main():
     """Main entry point"""

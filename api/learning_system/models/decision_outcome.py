@@ -94,7 +94,7 @@ class DecisionOutcome(Base):
     )
     
     # Relationships
-    decision = relationship('Memory', backref='outcomes')
+    decision = relationship('MemorySystemMemory', backref='outcomes')
     
     # Indexes for performance
     __table_args__ = (

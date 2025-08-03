@@ -1,6 +1,9 @@
 """Memory system models"""
 
 from .session import MemorySession
-from .memory import Memory, MemoryType
+from .memory import MemorySystemMemory, MemoryType
 
-__all__ = ['MemorySession', 'Memory', 'MemoryType']
+# Alias for backward compatibility
+Memory = MemorySystemMemory
+
+__all__ = ['MemorySession', 'MemorySystemMemory', 'MemoryType', 'Memory']

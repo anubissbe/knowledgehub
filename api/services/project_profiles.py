@@ -6,7 +6,7 @@ Manages project-specific context and preferences
 import os
 import json
 import hashlib
-from typing import Optional, List, Dict, Any
+from typing import Optio, TYPE_CHECKINGnal, List, Dict, Any
 from datetime import datetime, timedelta
 from pathlib import Path
 from sqlalchemy.orm import Session

@@ -1,0 +1,691 @@
+{
+  "total": 34,
+  "passed": 14,
+  "failed": 20,
+  "tests": [
+    {
+      "name": "Start Session",
+      "url": "/api/claude-auto/session/start",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "cwd"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Current Session",
+      "url": "/api/claude-auto/session/current",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "session_id": "claude-20250719-113235",
+        "project_id": "d3e8363e4f23",
+        "project_path": "/opt/projects/knowledgehub",
+        "project_name": "knowledgehub",
+        "project_type": "python",
+        "started_at": "2025-07-19T11:32:35.529510",
+        "previous_session": "claude-20250711-120409"
+      }
+    },
+    {
+      "name": "Create Handoff",
+      "url": "/api/claude-auto/session/handoff",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "content"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Memory Stats",
+      "url": "/api/claude-auto/memory/stats",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "status": "success",
+        "stats": {
+          "total_memories": 4356,
+          "total_documents": 7343,
+          "total_chunks": 53,
+          "tag_counts": {
+            "project:d3e8363e4f23": 1,
+            "decision": 4,
+            "general": 3,
+            "document": 4351,
+            "source:a2ef8910-0b25-4138-abcb-428666ce691d": 50,
+            "domain:checkmarx.stoplight.io": 49,
+            "domain:stoplight.io": 1,
+            "source:40a13150-df11-4eb8-ab3d-12df460d8d22": 2172,
+            "domain:fastapi.tiangolo.com": 2172,
+            "source:b90e466e-d7bc-42e3-8b86-a1787f82157c": 177,
+            "domain:react.dev": 172,
+            "source:ad358012-e111-4e99-9b5f-ac66aebdfd56": 334,
+            "domain:www.postgresql.org": 334,
+            "source:6a127c05-b347-48fc-a4f5-71edd22f4b13": 172,
+            "domain:docs.anthropic.com": 172,
+            "source:e05a9167-f591-4361-855b-0e767f762301": 1446,
+            "domain:docs.checkmarx.com": 1446,
+            "domain:test-weaviate.example.com": 1,
+            "domain:test-scraper-example.com": 3,
+            "domain:test-endpoint.example.com": 1,
+            "optimization": 1
+          },
+          "memories_last_24h": 55
+        }
+      }
+    },
+    {
+      "name": "Auto-detect Project",
+      "url": "/api/project-context/auto-detect",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "cwd"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Current Project",
+      "url": "/api/project-context/current",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "active": {
+          "id": "d3e8363e4f23",
+          "path": "/opt/projects/knowledgehub",
+          "activated_at": "2025-07-19T11:32:35.916347"
+        },
+        "profile": {
+          "id": "d3e8363e4f23",
+          "path": "/opt/projects/knowledgehub",
+          "name": "knowledgehub",
+          "created_at": "2025-07-19T11:32:35.543510",
+          "sessions": [],
+          "patterns": {
+            "indent_style": "spaces",
+            "quote_style": "unknown",
+            "naming_convention": "unknown",
+            "test_pattern": "test_prefix"
+          },
+          "preferences": {},
+          "common_errors": {},
+          "conventions": {},
+          "dependencies": [],
+          "memory_namespace": "project_d3e8363e4f23",
+          "languages": [
+            "python"
+          ],
+          "primary_language": "python",
+          "frameworks": [],
+          "test_frameworks": [],
+          "has_docker": true,
+          "has_ci": false,
+          "detected_at": "2025-07-19T11:32:35.546304",
+          "last_accessed": "2025-07-19T11:32:35.546322"
+        }
+      }
+    },
+    {
+      "name": "List Projects",
+      "url": "/api/project-context/list",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": [
+        {
+          "id": "d3e8363e4f23",
+          "name": "knowledgehub",
+          "path": "/opt/projects/knowledgehub",
+          "language": "python",
+          "last_accessed": "2025-07-19T11:32:35.546322",
+          "sessions": 0
+        }
+      ]
+    },
+    {
+      "name": "Store Project Memory",
+      "url": "/api/project-context/memory",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "project_path"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "string_type",
+            "loc": [
+              "body"
+            ],
+            "msg": "Input should be a valid string",
+            "input": {
+              "project_id": "knowledgehub",
+              "content": "Test memory",
+              "type": "test"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Track Mistake",
+      "url": "/api/mistake-learning/track?error_type=TestError&error_message=Test error message&solution=Test solution&resolved=true",
+      "method": "POST",
+      "status": 500,
+      "success": false,
+      "response": {
+        "error": "'int' object has no attribute 'get'",
+        "status_code": 500,
+        "path": "/api/mistake-learning/track"
+      }
+    },
+    {
+      "name": "Search Similar Errors",
+      "url": "/api/mistake-learning/search",
+      "method": "POST",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get Lessons Learned",
+      "url": "/api/mistake-learning/lessons",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": []
+    },
+    {
+      "name": "Get Error Patterns",
+      "url": "/api/mistake-learning/patterns",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "patterns": {},
+        "total_patterns": 0,
+        "most_common": null
+      }
+    },
+    {
+      "name": "Analyze Context",
+      "url": "/api/proactive/analyze",
+      "method": "POST",
+      "status": 405,
+      "success": false,
+      "response": {
+        "detail": "Method Not Allowed"
+      }
+    },
+    {
+      "name": "Get Task Predictions",
+      "url": "/api/proactive/predictions",
+      "method": "GET",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "session_id"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Suggestions",
+      "url": "/api/proactive/suggestions",
+      "method": "POST",
+      "status": 405,
+      "success": false,
+      "response": {
+        "detail": "Method Not Allowed"
+      }
+    },
+    {
+      "name": "Search Decisions",
+      "url": "/api/decisions/search?query=test",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": []
+    },
+    {
+      "name": "Track Code Change",
+      "url": "/api/code-evolution/track",
+      "method": "POST",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get File History",
+      "url": "/api/code-evolution/history?file=test.py",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": []
+    },
+    {
+      "name": "Get Code Analytics",
+      "url": "/api/code-evolution/patterns/analytics",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "learned_patterns": {},
+        "pattern_success_rates": {},
+        "common_improvement_types": {},
+        "quality_trends": []
+      }
+    },
+    {
+      "name": "Track Performance",
+      "url": "/api/performance/track",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "command_type"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "execution_time"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "success"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Get Performance Stats",
+      "url": "/api/performance/stats",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": {
+        "stats": {
+          "performance_manager": {
+            "initialized": true,
+            "optimization_enabled": true
+          },
+          "cache": {
+            "memory_cache": {
+              "hits": 0,
+              "misses": 0,
+              "evictions": 0,
+              "memory_usage": 0,
+              "total_requests": 0,
+              "hit_rate": 0,
+              "entry_count": 0,
+              "memory_usage_mb": 0.0,
+              "average_entry_size": 0.0
+            },
+            "redis_cache": {
+              "status": "available"
+            },
+            "patterns": {
+              "search_results": {
+                "ttl": 1800,
+                "tier": "memory",
+                "tags": [
+                  "search"
+                ]
+              },
+              "embeddings": {
+                "ttl": 86400,
+                "tier": "redis",
+                "tags": [
+                  "embeddings"
+                ]
+              },
+              "user_sessions": {
+                "ttl": 3600,
+                "tier": "memory",
+                "tags": [
+                  "sessions"
+                ]
+              },
+              "documents": {
+                "ttl": 7200,
+                "tier": "redis",
+                "tags": [
+                  "documents"
+                ]
+              },
+              "analytics": {
+                "ttl": 300,
+                "tier": "memory",
+                "tags": [
+                  "analytics"
+                ]
+              },
+              "system_config": {
+                "ttl": 86400,
+                "tier": "redis",
+                "tags": [
+                  "config"
+                ]
+              }
+            }
+          },
+          "database": {
+            "total_queries": 0,
+            "slow_queries": 0,
+            "average_time": 0
+          },
+          "async_processing": {
+            "task_queue": {
+              "total_tasks": 0,
+              "completed_tasks": 0,
+              "failed_tasks": 0,
+              "cancelled_tasks": 0,
+              "current_queue_size": 0,
+              "peak_queue_size": 0,
+              "average_execution_time": 0,
+              "average_wait_time": 0,
+              "running_tasks": 0,
+              "queue_sizes": {
+                "CRITICAL": 0,
+                "HIGH": 0,
+                "NORMAL": 0,
+                "LOW": 0,
+                "BACKGROUND": 0
+              },
+              "total_queue_size": 0,
+              "worker_count": 10,
+              "max_concurrent": 100
+            },
+            "resource_pools": {},
+            "thread_pools": {
+              "cpu_pool": {
+                "max_workers": 4,
+                "active_workers": 0,
+                "type": "ProcessPoolExecutor"
+              },
+              "io_pool": {
+                "max_workers": 20,
+                "threads": 0,
+                "type": "ThreadPoolExecutor"
+              }
+            }
+          },
+          "response_optimization": {
+            "message": "No metrics available for the specified criteria"
+          },
+          "monitoring": {
+            "timestamp": 1752931424.168518,
+            "system_resources": {
+              "cpu_percent": 2.4,
+              "memory_percent": 9.4,
+              "memory_used_mb": 20801.5078125,
+              "memory_available_mb": 233303.3125,
+              "disk_usage_percent": 72.2,
+              "disk_free_gb": 57.852291107177734,
+              "network_bytes_sent": 755235423902,
+              "network_bytes_recv": 1397914185388,
+              "load_average": [
+                0.47509765625,
+                0.60595703125,
+                0.70947265625
+              ],
+              "timestamp": 1752931424.1683493
+            },
+            "resource_trends": {
+              "cpu": {
+                "current": 2.4,
+                "average": 2.3021739130434775,
+                "max": 8.7,
+                "min": 1.2
+              },
+              "memory": {
+                "current": 9.4,
+                "average": 9.404347826086951,
+                "max": 9.5,
+                "min": 9.4
+              },
+              "disk": {
+                "current": 72.2,
+                "average": 72.19999999999995,
+                "max": 72.2,
+                "min": 72.2
+              },
+              "sample_count": 46,
+              "time_period_hours": 1
+            },
+            "metrics": {
+              "system_cpu_percent": {
+                "name": "system_cpu_percent",
+                "type": "gauge",
+                "count": 44,
+                "latest_value": 2.6,
+                "latest_timestamp": 1752931413.512056
+              },
+              "system_memory_percent": {
+                "name": "system_memory_percent",
+                "type": "gauge",
+                "count": 44,
+                "latest_value": 9.4,
+                "latest_timestamp": 1752931413.512064
+              },
+              "system_disk_usage_percent": {
+                "name": "system_disk_usage_percent",
+                "type": "gauge",
+                "count": 44,
+                "latest_value": 72.2,
+                "latest_timestamp": 1752931413.5120668
+              }
+            },
+            "active_alerts": [],
+            "recommendations": [],
+            "monitoring_status": {
+              "is_running": true,
+              "interval_seconds": 60
+            }
+          }
+        },
+        "timestamp": "2025-07-19T13:23:44.168578"
+      }
+    },
+    {
+      "name": "Get Performance Recommendations",
+      "url": "/api/performance/recommendations",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "response": []
+    },
+    {
+      "name": "Analyze Code Patterns",
+      "url": "/api/patterns/analyze",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "response": {
+        "patterns": [],
+        "suggestions": [],
+        "summary": {
+          "total_patterns": 0,
+          "anti_patterns": 0,
+          "code_smells": 0,
+          "best_practices": 0,
+          "security_issues": 0
+        }
+      }
+    },
+    {
+      "name": "Get User Patterns",
+      "url": "/api/patterns/user/test_user",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get Recent Patterns",
+      "url": "/api/patterns/recent",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Publish Event",
+      "url": "/api/realtime/events",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "response": {
+        "detail": [
+          {
+            "type": "enum",
+            "loc": [
+              "body",
+              "event_type"
+            ],
+            "msg": "Input should be 'code_change', 'memory_created', 'decision_made', 'error_occurred', 'pattern_detected', 'context_updated', 'session_event' or 'learning_insight'",
+            "input": "CODE_CHANGE",
+            "ctx": {
+              "expected": "'code_change', 'memory_created', 'decision_made', 'error_occurred', 'pattern_detected', 'context_updated', 'session_event' or 'learning_insight'"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Public Search",
+      "url": "/api/public/search?q=test",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Search Suggestions",
+      "url": "/api/public/search/suggest?q=te",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get Topics",
+      "url": "/api/public/topics",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get Search Stats",
+      "url": "/api/public/stats",
+      "method": "GET",
+      "status": 404,
+      "success": false,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Get Jobs Status",
+      "url": "/api/jobs/status",
+      "method": "GET",
+      "status": 404,
+      "success": true,
+      "response": {
+        "detail": "Not Found"
+      }
+    },
+    {
+      "name": "Jobs Health Check",
+      "url": "/api/jobs/health",
+      "method": "GET",
+      "status": 404,
+      "success": true,
+      "response": {
+        "detail": "Not Found"
+      }
+    }
+  ]
+}

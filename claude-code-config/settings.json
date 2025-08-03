@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "description": "Claude Code settings with secure RAG integration",
+  "hooks": {
+    "userPromptSubmit": {
+      "description": "Inject RAG context before processing prompt",
+      "command": "docker run --rm --read-only --network=knowledgehub_default --cap-drop=ALL --security-opt=no-new-privileges --memory=100m --cpus=0.5 -e KNOWLEDGEHUB_API_URL=http://192.168.1.25:3000 -e KNOWLEDGEHUB_API_KEY=${KNOWLEDGEHUB_API_KEY} -e CLAUDE_USER_ID=${USER} -e CLAUDE_PROJECT_ID=$(basename $PWD) -i knowledgehub-hook-executor"
+    }
+  },
+  "mcpServers": {
+    "knowledgehub": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/opt/projects/knowledgehub-mcp-server/index.js"],
+      "env": {
+        "KNOWLEDGEHUB_API_URL": "http://192.168.1.25:3000",
+        "KNOWLEDGEHUB_API_KEY": "${KNOWLEDGEHUB_API_KEY}"
+      }
+    }
+  }
+}

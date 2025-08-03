@@ -15,7 +15,8 @@ DATA_BASE.mkdir(parents=True, exist_ok=True)
 MEMORY_SYSTEM_BASE.mkdir(parents=True, exist_ok=True)
 
 # Memory system paths
-MEMORY_CLI_PATH = os.environ.get('MEMORY_CLI_PATH', str(MEMORY_SYSTEM_BASE / 'memory-cli'))
+# Point to the actual location of memory-cli
+MEMORY_CLI_PATH = os.environ.get('MEMORY_CLI_PATH', '/opt/projects/memory-system/memory-cli')
 MEMORY_DATA_PATH = MEMORY_SYSTEM_BASE / 'data'
 
 # Multi-tenant paths

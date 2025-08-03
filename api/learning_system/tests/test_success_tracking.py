@@ -12,7 +12,7 @@ import pytest
 import asyncio
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4, UUID
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine

@@ -5,7 +5,7 @@ Tracks errors, solutions, and patterns to avoid repeating mistakes
 
 import re
 import json
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optio, TYPE_CHECKINGnal, List, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
 from sqlalchemy.orm import Session

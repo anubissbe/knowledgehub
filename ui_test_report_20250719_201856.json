@@ -1,0 +1,76 @@
+[
+  {
+    "page": "Home Dashboard",
+    "path": "/",
+    "status": "partial",
+    "errors": [
+      "Statistics display: No statistics cards found",
+      "Navigation menu: Navigation menu not found"
+    ],
+    "tests_passed": 1,
+    "tests_failed": 2,
+    "screenshot": "ui_test_screenshots/20250719_201735_home_dashboard_initial.png"
+  },
+  {
+    "page": "AI Intelligence",
+    "path": "/ai-intelligence",
+    "status": "failed",
+    "errors": [
+      "AI features display: Page.wait_for_selector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"[class*=\\\"feature\\\"], [class*=\\\"ai-feature\\\"]\") to be visible\n",
+      "Session Continuity: Session Continuity feature not found",
+      "Mistake Learning: Mistake Learning feature not found",
+      "Proactive Assistance: Proactive Assistance feature not found"
+    ],
+    "tests_passed": 0,
+    "tests_failed": 4,
+    "screenshot": "ui_test_screenshots/20250719_201736_ai_intelligence_initial.png"
+  },
+  {
+    "page": "Memory System",
+    "path": "/memory",
+    "status": "partial",
+    "errors": [
+      "Memory list display: Page.wait_for_selector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"[class*=\\\"memory\\\"], [class*=\\\"empty\\\"]\") to be visible\n",
+      "Statistics display: No memory statistics found"
+    ],
+    "tests_passed": 1,
+    "tests_failed": 2,
+    "screenshot": "ui_test_screenshots/20250719_201747_memory_system_initial.png"
+  },
+  {
+    "page": "Search Knowledge",
+    "path": "/search",
+    "status": "partial",
+    "errors": [
+      "Search interface: Page.wait_for_selector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"[class*=\\\"search\\\"]\") to be visible\n",
+      "Search options: No search options found"
+    ],
+    "tests_passed": 1,
+    "tests_failed": 2,
+    "screenshot": "ui_test_screenshots/20250719_201800_search_knowledge_initial.png"
+  },
+  {
+    "page": "Sources",
+    "path": "/sources",
+    "status": "partial",
+    "errors": [
+      "Source statistics: No source statistics found"
+    ],
+    "tests_passed": 2,
+    "tests_failed": 1,
+    "screenshot": "ui_test_screenshots/20250719_201813_sources_initial.png"
+  },
+  {
+    "page": "Settings",
+    "path": "/settings",
+    "status": "failed",
+    "errors": [
+      "Settings form: Page.wait_for_selector: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"form, [class*=\\\"settings\\\"]\") to be visible\n",
+      "API configuration: No API settings inputs found",
+      "Settings toggles: ElementHandle.click: Timeout 30000ms exceeded.\nCall log:\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    55 \u00d7 waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n"
+    ],
+    "tests_passed": 0,
+    "tests_failed": 3,
+    "screenshot": "ui_test_screenshots/20250719_201815_settings_initial.png"
+  }
+]

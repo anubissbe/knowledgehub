@@ -10,11 +10,15 @@ BASE_URL = "http://localhost:3000"
 def test_endpoint(method, path, data=None, description=""):
     """Test an API endpoint"""
     url = f"{BASE_URL}{path}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Content-Type': 'application/json'
+    }
     try:
         if method == "GET":
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, headers=headers, timeout=5)
         elif method == "POST":
-            response = requests.post(url, json=data, timeout=5)
+            response = requests.post(url, json=data, headers=headers, timeout=5)
         
         status = "✅" if response.status_code in [200, 201] else "❌"
         print(f"{status} {method} {path}: {response.status_code}")
@@ -59,9 +63,8 @@ def main():
     # Test memory endpoints
     print("\n💾 Memory Endpoints:")
     memory_endpoints = [
-        ("GET", "/api/memory/memories"),
-        ("GET", "/api/memory/memories?limit=5"),
-        ("GET", "/api/memory/session/current"),
+        ("GET", "/api/memory/memories/recent?limit=5"),  # Use correct endpoint
+        ("GET", "/api/memory/session/active"),  # Use correct endpoint
         ("GET", "/api/memory/context/quick/test-user"),
     ]
     
@@ -72,9 +75,9 @@ def main():
     print("\n🤖 AI Feature Endpoints:")
     ai_endpoints = [
         # Session management
-        ("GET", "/api/claude-auto/session/recent"),
         ("GET", "/api/claude-auto/session/current"),
         ("GET", "/api/claude-auto/memory/stats"),
+        ("GET", "/api/claude-auto/tasks/predict"),
         
         # Mistake learning
         ("GET", "/api/mistake-learning/patterns"),
@@ -86,15 +89,22 @@ def main():
         
         # Decisions
         ("GET", "/api/decisions/confidence-report"),
-        ("GET", "/api/decisions/search"),
+        ("GET", "/api/decisions/search?query=test"),  # Add required query parameter
+        ("GET", "/api/decisions/history"),  # Test the new history endpoint
         
         # Patterns
-        ("GET", "/api/patterns/analyzed"),
-        ("GET", "/api/patterns/stats"),
+        ("GET", "/api/patterns/statistics"),  # Use correct endpoint
+        ("GET", "/api/patterns/recent"),
         
         # Proactive
-        ("GET", "/api/proactive/health"),
-        ("GET", "/api/proactive/next-actions"),
+        ("GET", "/api/proactive/analyze?session_id=test"),  # Add required parameter
+        ("GET", "/api/proactive/suggestions?session_id=test"),  # Use correct endpoint
+        
+        # Code Evolution 
+        ("GET", "/api/code-evolution/files/test.py/history"),  # Test file history
+        
+        # Workflow
+        ("GET", "/api/claude-workflow/patterns"),  # Test workflow patterns
     ]
     
     for method, path in ai_endpoints:
@@ -102,16 +112,6 @@ def main():
     
     # Test creating sample data
     print("\n📝 Creating Sample Data:")
-    
-    # Create a memory
-    memory_data = {
-        "content": "Test memory from API verification",
-        "memory_type": "test",
-        "user_id": "test-user",
-        "importance": 0.7,
-        "tags": ["test", "api", "verification"]
-    }
-    test_endpoint("POST", "/api/memory/memories", memory_data, "Create memory")
     
     # Track a mistake
     mistake_data = {
@@ -121,6 +121,26 @@ def main():
         "project_id": "test-project"
     }
     test_endpoint("POST", "/api/mistake-learning/track", mistake_data, "Track mistake")
+    
+    # Record a decision
+    decision_data = {
+        "decision_title": "Test Decision",
+        "chosen_solution": "Use FastAPI for the API",
+        "reasoning": "FastAPI provides async support and automatic documentation",
+        "alternatives": ["Flask", "Django"],
+        "confidence": 0.85
+    }
+    test_endpoint("POST", "/api/decisions/record", decision_data, "Record decision")
+    
+    # Capture workflow conversation
+    workflow_data = {
+        "messages": [
+            {"role": "user", "content": "Fix the error in main.py"},
+            {"role": "assistant", "content": "I found and fixed the ImportError"}
+        ],
+        "context": {"session_id": "test-session", "project": "test-project"}
+    }
+    test_endpoint("POST", "/api/claude-workflow/capture-conversation", workflow_data, "Capture workflow")
     
     print("\n" + "=" * 60)
     print("✨ API Endpoint Test Complete")

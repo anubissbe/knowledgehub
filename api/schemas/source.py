@@ -1,6 +1,6 @@
 """Source schemas"""
 
-from pydantic import BaseModel, HttpUrl, Field, validator
+from pydantic import BaseModel, HttpUrl, Field, field_validator, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from uuid import UUID
@@ -18,14 +18,14 @@ class SourceCreate(BaseModel):
     crawl_config: Optional[Dict[str, Any]] = None
     config: Optional[Dict[str, Any]] = Field(default_factory=lambda: {})
     
-    @validator('name')
+    @field_validator('name')
     def sanitize_name(cls, v):
         """Sanitize source name to prevent XSS"""
         if v is not None:
             return InputSanitizer.sanitize_text(v, max_length=255, allow_html=False)
         return v
     
-    @validator('url')
+    @field_validator('url')
     def validate_url(cls, v):
         """Validate and sanitize URL"""
         url_str = str(v)
@@ -35,7 +35,7 @@ class SourceCreate(BaseModel):
         except ValueError as e:
             raise ValueError(f"Invalid URL: {e}")
     
-    @validator('type')
+    @field_validator('type')
     def sanitize_type(cls, v):
         """Sanitize source type"""
         if v is not None:
@@ -47,21 +47,21 @@ class SourceCreate(BaseModel):
             return sanitized.lower()
         return v
     
-    @validator('authentication')
+    @field_validator('authentication')
     def sanitize_authentication(cls, v):
         """Sanitize authentication configuration"""
         if v is not None:
             return InputSanitizer.sanitize_dict(v)
         return v
     
-    @validator('crawl_config')
+    @field_validator('crawl_config')
     def sanitize_crawl_config(cls, v):
         """Sanitize crawl configuration"""
         if v is not None:
             return InputSanitizer.sanitize_dict(v)
         return v
     
-    @validator('config')
+    @field_validator('config')
     def sanitize_config(cls, v):
         """Sanitize general configuration"""
         if v is not None:
@@ -91,14 +91,14 @@ class SourceUpdate(BaseModel):
     crawl_config: Optional[Dict[str, Any]] = None
     config: Optional[Dict[str, Any]] = None
     
-    @validator('name')
+    @field_validator('name')
     def sanitize_name(cls, v):
         """Sanitize source name to prevent XSS"""
         if v is not None:
             return InputSanitizer.sanitize_text(v, max_length=255, allow_html=False)
         return v
     
-    @validator('type')
+    @field_validator('type')
     def sanitize_type(cls, v):
         """Sanitize source type"""
         if v is not None:
@@ -110,21 +110,21 @@ class SourceUpdate(BaseModel):
             return sanitized.lower()
         return v
     
-    @validator('authentication')
+    @field_validator('authentication')
     def sanitize_authentication(cls, v):
         """Sanitize authentication configuration"""
         if v is not None:
             return InputSanitizer.sanitize_dict(v)
         return v
     
-    @validator('crawl_config')
+    @field_validator('crawl_config')
     def sanitize_crawl_config(cls, v):
         """Sanitize crawl configuration"""
         if v is not None:
             return InputSanitizer.sanitize_dict(v)
         return v
     
-    @validator('config')
+    @field_validator('config')
     def sanitize_config(cls, v):
         """Sanitize general configuration"""
         if v is not None:
@@ -170,6 +170,7 @@ class SourceResponse(BaseModel):
     updated_at: datetime
     last_scraped_at: Optional[datetime]
     stats: Dict[str, Any]
+    scraping_status: Optional[Dict[str, Any]] = None  # Added for real-time job status
     
     @classmethod
     def from_db_model(cls, source):
@@ -191,8 +192,7 @@ class SourceResponse(BaseModel):
             stats=source.stats or {}
         )
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes = True)
 
 
 class SourceListResponse(BaseModel):

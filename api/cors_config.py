@@ -5,7 +5,7 @@ This module provides secure CORS settings that follow security best practices
 while maintaining functionality for legitimate cross-origin requests.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import os
 import logging

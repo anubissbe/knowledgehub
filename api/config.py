@@ -29,14 +29,26 @@ class Settings(BaseSettings):
     API_CORS_ORIGINS: Optional[str] = None
     
     # Database settings
-    DATABASE_URL: str = "postgresql://knowledgehub:knowledgehub123@localhost:5433/knowledgehub"
     DATABASE_HOST: Optional[str] = None
     DATABASE_PORT: Optional[int] = None
     DATABASE_NAME: Optional[str] = None
     DATABASE_USER: Optional[str] = None
     DATABASE_PASSWORD: Optional[str] = None
+    DATABASE_URL: Optional[str] = None
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 40
+    
+    # Database recovery settings
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5433
+    DB_USER: str = "knowledgehub"
+    DB_PASS: str = "knowledgehub123"
+    DB_NAME: str = "knowledgehub"
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 3600
+    DB_ECHO: bool = False
     
     # Redis settings
     REDIS_URL: str = "redis://localhost:6381/0"
@@ -98,6 +110,32 @@ class Settings(BaseSettings):
         "http://192.168.1.25:3100",
         "http://192.168.1.25:3000"
     ]
+    
+    # Advanced Memory Features Configuration
+    ENABLE_DISTRIBUTED_SHARDING: bool = True
+    ENABLE_MULTI_TENANT_ISOLATION: bool = True
+    ENABLE_INCREMENTAL_CONTEXT_LOADING: bool = True
+    
+    # Distributed Sharding Configuration
+    SHARDING_ENABLED: bool = True
+    SHARDING_NODES: List[str] = ["localhost:8001", "localhost:8002", "localhost:8003"]
+    SHARDING_REPLICATION_FACTOR: int = 2
+    SHARDING_CONSISTENCY_LEVEL: str = "quorum"
+    SHARDING_VIRTUAL_SHARDS: int = 256
+    
+    # Multi-Tenant Configuration
+    MULTI_TENANT_ENABLED: bool = True
+    DEFAULT_TENANT_ID: str = "default"
+    TENANT_ISOLATION_LEVEL: str = "strict"
+    TENANT_QUOTA_MEMORIES: int = 100000
+    TENANT_QUOTA_STORAGE_MB: int = 10240
+    
+    # Incremental Context Loading Configuration
+    INCREMENTAL_LOADING_ENABLED: bool = True
+    CONTEXT_WINDOW_SIZE: int = 128000
+    CONTEXT_CHUNK_SIZE: int = 4096
+    CONTEXT_CACHE_TTL: int = 3600
+    CONTEXT_COMPRESSION_ENABLED: bool = True
     CORS_ALLOW_CREDENTIALS: bool = True
     
     # Rate limiting
@@ -135,6 +173,10 @@ class Settings(BaseSettings):
     AI_SERVICE_URL: Optional[str] = None
     AI_SERVICE_TIMEOUT: Optional[int] = None
     
+    # Zep Memory System
+    ZEP_API_URL: Optional[str] = "http://localhost:8100"
+    ZEP_API_KEY: Optional[str] = None
+    
     # JWT settings
     JWT_SECRET: Optional[str] = None
     JWT_EXPIRATION_DELTA: Optional[int] = None
@@ -142,6 +184,9 @@ class Settings(BaseSettings):
     # Session settings
     SESSION_SECRET: Optional[str] = None
     SESSION_EXPIRATION: Optional[int] = None
+    
+    # Development settings
+    DISABLE_AUTH: Optional[bool] = False
     
     # Additional environment variables that may be present
     API_URL: Optional[str] = None
@@ -161,6 +206,18 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+
+# Construct DATABASE_URL if not provided but components are
+if not settings.DATABASE_URL and settings.DATABASE_HOST:
+    settings.DATABASE_URL = (
+        f"postgresql://{settings.DATABASE_USER or 'knowledgehub'}:"
+        f"{settings.DATABASE_PASSWORD or 'knowledgehub123'}@"
+        f"{settings.DATABASE_HOST}:{settings.DATABASE_PORT or 5432}/"
+        f"{settings.DATABASE_NAME or 'knowledgehub'}"
+    )
+elif not settings.DATABASE_URL:
+    # Default DATABASE_URL if nothing is provided
+    settings.DATABASE_URL = "postgresql://knowledgehub:knowledgehub123@postgres:5432/knowledgehub"
 
 # Ensure required directories exist
 os.makedirs("logs", exist_ok=True)

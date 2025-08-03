@@ -343,7 +343,7 @@ class DatabaseOptimizer:
                         results['errors'].append(str(e))
                         logger.error(f"Batch operation failed: {e}")
                         
-                        # Optionally continue with other batches
+                        # Optionaly continue with other batches
                         await session.rollback()
             
             await session.commit()

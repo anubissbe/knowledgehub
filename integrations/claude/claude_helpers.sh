@@ -12,7 +12,11 @@ claude-init() {
     local cwd="${1:-$(pwd)}"
     echo "🚀 Initializing KnowledgeHub session..."
     
-    response=$(curl -s -X POST "${KNOWLEDGEHUB_API}/api/claude-auto/session/start?cwd=${cwd}")
+    response=$(curl -s -X POST "${KNOWLEDGEHUB_API}/api/claude-auto/session/start" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"cwd\": \"${cwd}\"
+        }")
     
     if [ $? -eq 0 ]; then
         export CLAUDE_SESSION_ID=$(echo $response | jq -r '.session.session_id')
@@ -140,9 +144,9 @@ claude-search() {
     fi
     
     echo "🔍 Searching knowledge base..."
-    curl -s -X POST "${KNOWLEDGEHUB_API}/api/search" \
+    curl -s -X POST "${KNOWLEDGEHUB_API}/api/memory/vector/search" \
         -H "Content-Type: application/json" \
-        -d "{\"query\": \"${query}\"}" | jq
+        -d "{\"query\": \"${query}\", \"limit\": 5, \"min_similarity\": 0.3}" | jq
 }
 
 # Get recent memories
