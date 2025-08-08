@@ -1,0 +1,103 @@
+{
+  "timestamp": "2025-08-08T13:26:43.004113",
+  "summary": {
+    "total_tests": 6,
+    "passed": 5,
+    "failed": 1
+  },
+  "tests": {
+    "weaviate_connection": {
+      "success": true,
+      "result": {
+        "version": "1.23.0",
+        "classes": [
+          "KnowledgeChunk",
+          "Knowledge_chunks",
+          "Memory"
+        ]
+      }
+    },
+    "embedding_service": {
+      "success": true,
+      "result": {
+        "model": "all-MiniLM-L6-v2",
+        "dimension": 384,
+        "test_text": "This is a test document for embedding generation."
+      }
+    },
+    "text_chunking": {
+      "success": true,
+      "result": {
+        "original_length": 1529,
+        "chunk_count": 4,
+        "chunks": [
+          {
+            "content": "# FastAPI Documentation\n\n        FastAPI is a modern, fast (high-performance), web framework for building APIs with Python 3.7+ based on standard Python type hints.\n\n        ## Key Features\n\n        - Fast: Very high performance, on par with NodeJS and Go (thanks to Starlette and Pydantic).\n        - Fast to code: Increase the speed to develop features by about 200% to 300%.\n        - Fewer bugs: Reduce about 40% of human (developer) induced errors.\n        - Intuitive: Great editor sup",
+            "start": 0,
+            "end": 500,
+            "index": 0
+          },
+          {
+            "content": "uced errors.\n        - Intuitive: Great editor support. Completion everywhere. Less time debugging.\n        - Easy: Designed to be easy to use and learn. Less time reading docs.\n        - Short: Minimize code duplication. Multiple features from each parameter declaration.\n        - Robust: Get production-ready code. With automatic interactive documentation.\n        - Standards-based: Based on (and fully compatible with) the open standards for APIs: OpenAPI and JSON Schema.\n\n        ## Installati",
+            "start": 450,
+            "end": 950,
+            "index": 1
+          },
+          {
+            "content": "s: OpenAPI and JSON Schema.\n\n        ## Installation\n\n        ```bash\n        pip install fastapi\n        pip install \"uvicorn[standard]\"\n        ```\n\n        ## Example\n\n        Create a file main.py with:\n\n        ```python\n        from fastapi import FastAPI\n\n        app = FastAPI()\n\n        @app.get(\"/\")\n        def read_root():\n            return {\"Hello\": \"World\"}\n\n        @app.get(\"/items/{item_id}\")\n        def read_item(item_id: int, q: str = None):\n            return {\"item_id\": item_i",
+            "start": 900,
+            "end": 1400,
+            "index": 2
+          },
+          {
+            "content": "str = None):\n            return {\"item_id\": item_id, \"q\": q}\n        ```\n\n        Then run the server with:\n\n        ```bash\n        uvicorn main:app --reload\n        ```",
+            "start": 1350,
+            "end": 1529,
+            "index": 3
+          }
+        ]
+      }
+    },
+    "weaviate_operations": {
+      "success": true,
+      "result": {
+        "document_id": "9daccc50-8933-475c-9e46-c23642f1d6a2",
+        "query": "What is FastAPI and how is it used for building APIs?",
+        "results_count": 1,
+        "first_result": {
+          "content": "FastAPI is a modern, fast web framework for building APIs with Python 3.7+. It provides automatic API documentation, type checking, and high performance.",
+          "source": "test",
+          "title": "FastAPI Introduction"
+        }
+      }
+    },
+    "llamaindex_availability": {
+      "success": false,
+      "result": "No module named 'llama_index'"
+    },
+    "complete_rag_pipeline": {
+      "success": true,
+      "result": {
+        "documents_ingested": 3,
+        "queries_tested": 3,
+        "results": [
+          {
+            "query": "How do I install FastAPI?",
+            "results_count": 2,
+            "top_result": "FastAPI Installation"
+          },
+          {
+            "query": "How to create a simple FastAPI application?",
+            "results_count": 2,
+            "top_result": "FastAPI Benefits"
+          },
+          {
+            "query": "What are the benefits of using FastAPI?",
+            "results_count": 2,
+            "top_result": "FastAPI Benefits"
+          }
+        ]
+      }
+    }
+  }
+}
