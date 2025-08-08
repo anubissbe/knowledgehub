@@ -718,6 +718,16 @@ if [ -z "$CLAUDE_SESSION_ID" ]; then
     echo -e "${YELLOW}No active session detected. Run 'claude-init' to start.${NC}"
 fi
 
+# Source time helper functions if available
+if [ -f "/opt/projects/mcp-servers-time/time_helpers.sh" ]; then
+    source /opt/projects/mcp-servers-time/time_helpers.sh >/dev/null 2>&1
+fi
+
+# Enable automatic time awareness
+if [ -f "/opt/projects/knowledgehub/claude_time_awareness.sh" ]; then
+    source /opt/projects/knowledgehub/claude_time_awareness.sh >/dev/null 2>&1
+fi
+
 echo -e "${GREEN}Claude Code helpers loaded. Type 'claude-help' for available commands.${NC}"
 # Auto-memory wrapper functions for common commands
 if [ "$CLAUDE_AUTO_MEMORY" = "true" ]; then
@@ -1068,6 +1078,13 @@ claude-init() {
         echo -e "${GREEN}✓ Agent system available (${CLAUDE_AGENT_AUTO:-true} auto-selection)${NC}"
     fi
     
+    # Initialize time awareness
+    if [ -f "/opt/projects/mcp-servers-time/time_service.py" ]; then
+        local current_time=$(python /opt/projects/mcp-servers-time/time_service.py "Europe/Brussels" 2>/dev/null | cut -d' ' -f1-2)
+        export CLAUDE_CURRENT_TIME="$current_time"
+        echo -e "${GREEN}✓ Time awareness active (Brussels: $current_time)${NC}"
+    fi
+    
     # Create session memory
     if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
         _hybrid_store "Session initialized: $CLAUDE_SESSION_ID" "session_event" "" '["session-start"]' >/dev/null
@@ -1112,6 +1129,14 @@ claude-help() {
     echo "  claude-agent-info <id>    - View agent details"
     echo "  claude-agent-auto [on/off] - Toggle auto-selection"
     echo "  claude-agent-test         - Test agent selection"
+    echo ""
+    echo -e "${GREEN}Time Functions (via Docker MCP):${NC}"
+    echo "  claude-time [timezone]    - Get current time (default: Brussels)"
+    echo "  claude-time-now          - Current Brussels time"
+    echo "  claude-time-utc          - Current UTC time"
+    echo "  claude-time-world        - World clock"
+    echo "  claude-time-convert      - Convert between timezones"
+    echo "  claude-time-help         - Time functions help"
     echo ""
     echo -e "${GREEN}Other Commands:${NC}"
     echo "  claude-decide <decision> <reasoning> - Track a decision"

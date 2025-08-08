@@ -64,3 +64,14 @@ opentelemetry-exporter-jaeger-thrift==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0
 opentelemetry-propagator-b3==1.21.0
 opentelemetry-propagator-jaeger==1.21.0
+
+# LlamaIndex Integration - Phase 1.4
+llama-index>=0.10.0
+llama-index-core>=0.10.0
+llama-index-embeddings-huggingface>=0.2.0
+llama-index-readers-file>=0.1.0
+llama-index-vector-stores-postgres>=0.1.0
+llama-index-vector-stores-weaviate>=0.1.0
+
+# Additional dependencies for low-rank factorization
+scikit-learn>=1.3.0
