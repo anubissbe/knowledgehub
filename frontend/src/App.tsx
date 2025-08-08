@@ -19,7 +19,7 @@ function App() {
     <Routes>
       <Route path="/" element={<SimpleLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<UltraModernDashboard />} />
         <Route path="ultra" element={<UltraModernDashboard />} />
         <Route path="ai" element={<AiIntelligenceFixed />} />
         <Route path="memory" element={<MemorySystem />} />

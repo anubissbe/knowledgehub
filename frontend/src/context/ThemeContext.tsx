@@ -38,17 +38,17 @@ export const CustomThemeProvider: React.FC<ThemeProviderProps> = ({ children }) 
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
-        main: '#2196f3',
+        main: '#0066FF',
         light: '#64b5f6',
         dark: '#1976d2',
       },
       secondary: {
-        main: '#f50057',
+        main: '#FF6B9D',
         light: '#ff5983',
         dark: '#c51162',
       },
       success: {
-        main: '#4caf50',
+        main: '#00C853',
         light: '#81c784',
         dark: '#388e3c',
       },
@@ -142,7 +142,7 @@ export const CustomThemeProvider: React.FC<ThemeProviderProps> = ({ children }) 
             },
           },
           contained: {
-            background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+            background: 'linear-gradient(135deg, #0066FF 0%, #1976d2 100%)',
             '&:hover': {
               background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
             },
@@ -201,12 +201,12 @@ export const CustomThemeProvider: React.FC<ThemeProviderProps> = ({ children }) 
             margin: '2px 8px',
             '&.Mui-selected': {
               backgroundColor: darkMode
-                ? alpha('#2196f3', 0.15)
-                : alpha('#2196f3', 0.08),
+                ? alpha('#0066FF', 0.15)
+                : alpha('#0066FF', 0.08),
               '&:hover': {
                 backgroundColor: darkMode
-                  ? alpha('#2196f3', 0.25)
-                  : alpha('#2196f3', 0.12),
+                  ? alpha('#0066FF', 0.25)
+                  : alpha('#0066FF', 0.12),
               },
             },
           },
