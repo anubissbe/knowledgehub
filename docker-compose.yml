@@ -210,6 +210,7 @@ services:
       - TIMESCALE_DATABASE=knowledgehub_analytics
       - TIMESCALE_USER=knowledgehub
       - TIMESCALE_PASSWORD=${TIMESCALE_PASSWORD:-knowledgehub123}
+      - TIMESCALE_URL=postgresql://knowledgehub:${TIMESCALE_PASSWORD:-knowledgehub123}@timescale:5432/knowledgehub_analytics
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}

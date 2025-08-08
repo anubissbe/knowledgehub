@@ -1,729 +1,726 @@
 """
-Analytics REST API Router.
+Phase 3: Advanced Analytics & Insights API Router
+François Coppens - Performance Profiling Expert
 
-This router provides endpoints for:
-- Real-time metrics access
-- Dashboard data
-- Alert management
-- Trend analysis
-- Metrics export
+Enhanced analytics endpoints with real-time performance monitoring,
+GPU acceleration support, and sub-10ms query response times.
 """
 
-import logging
-from typing import Dict, Any, List, Optional
+import time
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Depends, Query, Request, BackgroundTasks
+from pydantic import BaseModel, Field, validator
+import uuid
+import asyncio
 
-from fastapi import APIRouter, HTTPException, Query, Depends, BackgroundTasks
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
-import json
-import io
-
-from ..services.metrics_service import (
-    metrics_service, AlertRule, AlertSeverity, MetricType
+# Enhanced imports for Phase 3
+from api.services.timescale_analytics import (
+    TimeSeriesAnalyticsService,
+    MetricType,
+    AggregationWindow,
+    PerformanceMetrics,
+    TimeSeriesPoint,
+    TrendAnalysis,
+    QUERY_LATENCY_TARGET_MS
 )
-from ..workers.metrics_collector import metrics_collector_worker
-from ..services.auth import get_current_user_optional
+from api.dependencies import get_current_user
 from shared.logging import setup_logging
 
-logger = setup_logging("analytics_router")
+logger = setup_logging("api.analytics_advanced")
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(prefix="/api/analytics", tags=["advanced-analytics"])
 
+# Phase 3 Enhanced Request Models
 
-# Request/Response Models
-
-class MetricRecordRequest(BaseModel):
-    """Request model for recording a metric."""
-    name: str = Field(..., description="Metric name")
+class AdvancedMetricRequest(BaseModel):
+    """Enhanced metric recording with performance tracking"""
+    metric_type: str = Field(..., description="Type of metric to record")
     value: float = Field(..., description="Metric value")
-    metric_type: MetricType = Field(MetricType.GAUGE, description="Type of metric")
-    tags: Optional[Dict[str, str]] = Field(None, description="Metric tags")
+    tags: Optional[Dict[str, str]] = Field(None, description="Optional tags")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Optional metadata")
+    performance_data: Optional[Dict[str, float]] = Field(None, description="Performance metrics")
+    project_id: Optional[str] = Field(None, description="Project ID")
+    timestamp: Optional[datetime] = Field(None, description="Timestamp (defaults to now)")
+    
+    @validator('metric_type')
+    def validate_metric_type(cls, v):
+        try:
+            MetricType(v)
+            return v
+        except ValueError:
+            raise ValueError(f"Invalid metric type: {v}")
+
+
+class RAGPerformanceRequest(BaseModel):
+    """RAG pipeline performance recording"""
+    query_id: str = Field(..., description="Query identifier")
+    query_type: str = Field(..., description="Type of query")
+    retrieval_time_ms: float = Field(..., ge=0.0, description="Retrieval time in milliseconds")
+    generation_time_ms: float = Field(..., ge=0.0, description="Generation time in milliseconds")
+    chunk_count: int = Field(..., ge=0, description="Number of chunks processed")
+    relevance_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Relevance score")
+    tokens_processed: Optional[int] = Field(None, ge=0, description="Tokens processed")
+    model_used: Optional[str] = Field(None, description="Model identifier")
+    success: bool = Field(True, description="Whether operation was successful")
+
+
+class PerformanceAnalyticsRequest(BaseModel):
+    """System performance analytics recording"""
+    component: str = Field(..., description="System component")
+    operation: str = Field(..., description="Operation performed")
+    latency_ms: float = Field(..., ge=0.0, description="Latency in milliseconds")
+    throughput_ops_sec: Optional[float] = Field(None, ge=0.0, description="Throughput in ops/sec")
+    memory_usage_mb: Optional[float] = Field(None, ge=0.0, description="Memory usage in MB")
+    cpu_usage_percent: Optional[float] = Field(None, ge=0.0, le=100.0, description="CPU usage percentage")
+    gpu_usage_percent: Optional[float] = Field(None, ge=0.0, le=100.0, description="GPU usage percentage")
+    error_rate: float = Field(0.0, ge=0.0, le=100.0, description="Error rate percentage")
+    success_rate: float = Field(100.0, ge=0.0, le=100.0, description="Success rate percentage")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
 
 
-class AlertRuleRequest(BaseModel):
-    """Request model for creating an alert rule."""
-    name: str = Field(..., description="Alert rule name")
-    metric_name: str = Field(..., description="Metric to monitor")
-    condition: str = Field(..., description="Condition (gt, lt, eq, gte, lte)")
-    threshold: float = Field(..., description="Alert threshold")
-    severity: AlertSeverity = Field(..., description="Alert severity")
-    duration_minutes: int = Field(5, description="Duration before triggering")
-    cooldown_minutes: int = Field(30, description="Cooldown between alerts")
-    tags_filter: Optional[Dict[str, str]] = Field(None, description="Tags to filter on")
-    is_active: bool = Field(True, description="Whether rule is active")
-
-
-class MetricsQueryRequest(BaseModel):
-    """Request model for querying metrics."""
-    metric_names: List[str] = Field(..., description="Metrics to query")
-    time_window: str = Field("1h", description="Time window (e.g., 1h, 24h, 7d)")
-    tags_filter: Optional[Dict[str, str]] = Field(None, description="Tags to filter on")
-    start_time: Optional[datetime] = Field(None, description="Start time")
-    end_time: Optional[datetime] = Field(None, description="End time")
-
-
-class CollectorConfigRequest(BaseModel):
-    """Request model for updating collector configuration."""
-    interval_seconds: Optional[int] = Field(None, description="Collection interval")
-    include_system: Optional[bool] = Field(None, description="Include system metrics")
-    include_database: Optional[bool] = Field(None, description="Include database metrics")
-    include_application: Optional[bool] = Field(None, description="Include application metrics")
-    include_business: Optional[bool] = Field(None, description="Include business metrics")
-
-
-# Metrics Recording Endpoints
-
-@router.post("/metrics/record")
-async def record_metric(
-    request: MetricRecordRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Record a single metric point."""
-    try:
-        await metrics_service.record_metric(
-            name=request.name,
-            value=request.value,
-            metric_type=request.metric_type,
-            tags=request.tags,
-            metadata=request.metadata
-        )
-        
-        return {"status": "success", "message": "Metric recorded"}
-        
-    except Exception as e:
-        logger.error(f"Failed to record metric: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/metrics/counter/{name}")
-async def record_counter(
-    name: str,
-    increment: float = 1.0,
-    tags: Optional[Dict[str, str]] = None,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Record a counter metric."""
-    try:
-        await metrics_service.record_counter(name, increment, tags)
-        return {"status": "success", "message": f"Counter {name} incremented"}
-        
-    except Exception as e:
-        logger.error(f"Failed to record counter: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/metrics/timer/{name}")
-async def record_timer(
-    name: str,
-    duration_ms: float,
-    tags: Optional[Dict[str, str]] = None,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Record a timer metric."""
-    try:
-        await metrics_service.record_timer(name, duration_ms, tags)
-        return {"status": "success", "message": f"Timer {name} recorded"}
-        
-    except Exception as e:
-        logger.error(f"Failed to record timer: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/metrics/histogram/{name}")
-async def record_histogram(
-    name: str,
-    value: float,
-    tags: Optional[Dict[str, str]] = None,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Record a histogram metric."""
-    try:
-        await metrics_service.record_histogram(name, value, tags)
-        return {"status": "success", "message": f"Histogram {name} recorded"}
-        
-    except Exception as e:
-        logger.error(f"Failed to record histogram: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Metrics Query Endpoints
-
-@router.get("/metrics/{metric_name}/aggregation")
-async def get_metric_aggregation(
-    metric_name: str,
-    time_window: str = Query("1h", description="Time window (e.g., 1h, 24h, 7d)"),
-    tags_filter: Optional[str] = Query(None, description="JSON-encoded tags filter"),
-    start_time: Optional[datetime] = Query(None, description="Start time"),
-    end_time: Optional[datetime] = Query(None, description="End time"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get aggregated metric data."""
-    try:
-        # Parse tags filter if provided
-        parsed_tags = None
-        if tags_filter:
+class RealTimeQueryRequest(BaseModel):
+    """Real-time metrics query"""
+    metric_types: List[str] = Field(..., description="List of metric types to query")
+    time_range_minutes: int = Field(60, ge=1, le=1440, description="Time range in minutes")
+    aggregation_window: Optional[str] = Field("minute", description="Aggregation window")
+    tags_filter: Optional[Dict[str, str]] = Field(None, description="Tag filters")
+    
+    @validator('metric_types')
+    def validate_metric_types(cls, v):
+        for mt in v:
             try:
-                parsed_tags = json.loads(tags_filter)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid tags filter JSON")
-        
-        aggregation = await metrics_service.get_metric_aggregation(
-            metric_name=metric_name,
-            time_window=time_window,
-            tags_filter=parsed_tags,
-            start_time=start_time,
-            end_time=end_time
-        )
-        
-        if not aggregation:
-            raise HTTPException(status_code=404, detail="No data found for metric")
-        
-        return {
-            "metric_name": aggregation.name,
-            "metric_type": aggregation.metric_type.value,
-            "aggregation": {
-                "count": aggregation.count,
-                "sum": aggregation.sum_value,
-                "min": aggregation.min_value,
-                "max": aggregation.max_value,
-                "avg": aggregation.avg_value,
-                "percentiles": aggregation.percentiles
-            },
-            "time_window": {
-                "window": aggregation.time_window,
-                "start_time": aggregation.start_time.isoformat(),
-                "end_time": aggregation.end_time.isoformat()
-            },
-            "tags": aggregation.tags
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get metric aggregation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+                MetricType(mt)
+            except ValueError:
+                raise ValueError(f"Invalid metric type: {mt}")
+        return v
 
 
-@router.post("/metrics/query")
-async def query_metrics(
-    request: MetricsQueryRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Query multiple metrics with aggregation."""
-    try:
-        results = {}
-        
-        for metric_name in request.metric_names:
-            aggregation = await metrics_service.get_metric_aggregation(
-                metric_name=metric_name,
-                time_window=request.time_window,
-                tags_filter=request.tags_filter,
-                start_time=request.start_time,
-                end_time=request.end_time
-            )
-            
-            if aggregation:
-                results[metric_name] = {
-                    "count": aggregation.count,
-                    "sum": aggregation.sum_value,
-                    "min": aggregation.min_value,
-                    "max": aggregation.max_value,
-                    "avg": aggregation.avg_value,
-                    "percentiles": aggregation.percentiles
-                }
-            else:
-                results[metric_name] = None
-        
-        return {
-            "results": results,
-            "time_window": request.time_window,
-            "query_time": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to query metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+class PerformanceDashboardResponse(BaseModel):
+    """Performance dashboard data"""
+    system_performance: Dict[str, Any]
+    rag_performance: Dict[str, Any]
+    gpu_utilization: Dict[str, Any]
+    real_time_status: Dict[str, Any]
+    performance_alerts: List[Dict[str, Any]]
+    optimization_recommendations: List[str]
+    generation_time_ms: float
 
 
-@router.get("/metrics/trends")
-async def get_metric_trends(
-    metric_names: str = Query(..., description="Comma-separated metric names"),
-    time_window: str = Query("24h", description="Time window for trend analysis"),
-    tags_filter: Optional[str] = Query(None, description="JSON-encoded tags filter"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get trend analysis for metrics."""
-    try:
-        # Parse metric names
-        metric_list = [name.strip() for name in metric_names.split(",")]
-        
-        # Parse tags filter if provided
-        parsed_tags = None
-        if tags_filter:
-            try:
-                parsed_tags = json.loads(tags_filter)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid tags filter JSON")
-        
-        trends = await metrics_service.get_metric_trends(
-            metric_names=metric_list,
-            time_window=time_window,
-            tags_filter=parsed_tags
-        )
-        
-        return {
-            "trends": trends,
-            "time_window": time_window,
-            "analysis_time": datetime.utcnow().isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get metric trends: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+class HealthCheckResponse(BaseModel):
+    """Health check response"""
+    service: str
+    status: str
+    initialized: bool
+    gpu_available: bool
+    performance_targets_met: bool
+    database_connectivity: bool
+    continuous_aggregates_active: bool
+    health_check_latency_ms: float
+    issues: List[str]
 
 
-# Dashboard Endpoints
-
-@router.get("/dashboard")
-async def get_dashboard_data(
-    time_window: str = Query("1h", description="Time window for dashboard"),
-    user_id: Optional[str] = Query(None, description="Filter by user ID"),
-    project_id: Optional[str] = Query(None, description="Filter by project ID")
-):
-    """Get comprehensive dashboard data."""
-    try:
-        dashboard_data = await metrics_service.get_metrics_dashboard_data(
-            time_window=time_window,
-            user_id=user_id,
-            project_id=project_id
-        )
-        
-        # If error in data, return a working response with real metrics
-        if isinstance(dashboard_data, dict) and "error" in dashboard_data:
-            logger.warning(f"Metrics service error: {dashboard_data['error']}")
-            # Return real default data
-            dashboard_data = {
-                "summary": {
-                    "total_sessions": 42,
-                    "active_users": 7,
-                    "total_memories": 1823,
-                    "api_calls_today": 3567,
-                    "avg_response_time_ms": 120,
-                    "error_rate": 0.02
-                },
-                "performance": {
-                    "requests_per_minute": 59.45,
-                    "avg_latency_ms": 120,
-                    "p95_latency_ms": 250,
-                    "p99_latency_ms": 500,
-                    "success_rate": 0.98
-                },
-                "system": {
-                    "cpu_usage_percent": 45.2,
-                    "memory_usage_percent": 62.8,
-                    "disk_usage_percent": 38.5,
-                    "active_connections": 24,
-                    "uptime_hours": 96.5
-                },
-                "alerts": [],
-                "trends": {
-                    "sessions_trend": "increasing",
-                    "error_trend": "stable",
-                    "performance_trend": "improving"
-                },
-                "generated_at": datetime.utcnow().isoformat()
-            }
-        
-        return dashboard_data
-        
-    except Exception as e:
-        logger.error(f"Failed to get dashboard data: {e}")
-        # Return working dashboard with real data instead of error
-        return {
-            "summary": {
-                "total_sessions": 42,
-                "active_users": 7,
-                "total_memories": 1823,
-                "api_calls_today": 3567,
-                "avg_response_time_ms": 120,
-                "error_rate": 0.02
-            },
-            "performance": {
-                "requests_per_minute": 59.45,
-                "avg_latency_ms": 120,
-                "p95_latency_ms": 250,
-                "p99_latency_ms": 500,
-                "success_rate": 0.98
-            },
-            "system": {
-                "cpu_usage_percent": 45.2,
-                "memory_usage_percent": 62.8,
-                "disk_usage_percent": 38.5,
-                "active_connections": 24,
-                "uptime_hours": 96.5
-            },
-            "alerts": [],
-            "trends": {
-                "sessions_trend": "increasing",
-                "error_trend": "stable",
-                "performance_trend": "improving"
-            },
-            "generated_at": datetime.utcnow().isoformat()
-        }
+# Global service instance
+analytics_service = None
 
 
-@router.get("/dashboard/system")
-async def get_system_dashboard(
-    time_window: str = Query("1h", description="Time window"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get system metrics dashboard."""
-    try:
-        # Get system-specific metrics
-        system_metrics = [
-            "cpu_usage_percent",
-            "memory_usage_percent",
-            "disk_usage_percent",
-            "network_bytes_sent",
-            "network_bytes_recv"
-        ]
-        
-        dashboard_data = {}
-        
-        for metric_name in system_metrics:
-            aggregation = await metrics_service.get_metric_aggregation(
-                metric_name, time_window
-            )
-            if aggregation:
-                dashboard_data[metric_name] = {
-                    "current": aggregation.avg_value,
-                    "max": aggregation.max_value,
-                    "min": aggregation.min_value,
-                    "count": aggregation.count
-                }
-        
-        return {
-            "system_metrics": dashboard_data,
-            "time_window": time_window,
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get system dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+async def get_analytics_service():
+    """Get or create analytics service instance"""
+    global analytics_service
+    if analytics_service is None:
+        logger.info("Creating new TimeSeriesAnalyticsService instance")
+        analytics_service = TimeSeriesAnalyticsService()
+        logger.info("Initializing TimeSeriesAnalyticsService...")
+        await analytics_service.initialize()
+        logger.info("TimeSeriesAnalyticsService initialized")
+    return analytics_service
 
 
-@router.get("/dashboard/application")
-async def get_application_dashboard(
-    time_window: str = Query("1h", description="Time window"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get application metrics dashboard."""
-    try:
-        # Get application-specific metrics
-        app_metrics = [
-            "memory_total_count",
-            "sessions_active",
-            "errors_recent_24h",
-            "workflows_success_rate_percent",
-            "api_calls_per_hour"
-        ]
-        
-        dashboard_data = {}
-        
-        for metric_name in app_metrics:
-            aggregation = await metrics_service.get_metric_aggregation(
-                metric_name, time_window
-            )
-            if aggregation:
-                dashboard_data[metric_name] = {
-                    "current": aggregation.avg_value,
-                    "max": aggregation.max_value,
-                    "min": aggregation.min_value,
-                    "count": aggregation.count
-                }
-        
-        return {
-            "application_metrics": dashboard_data,
-            "time_window": time_window,
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get application dashboard: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Phase 3 Enhanced Endpoints
 
-
-# Alert Management Endpoints
-
-@router.post("/alerts/rules")
-async def create_alert_rule(
-    request: AlertRuleRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Create a new alert rule."""
-    try:
-        alert_rule = AlertRule(
-            name=request.name,
-            metric_name=request.metric_name,
-            condition=request.condition,
-            threshold=request.threshold,
-            severity=request.severity,
-            duration_minutes=request.duration_minutes,
-            cooldown_minutes=request.cooldown_minutes,
-            tags_filter=request.tags_filter,
-            is_active=request.is_active
-        )
-        
-        await metrics_service.create_alert_rule(alert_rule)
-        
-        return {
-            "status": "success",
-            "message": f"Alert rule '{request.name}' created"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to create alert rule: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/alerts/rules")
-async def get_alert_rules(
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get all alert rules."""
-    try:
-        rules = await metrics_service.get_alert_rules()
-        
-        return {
-            "rules": [
-                {
-                    "name": rule.name,
-                    "metric_name": rule.metric_name,
-                    "condition": rule.condition,
-                    "threshold": rule.threshold,
-                    "severity": rule.severity.value,
-                    "duration_minutes": rule.duration_minutes,
-                    "cooldown_minutes": rule.cooldown_minutes,
-                    "tags_filter": rule.tags_filter,
-                    "is_active": rule.is_active
-                }
-                for rule in rules
-            ],
-            "count": len(rules)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get alert rules: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/alerts/active")
-async def get_active_alerts(
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get all active alerts."""
-    try:
-        alerts = await metrics_service.get_active_alerts()
-        
-        return {
-            "alerts": [
-                {
-                    "rule_name": alert.rule_name,
-                    "metric_name": alert.metric_name,
-                    "current_value": alert.current_value,
-                    "threshold": alert.threshold,
-                    "severity": alert.severity.value,
-                    "triggered_at": alert.triggered_at.isoformat(),
-                    "description": alert.description,
-                    "tags": alert.tags
-                }
-                for alert in alerts
-            ],
-            "count": len(alerts)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get active alerts: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/alerts/{rule_name}/resolve")
-async def resolve_alert(
-    rule_name: str,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Resolve an active alert."""
-    try:
-        await metrics_service.resolve_alert(rule_name)
-        
-        return {
-            "status": "success",
-            "message": f"Alert '{rule_name}' resolved"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to resolve alert: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Export Endpoints
-
-@router.get("/export/metrics")
-async def export_metrics(
-    format_type: str = Query("json", description="Export format (json, csv)"),
-    time_window: str = Query("1h", description="Time window"),
-    metric_names: Optional[str] = Query(None, description="Comma-separated metric names"),
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Export metrics data."""
-    try:
-        # Parse metric names if provided
-        parsed_metrics = None
-        if metric_names:
-            parsed_metrics = [name.strip() for name in metric_names.split(",")]
-        
-        export_data = await metrics_service.export_metrics(
-            format_type=format_type,
-            time_window=time_window,
-            metric_names=parsed_metrics
-        )
-        
-        if "error" in export_data:
-            raise HTTPException(status_code=400, detail=export_data["error"])
-        
-        if format_type == "csv":
-            # Return CSV as streaming response
-            csv_data = export_data["csv_data"]
-            
-            def iter_csv():
-                yield csv_data
-            
-            return StreamingResponse(
-                io.StringIO(csv_data),
-                media_type="text/csv",
-                headers={"Content-Disposition": "attachment; filename=metrics.csv"}
-            )
-        else:
-            return export_data
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to export metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Collector Management Endpoints
-
-@router.get("/collector/status")
-async def get_collector_status(
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Get metrics collector status."""
-    try:
-        status = await metrics_collector_worker.get_worker_status()
-        return status
-        
-    except Exception as e:
-        logger.error(f"Failed to get collector status: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/collector/config")
-async def update_collector_config(
-    request: CollectorConfigRequest,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
-):
-    """Update collector configuration."""
-    try:
-        config_dict = request.dict(exclude_unset=True)
-        await metrics_collector_worker.update_collection_config(config_dict)
-        
-        return {
-            "status": "success",
-            "message": "Collector configuration updated",
-            "updated_config": config_dict
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to update collector config: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/collector/collect")
-async def trigger_collection(
+@router.post("/metrics/advanced", response_model=Dict[str, Any])
+async def record_advanced_metric(
+    request: AdvancedMetricRequest,
     background_tasks: BackgroundTasks,
-    current_user: Optional[Dict] = Depends(get_current_user_optional)
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
 ):
-    """Trigger manual metrics collection."""
+    """
+    Record advanced metric with performance tracking
+    François Coppens: Target sub-10ms recording latency
+    """
+    start_time = time.time()
+    
     try:
-        # Run collection in background
-        background_tasks.add_task(metrics_collector_worker.collect_all_metrics)
+        # Convert performance data to PerformanceMetrics if provided
+        perf_metrics = None
+        if request.performance_data:
+            perf_metrics = PerformanceMetrics(
+                query_latency_ms=request.performance_data.get('query_latency_ms', 0.0),
+                memory_usage_mb=request.performance_data.get('memory_usage_mb', 0.0),
+                gpu_utilization=request.performance_data.get('gpu_utilization', 0.0),
+                cpu_utilization=request.performance_data.get('cpu_utilization', 0.0),
+                throughput_ops_sec=request.performance_data.get('throughput_ops_sec', 0.0),
+                cache_hit_rate=request.performance_data.get('cache_hit_rate', 0.0),
+                compression_ratio=request.performance_data.get('compression_ratio', 1.0),
+                error_count=int(request.performance_data.get('error_count', 0))
+            )
         
-        return {
-            "status": "success",
-            "message": "Metrics collection triggered"
+        # Record metric
+        success = await service.record_metric(
+            MetricType(request.metric_type),
+            request.value,
+            request.tags,
+            request.metadata,
+            current_user['id'],
+            None,  # session_id can be added later
+            request.project_id,
+            request.timestamp
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record metric")
+        
+        processing_time_ms = (time.time() - start_time) * 1000
+        
+        # Background task to record this API call's performance
+        background_tasks.add_task(
+            service.record_performance_metric,
+            component="analytics_api",
+            operation="record_advanced_metric",
+            latency_ms=processing_time_ms,
+            metadata={"metric_type": request.metric_type}
+        )
+        
+        response = {
+            "status": "recorded",
+            "processing_time_ms": processing_time_ms,
+            "performance_target_met": processing_time_ms <= QUERY_LATENCY_TARGET_MS
         }
         
+        if processing_time_ms <= QUERY_LATENCY_TARGET_MS:
+            logger.debug(f"Advanced metric recorded in {processing_time_ms:.2f}ms - TARGET MET")
+        else:
+            logger.warning(f"Advanced metric recording took {processing_time_ms:.2f}ms - ABOVE TARGET")
+            response["warning"] = f"Processing time {processing_time_ms:.2f}ms exceeded target {QUERY_LATENCY_TARGET_MS}ms"
+        
+        return response
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to trigger collection: {e}")
+        logger.error(f"Error recording advanced metric: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Health Check Endpoints
-
-@router.get("/health")
-async def health_check():
-    """Health check for analytics service."""
+@router.post("/rag/performance", response_model=Dict[str, str])
+async def record_rag_performance(
+    request: RAGPerformanceRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Record RAG pipeline performance metrics"""
     try:
-        # Check if services are running
-        collector_status = await metrics_collector_worker.get_worker_status()
+        success = await service.record_rag_performance(
+            request.query_id,
+            request.query_type,
+            request.retrieval_time_ms,
+            request.generation_time_ms,
+            request.chunk_count,
+            request.relevance_score,
+            request.tokens_processed,
+            request.model_used,
+            request.success
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record RAG performance")
+        
+        # Background task to track API performance
+        background_tasks.add_task(
+            service.record_performance_metric,
+            component="rag_pipeline",
+            operation=request.query_type,
+            latency_ms=request.retrieval_time_ms + request.generation_time_ms,
+            metadata={"model_used": request.model_used}
+        )
+        
+        return {"status": "recorded"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording RAG performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/performance", response_model=Dict[str, str])
+async def record_performance_analytics(
+    request: PerformanceAnalyticsRequest,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Record system performance analytics"""
+    try:
+        success = await service.record_performance_metric(
+            request.component,
+            request.operation,
+            request.latency_ms,
+            request.throughput_ops_sec,
+            request.memory_usage_mb,
+            request.cpu_usage_percent,
+            request.gpu_usage_percent,
+            request.error_rate,
+            request.success_rate,
+            request.metadata
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record performance analytics")
+        
+        return {"status": "recorded"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording performance analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/realtime/query")
+async def query_realtime_metrics(
+    request: RealTimeQueryRequest,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """
+    Query real-time metrics with sub-10ms response time
+    Uses continuous aggregates for optimal performance
+    """
+    start_time = time.time()
+    
+    try:
+        # Convert string metric types to enums
+        metric_types = [MetricType(mt) for mt in request.metric_types]
+        
+        # Execute real-time query
+        metrics = await service.get_real_time_metrics(
+            metric_types,
+            request.time_range_minutes
+        )
+        
+        query_time_ms = (time.time() - start_time) * 1000
+        
+        response = {
+            "metrics": metrics,
+            "query_time_ms": query_time_ms,
+            "performance_target_met": query_time_ms <= QUERY_LATENCY_TARGET_MS,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        if query_time_ms > QUERY_LATENCY_TARGET_MS:
+            response["warning"] = f"Query time {query_time_ms:.2f}ms exceeded target {QUERY_LATENCY_TARGET_MS}ms"
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error querying real-time metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dashboard/performance", response_model=PerformanceDashboardResponse)
+async def get_performance_dashboard(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """
+    Get comprehensive performance dashboard data
+    François Coppens: Optimized for performance profiling insights
+    """
+    try:
+        dashboard_data = await service.generate_analytics_dashboard_data()
+        
+        return PerformanceDashboardResponse(**dashboard_data)
+        
+    except Exception as e:
+        logger.error(f"Error generating performance dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gpu/status")
+async def get_gpu_status(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Get GPU acceleration status and utilization"""
+    try:
+        gpu_info = service.gpu_analytics.get_device_info()
+        
+        # Get recent GPU metrics
+        gpu_metrics = await service._get_gpu_utilization_metrics()
         
         return {
-            "status": "healthy",
-            "services": {
-                "metrics_service": "running",
-                "metrics_collector": "running" if collector_status["running"] else "stopped"
+            "gpu_info": gpu_info,
+            "utilization_metrics": gpu_metrics,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting GPU status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/bottlenecks/analysis")
+async def analyze_system_bottlenecks(
+    time_range_hours: int = Query(1, ge=1, le=24, description="Analysis time range in hours"),
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """
+    Analyze system bottlenecks using François Coppens methodology
+    Identifies CPU, memory, GPU, and database bottlenecks
+    """
+    try:
+        start_time = datetime.utcnow() - timedelta(hours=time_range_hours)
+        
+        # Analyze bottlenecks across different components
+        bottleneck_analysis = {
+            'analysis_period': {
+                'start_time': start_time.isoformat(),
+                'end_time': datetime.utcnow().isoformat(),
+                'duration_hours': time_range_hours
+            },
+            'cpu_bottlenecks': [],
+            'memory_bottlenecks': [],
+            'gpu_bottlenecks': [],
+            'database_bottlenecks': [],
+            'network_bottlenecks': [],
+            'recommendations': []
+        }
+        
+        # Get performance data for analysis
+        query = """
+        SELECT 
+            component,
+            operation,
+            AVG(latency_ms) as avg_latency,
+            MAX(latency_ms) as max_latency,
+            AVG(cpu_usage_percent) as avg_cpu,
+            AVG(memory_usage_mb) as avg_memory,
+            AVG(gpu_usage_percent) as avg_gpu,
+            COUNT(*) as operation_count
+        FROM ts_performance_analytics
+        WHERE time >= $1
+        GROUP BY component, operation
+        HAVING AVG(latency_ms) > $2 OR AVG(cpu_usage_percent) > 80 OR AVG(memory_usage_mb) > 1000
+        ORDER BY avg_latency DESC
+        """
+        
+        async with service.async_engine.connect() as conn:
+            result = await conn.execute(text(query), (start_time, QUERY_LATENCY_TARGET_MS))
+            
+            for row in result:
+                bottleneck_entry = {
+                    'component': row.component,
+                    'operation': row.operation,
+                    'avg_latency_ms': float(row.avg_latency),
+                    'max_latency_ms': float(row.max_latency),
+                    'avg_cpu_percent': float(row.avg_cpu) if row.avg_cpu else 0,
+                    'avg_memory_mb': float(row.avg_memory) if row.avg_memory else 0,
+                    'avg_gpu_percent': float(row.avg_gpu) if row.avg_gpu else 0,
+                    'operation_count': int(row.operation_count),
+                    'severity': 'high' if row.avg_latency > QUERY_LATENCY_TARGET_MS * 5 else 'medium'
+                }
+                
+                # Categorize bottlenecks
+                if row.avg_cpu and row.avg_cpu > 80:
+                    bottleneck_analysis['cpu_bottlenecks'].append(bottleneck_entry)
+                
+                if row.avg_memory and row.avg_memory > 1000:
+                    bottleneck_analysis['memory_bottlenecks'].append(bottleneck_entry)
+                
+                if row.avg_gpu and row.avg_gpu > 90:
+                    bottleneck_analysis['gpu_bottlenecks'].append(bottleneck_entry)
+                elif row.avg_gpu and row.avg_gpu < 10:
+                    bottleneck_analysis['gpu_bottlenecks'].append({
+                        **bottleneck_entry,
+                        'issue_type': 'underutilized'
+                    })
+                
+                if row.avg_latency > QUERY_LATENCY_TARGET_MS * 2:
+                    bottleneck_analysis['database_bottlenecks'].append(bottleneck_entry)
+        
+        # Generate François Coppens recommendations
+        recommendations = []
+        
+        if bottleneck_analysis['cpu_bottlenecks']:
+            recommendations.append("High CPU usage detected. Consider optimizing compute-intensive operations or scaling horizontally.")
+        
+        if bottleneck_analysis['memory_bottlenecks']:
+            recommendations.append("Memory pressure detected. Review memory allocation and implement caching strategies.")
+        
+        if any(b.get('issue_type') == 'underutilized' for b in bottleneck_analysis['gpu_bottlenecks']):
+            recommendations.append("GPU underutilization detected. Enable GPU acceleration for analytics workloads.")
+        
+        if bottleneck_analysis['database_bottlenecks']:
+            recommendations.append("Database latency issues detected. Optimize queries, add indexes, or review connection pooling.")
+        
+        if not any(bottleneck_analysis.values()):
+            recommendations.append("No significant bottlenecks detected. System performing within François Coppens standards.")
+        
+        bottleneck_analysis['recommendations'] = recommendations
+        
+        return bottleneck_analysis
+        
+    except Exception as e:
+        logger.error(f"Error analyzing bottlenecks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/optimization/recommendations")
+async def get_optimization_recommendations(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Get François Coppens optimization recommendations"""
+    try:
+        recommendations = await service._get_optimization_recommendations()
+        
+        return {
+            "recommendations": recommendations,
+            "performance_standards": {
+                "query_latency_target_ms": QUERY_LATENCY_TARGET_MS,
+                "memory_efficiency_target": 0.8,
+                "gpu_utilization_target": 0.9
             },
             "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        logger.error(f"Error getting optimization recommendations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Backward compatibility endpoints
+
+@router.post("/metrics", response_model=Dict[str, str])
+async def record_metric(
+    request: dict,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Backward compatibility endpoint for metric recording"""
+    try:
+        # Convert to enhanced request format
+        enhanced_request = AdvancedMetricRequest(**request)
+        response = await record_advanced_metric(enhanced_request, BackgroundTasks(), current_user, service)
+        return {"status": response["status"]}
+        
+    except Exception as e:
+        logger.error(f"Error in backward compatibility metric endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dashboard")
+async def get_dashboard_data(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Backward compatibility dashboard endpoint"""
+    try:
+        return await service.generate_analytics_dashboard_data()
+        
+    except Exception as e:
+        logger.error(f"Error generating dashboard data: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/retention-policies")
+async def get_retention_policies(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Get current retention policy status"""
+    try:
+        policies = await service.get_retention_policy_status()
+        return policies
+        
+    except Exception as e:
+        logger.error(f"Error getting retention policies: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/hypertables")
+async def get_hypertable_info(
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Get hypertable information and statistics"""
+    try:
+        info = await service.get_hypertable_info()
+        return info
+        
+    except Exception as e:
+        logger.error(f"Error getting hypertable info: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/health", response_model=HealthCheckResponse)
+async def health_check():
+    """
+    Comprehensive health check for advanced analytics service
+    François Coppens: Validates sub-10ms performance targets
+    """
+    start_time = time.time()
+    
+    try:
+        service = await get_analytics_service()
+        
+        # Basic functionality test
+        test_time = datetime.utcnow()
+        
+        # Test database connectivity
+        database_connectivity = False
+        try:
+            async with service.async_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+                database_connectivity = True
+        except Exception as e:
+            logger.error(f"Database connectivity test failed: {e}")
+        
+        # Test continuous aggregates
+        continuous_aggregates_active = False
+        try:
+            async with service.async_engine.connect() as conn:
+                result = await conn.execute(text("""
+                    SELECT COUNT(*) as ca_count 
+                    FROM timescaledb_information.continuous_aggregates
+                    WHERE view_name IN ('ts_metrics_1min', 'ts_performance_5min', 'ts_rag_hourly')
+                """))
+                ca_count = result.scalar()
+                continuous_aggregates_active = ca_count >= 3
+        except Exception as e:
+            logger.warning(f"Continuous aggregates check failed: {e}")
+        
+        # Performance test
+        health_check_latency_ms = (time.time() - start_time) * 1000
+        performance_targets_met = health_check_latency_ms <= QUERY_LATENCY_TARGET_MS
+        
+        issues = []
+        if not database_connectivity:
+            issues.append("Database connectivity failed")
+        
+        if not continuous_aggregates_active:
+            issues.append("Continuous aggregates not fully active")
+        
+        if not performance_targets_met:
+            issues.append(f"Health check latency {health_check_latency_ms:.2f}ms exceeded target {QUERY_LATENCY_TARGET_MS}ms")
+        
+        # Determine overall status
+        if not database_connectivity:
+            status = "unhealthy"
+        elif issues:
+            status = "degraded"
+        else:
+            status = "healthy"
+        
+        return HealthCheckResponse(
+            service="advanced_timescale_analytics",
+            status=status,
+            initialized=service._initialized,
+            gpu_available=service.gpu_analytics.device_count > 0,
+            performance_targets_met=performance_targets_met,
+            database_connectivity=database_connectivity,
+            continuous_aggregates_active=continuous_aggregates_active,
+            health_check_latency_ms=health_check_latency_ms,
+            issues=issues
+        )
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return HealthCheckResponse(
+            service="advanced_timescale_analytics",
+            status="unhealthy",
+            initialized=False,
+            gpu_available=False,
+            performance_targets_met=False,
+            database_connectivity=False,
+            continuous_aggregates_active=False,
+            health_check_latency_ms=(time.time() - start_time) * 1000,
+            issues=[f"Health check failed: {str(e)}"]
         )
 
 
-@router.get("/")
-async def analytics_info():
-    """Get analytics service information."""
-    return {
-        "service": "KnowledgeHub Analytics API",
-        "version": "1.0.0",
-        "features": [
-            "Real-time metrics collection",
-            "Metric aggregation and analysis",
-            "Alert management",
-            "Dashboard data",
-            "Trend analysis",
-            "Data export"
-        ],
-        "endpoints": {
-            "metrics": "/analytics/metrics/*",
-            "dashboard": "/analytics/dashboard/*",
-            "alerts": "/analytics/alerts/*",
-            "export": "/analytics/export/*",
-            "collector": "/analytics/collector/*"
-        }
-    }
+# Integration endpoints for RAG pipeline and FPGA workflow
+
+@router.post("/integrations/rag/track")
+async def track_rag_integration(
+    request: dict,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Track RAG pipeline integration metrics"""
+    try:
+        # Record RAG performance from pipeline
+        await service.record_rag_performance(
+            query_id=request.get('query_id', str(uuid.uuid4())),
+            query_type=request.get('query_type', 'general'),
+            retrieval_time_ms=request.get('retrieval_time_ms', 0.0),
+            generation_time_ms=request.get('generation_time_ms', 0.0),
+            chunk_count=request.get('chunk_count', 0),
+            relevance_score=request.get('relevance_score'),
+            tokens_processed=request.get('tokens_processed'),
+            model_used=request.get('model_used'),
+            success=request.get('success', True)
+        )
+        
+        # Record as general metric for dashboard
+        await service.record_metric(
+            MetricType.RAG_PERFORMANCE,
+            request.get('retrieval_time_ms', 0.0) + request.get('generation_time_ms', 0.0),
+            tags={'query_type': request.get('query_type', 'general')},
+            metadata=request
+        )
+        
+        return {"status": "tracked", "integration": "rag_pipeline"}
+        
+    except Exception as e:
+        logger.error(f"Error tracking RAG integration: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/integrations/fpga/track")
+async def track_fpga_integration(
+    request: dict,
+    current_user: dict = Depends(get_current_user),
+    service: TimeSeriesAnalyticsService = Depends(get_analytics_service)
+):
+    """Track FPGA workflow engine integration metrics"""
+    try:
+        # Record FPGA utilization metrics
+        await service.record_metric(
+            MetricType.FPGA_UTILIZATION,
+            request.get('utilization_percent', 0.0),
+            tags={
+                'workflow_type': request.get('workflow_type', 'general'),
+                'acceleration_enabled': str(request.get('acceleration_enabled', False))
+            },
+            metadata=request
+        )
+        
+        # Record performance metrics
+        if 'processing_time_ms' in request:
+            await service.record_performance_metric(
+                component="fpga_workflow",
+                operation=request.get('workflow_type', 'general'),
+                latency_ms=request['processing_time_ms'],
+                throughput_ops_sec=request.get('throughput_ops_sec'),
+                metadata=request
+            )
+        
+        return {"status": "tracked", "integration": "fpga_workflow"}
+        
+    except Exception as e:
+        logger.error(f"Error tracking FPGA integration: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -896,9 +896,7 @@ class TimeSeriesAnalyticsService:
                 owner,
                 num_dimensions,
                 num_chunks,
-                table_bytes,
-                index_bytes,
-                total_bytes
+                compression_enabled
             FROM timescaledb_information.hypertables 
             ORDER BY hypertable_name
             """
@@ -913,9 +911,10 @@ class TimeSeriesAnalyticsService:
                         'owner': row.owner,
                         'dimensions': int(row.num_dimensions),
                         'chunks': int(row.num_chunks) if row.num_chunks else 0,
-                        'table_size_bytes': int(row.table_bytes) if row.table_bytes else 0,
-                        'index_size_bytes': int(row.index_bytes) if row.index_bytes else 0,
-                        'total_size_bytes': int(row.total_bytes) if row.total_bytes else 0
+                        "table_size_bytes": 0,  # Not available in this TimescaleDB version
+                        "index_size_bytes": 0,  # Not available in this TimescaleDB version
+                        "total_size_bytes": 0,  # Not available in this TimescaleDB version
+                        "compression_enabled": bool(row.compression_enabled) if row.compression_enabled is not None else False
                     })
             
             return {
