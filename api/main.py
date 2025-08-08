@@ -15,9 +15,34 @@ from typing import Dict, Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from .routers import sources, search, jobs, websocket, memories, chunks, documents, scheduler, project_timeline, admin, exports, claude_simple, claude_working, claude_sync, internal, scraping_status, ai_features, activity, memory_stats, hybrid_memory, tasks
+# =====================================================
+# ROUTER IMPORTS - Organized by Category
+# =====================================================
 
-# Try to import RAG router with fallback
+# Core routers (always available)
+from .routers import (
+    sources, search, jobs, websocket, memories, chunks, documents, 
+    scheduler, project_timeline, admin, exports, claude_simple, 
+    claude_working, claude_sync, internal, scraping_status, 
+    ai_features, activity, memory_stats, hybrid_memory, tasks
+)
+
+# AI Intelligence Features (always available)
+from .routers import (
+    claude_auto, project_context, mistake_learning, proactive,
+    decision_reasoning, code_evolution, performance_metrics,
+    claude_workflow, realtime_learning, pattern_recognition,
+    claude_integration
+)
+
+# Analytics router with fallback
+try:
+    from .routers import analytics
+except ImportError:
+    # Fallback if psutil not available
+    from .routers import analytics_fixed as analytics
+
+# RAG System with fallback
 try:
     from .routers import rag
     RAG_ROUTER = rag
@@ -25,106 +50,43 @@ try:
 except ImportError as e:
     logger.warning(f"Full RAG router not available: {e}. Using simple RAG router.")
     from .routers import rag_simple as RAG_ROUTER
-from .routers import (
-    claude_auto,
-    project_context,
-    mistake_learning,
-    proactive,
-    decision_reasoning,
-    code_evolution,
-    performance_metrics,
-    claude_workflow,
-    realtime_learning,
-    pattern_recognition,
-    claude_integration
-)
 
-# Try to import unified search router
-try:
-    from .routers import unified_search
-    UNIFIED_SEARCH_AVAILABLE = True
-    logger.info("Unified search router imported successfully")
-except ImportError as e:
-    logger.warning(f"Unified search router not available: {e}")
-    UNIFIED_SEARCH_AVAILABLE = False
+# =====================================================
+# CONDITIONAL ROUTER IMPORTS
+# =====================================================
 
-# Try to import new services, gracefully handle import errors
-try:
-    from .routers import code_embeddings
-    CODE_EMBEDDINGS_AVAILABLE = True
-    logger.info("Code embeddings router imported successfully")
-except ImportError as e:
-    logger.warning(f"Code embeddings router not available: {e}")
-    CODE_EMBEDDINGS_AVAILABLE = False
+def safe_import_router(module_name, variable_name=None, description=None):
+    """Safely import router and return (router, availability_flag)"""
+    try:
+        router_module = __import__(f".routers.{module_name}", fromlist=[module_name], level=1)
+        if description:
+            logger.info(f"{description} router imported successfully")
+        return router_module, True
+    except ImportError as e:
+        if description:
+            logger.warning(f"{description} router not available: {e}")
+        return None, False
 
-try:
-    from .routers import knowledge_graph
-    KNOWLEDGE_GRAPH_AVAILABLE = True
-    logger.info("Knowledge graph router imported successfully")
-except ImportError as e:
-    logger.warning(f"Knowledge graph router not available: {e}")
-    KNOWLEDGE_GRAPH_AVAILABLE = False
+# Advanced Features
+semantic_analysis, SEMANTIC_ANALYSIS_AVAILABLE = safe_import_router("semantic_analysis", description="Semantic analysis")
+rag_advanced, RAG_ADVANCED_AVAILABLE = safe_import_router("rag_advanced", description="Advanced RAG")
+unified_search, UNIFIED_SEARCH_AVAILABLE = safe_import_router("unified_search", description="Unified search")
+graphrag, GRAPHRAG_AVAILABLE = safe_import_router("graphrag", description="GraphRAG")
 
-try:
-    from .routers import timescale_analytics
-    TIME_SERIES_AVAILABLE = True
-    logger.info("TimescaleDB analytics router imported successfully")
-except ImportError as e:
-    logger.warning(f"TimescaleDB analytics router not available: {e}")
-    TIME_SERIES_AVAILABLE = False
+# Enterprise Features
+code_embeddings, CODE_EMBEDDINGS_AVAILABLE = safe_import_router("code_embeddings", description="Code embeddings")
+knowledge_graph, KNOWLEDGE_GRAPH_AVAILABLE = safe_import_router("knowledge_graph", description="Knowledge graph")
+timescale_analytics, TIME_SERIES_AVAILABLE = safe_import_router("timescale_analytics", description="TimescaleDB analytics")
+object_storage, OBJECT_STORAGE_AVAILABLE = safe_import_router("object_storage", description="Object storage")
 
-try:
-    from .routers import object_storage
-    OBJECT_STORAGE_AVAILABLE = True
-    logger.info("Object storage router imported successfully")
-except ImportError as e:
-    logger.warning(f"Object storage router not available: {e}")
-    OBJECT_STORAGE_AVAILABLE = False
+# Session and Error Management
+session_management, SESSION_MANAGEMENT_AVAILABLE = safe_import_router("session_management", description="Session management")
+error_tracking, ERROR_TRACKING_AVAILABLE = safe_import_router("error_tracking", description="Error tracking")
+enhanced_decisions, ENHANCED_DECISIONS_AVAILABLE = safe_import_router("enhanced_decisions", description="Enhanced decisions")
 
-try:
-    from .routers import session_management
-    SESSION_MANAGEMENT_AVAILABLE = True
-    logger.info("Session management router imported successfully")
-except ImportError as e:
-    logger.warning(f"Session management router not available: {e}")
-    SESSION_MANAGEMENT_AVAILABLE = False
-
-try:
-    from .routers import error_tracking
-    ERROR_TRACKING_AVAILABLE = True
-    logger.info("Error tracking router imported successfully")
-except ImportError as e:
-    logger.warning(f"Error tracking router not available: {e}")
-    ERROR_TRACKING_AVAILABLE = False
-
-try:
-    from .routers import enhanced_decisions
-    ENHANCED_DECISIONS_AVAILABLE = True
-    logger.info("Enhanced decisions router imported successfully")
-except ImportError as e:
-    logger.warning(f"Enhanced decisions router not available: {e}")
-    ENHANCED_DECISIONS_AVAILABLE = False
-
-try:
-    from .routers import workflow_integration
-    WORKFLOW_ROUTER_AVAILABLE = True
-    logger.info("Workflow integration router imported successfully")
-except ImportError as e:
-    logger.warning(f"Workflow integration router not available: {e}")
-    WORKFLOW_ROUTER_AVAILABLE = False
-
-try:
-    from .routers import memory_sync
-    MEMORY_SYNC_ROUTER_AVAILABLE = True
-    logger.info("Memory sync router imported successfully")
-except ImportError as e:
-    logger.warning(f"Memory sync router not available: {e}")
-    MEMORY_SYNC_ROUTER_AVAILABLE = False
-try:
-    from .routes import analytics
-except ImportError:
-    # Fallback if psutil not available
-    from .routes import analytics_fixed as analytics
+# Workflow and Integration
+workflow_integration, WORKFLOW_ROUTER_AVAILABLE = safe_import_router("workflow_integration", description="Workflow integration")
+memory_sync, MEMORY_SYNC_ROUTER_AVAILABLE = safe_import_router("memory_sync", description="Memory sync")
 from .routes import auth, cors_security, security_monitoring, security_headers, rate_limiting, persistent_context_simple
 from .services.startup import initialize_services, shutdown_services
 from .services.real_startup_service import startup_handler, shutdown_handler, get_real_services_health, get_real_services_metrics
@@ -366,22 +328,20 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Include routers
-app.include_router(auth.router)  # Authentication endpoints
-app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])  # CORS security management
-app.include_router(security_monitoring.router, prefix="/api", tags=["security"])  # Security monitoring
-app.include_router(security_headers.router, prefix="/api", tags=["security"])  # Security headers
-app.include_router(rate_limiting.router, prefix="/api", tags=["security"])  # Rate limiting and DDoS protection
-app.include_router(persistent_context_simple.router, prefix="/api/persistent-context", tags=["memory"])  # Persistent context
+# =====================================================
+# ROUTER REGISTRATION - Organized by Category
+# =====================================================
+
+# Security and Authentication
+app.include_router(auth.router)
+app.include_router(cors_security.router, prefix="/api/security/cors", tags=["security"])
+app.include_router(security_monitoring.router, prefix="/api", tags=["security"])
+app.include_router(security_headers.router, prefix="/api", tags=["security"])
+app.include_router(rate_limiting.router, prefix="/api", tags=["security"])
+
+# Core API Endpoints
 app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
-
-# Unified Search router
-if UNIFIED_SEARCH_AVAILABLE:
-    app.include_router(unified_search.router, prefix="/api/v1/search", tags=["unified-search"])
-    logger.info("Unified search router added successfully")
-else:
-    logger.warning("Unified search router not available")
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
 app.include_router(tasks.router, prefix="", tags=["tasks"])
 app.include_router(chunks.router, prefix="/api/v1/chunks", tags=["chunks"])
@@ -391,118 +351,111 @@ app.include_router(scheduler.router, prefix="/api/v1/scheduler", tags=["schedule
 app.include_router(project_timeline.router, prefix="/api/v1", tags=["project-timeline"])
 app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 app.include_router(exports.router, prefix="/api/v1", tags=["exports"])
-if WORKFLOW_ROUTER_AVAILABLE:
-    app.include_router(workflow_integration.router, prefix="/api/v1", tags=["workflow"])
-    logger.info("Workflow integration router added successfully")
-else:
-    logger.warning("Workflow integration router not available")
-
-if MEMORY_SYNC_ROUTER_AVAILABLE:
-    app.include_router(memory_sync.router, prefix="/api/v1", tags=["memory-sync"])
-    logger.info("Memory sync router added successfully")
-else:
-    logger.warning("Memory sync router not available")
-app.include_router(analytics.router, prefix="/api", tags=["analytics"])
-app.include_router(claude_simple.router, tags=["claude-enhancements"])
-app.include_router(claude_working.router, tags=["claude-working"])
-app.include_router(claude_sync.router, tags=["claude-sync"])
 app.include_router(internal.router, prefix="/api/internal", tags=["internal"])
 app.include_router(scraping_status.router, prefix="/api/v1/scraping", tags=["scraping"])
 
-# AI Features Summary
-app.include_router(ai_features.router, tags=["ai-features"])
-
-# Activity Tracking
-app.include_router(activity.router, tags=["activity"])
-
-# Memory Stats - UI compatibility endpoint
+# Memory Systems
+app.include_router(persistent_context_simple.router, prefix="/api/persistent-context", tags=["memory"])
 app.include_router(memory_stats.router, tags=["memory-stats"])
-
-# Hybrid Memory System - Nova-style local + distributed
 app.include_router(hybrid_memory.router, prefix="/api/hybrid", tags=["hybrid-memory"])
 
-# RAG (Retrieval-Augmented Generation) System
+# AI Intelligence Features (always available)
+app.include_router(claude_simple.router, tags=["claude-enhancements"])
+app.include_router(claude_working.router, tags=["claude-working"])
+app.include_router(claude_sync.router, tags=["claude-sync"])
+app.include_router(ai_features.router, tags=["ai-features"])
+app.include_router(activity.router, tags=["activity"])
+app.include_router(claude_auto.router, tags=["claude-auto"])
+app.include_router(project_context.router, tags=["project-context"])
+app.include_router(mistake_learning.router, tags=["mistake-learning"])
+app.include_router(proactive.router, tags=["proactive"])
+app.include_router(decision_reasoning.router, tags=["decision-reasoning"])
+app.include_router(code_evolution.router, tags=["code-evolution"])
+app.include_router(performance_metrics.router, tags=["performance-metrics"])
+app.include_router(claude_workflow.router, tags=["claude-workflow"])
+app.include_router(realtime_learning.router, tags=["realtime-learning"])
+app.include_router(pattern_recognition.router, tags=["pattern-recognition"])
+app.include_router(claude_integration.router, tags=["claude-integration"])
+
+# RAG Systems
 app.include_router(RAG_ROUTER.router, tags=["rag"])
 
+# Analytics
+app.include_router(analytics.router, prefix="/api", tags=["analytics"])
+
+# Conditional Routers - Advanced Features
+if SEMANTIC_ANALYSIS_AVAILABLE:
+    app.include_router(semantic_analysis.router, tags=["semantic-analysis"])
+    logger.info("Semantic analysis router registered")
+
+if RAG_ADVANCED_AVAILABLE:
+    app.include_router(rag_advanced.router, tags=["rag-advanced"])
+    logger.info("Advanced RAG router registered")
+
+if UNIFIED_SEARCH_AVAILABLE:
+    app.include_router(unified_search.router, prefix="/api/v1/search", tags=["unified-search"])
+    logger.info("Unified search router registered")
+
+if GRAPHRAG_AVAILABLE:
+    app.include_router(graphrag.router, tags=["graphrag"])
+    logger.info("GraphRAG router registered")
+
+# Conditional Routers - Enterprise Features
+if CODE_EMBEDDINGS_AVAILABLE:
+    app.include_router(code_embeddings.router, tags=["code-embeddings"])
+    logger.info("Code embeddings router registered")
+
+if KNOWLEDGE_GRAPH_AVAILABLE:
+    app.include_router(knowledge_graph.router, tags=["knowledge-graph"])
+    logger.info("Knowledge graph router registered")
+
+if TIME_SERIES_AVAILABLE:
+    app.include_router(timescale_analytics.router, tags=["timescale-analytics"])
+    logger.info("TimescaleDB analytics router registered")
+
+if OBJECT_STORAGE_AVAILABLE:
+    app.include_router(object_storage.router, tags=["object-storage"])
+    logger.info("Object storage router registered")
+
+# Conditional Routers - Session and Error Management
+if SESSION_MANAGEMENT_AVAILABLE:
+    app.include_router(session_management.router, tags=["session-management"])
+    logger.info("Session management router registered")
+
+if ERROR_TRACKING_AVAILABLE:
+    app.include_router(error_tracking.router, tags=["error-tracking"])
+    logger.info("Error tracking router registered")
+
+if ENHANCED_DECISIONS_AVAILABLE:
+    app.include_router(enhanced_decisions.router, prefix="/api/enhanced", tags=["decision-recording"])
+    logger.info("Enhanced decisions router registered")
+
+# Conditional Routers - Workflow and Integration
+if WORKFLOW_ROUTER_AVAILABLE:
+    app.include_router(workflow_integration.router, prefix="/api/v1", tags=["workflow"])
+    logger.info("Workflow integration router registered")
+
+if MEMORY_SYNC_ROUTER_AVAILABLE:
+    app.include_router(memory_sync.router, prefix="/api/v1", tags=["memory-sync"])
+    logger.info("Memory sync router registered")
+# Additional Conditional Routers - Extended Features
+# LlamaIndex RAG System (Enterprise RAG with mathematical optimizations)
+llamaindex_rag, LLAMAINDEX_AVAILABLE = safe_import_router("llamaindex_rag", description="LlamaIndex RAG")
+if LLAMAINDEX_AVAILABLE:
+    app.include_router(llamaindex_rag.router, tags=["llamaindex-rag"])
+    logger.info("LlamaIndex RAG router registered")
+
 # Zep Memory System (Conversational Memory)
-try:
-    from .routers import zep_memory
+zep_memory, ZEP_AVAILABLE = safe_import_router("zep_memory", description="Zep memory")
+if ZEP_AVAILABLE:
     app.include_router(zep_memory.router, tags=["zep-memory"])
-    logger.info("Zep memory router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Zep memory router not available: {e}")
+    logger.info("Zep memory router registered")
 
 # Multi-Agent System (Complex query processing with specialized agents)
-try:
-    from .routers import multi_agent
+multi_agent, MULTI_AGENT_AVAILABLE = safe_import_router("multi_agent", description="Multi-agent")
+if MULTI_AGENT_AVAILABLE:
     app.include_router(multi_agent.router, tags=["multi-agent"])
-    logger.info("Multi-agent router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Multi-agent router not available: {e}")
-
-# Claude Auto - Automatic session management
-try:
-    from .routers import claude_auto
-    app.include_router(claude_auto.router, tags=["claude-auto"])
-    logger.info("Claude Auto router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Claude Auto router not available: {e}")
-
-# Project Context - Per-project isolation
-try:
-    from .routers import project_context
-    app.include_router(project_context.router, tags=["project-context"])
-    logger.info("Project Context router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Project Context router not available: {e}")
-
-# Mistake Learning - Learn from errors to prevent repetition
-try:
-    from .routers import mistake_learning
-    app.include_router(mistake_learning.router, tags=["mistake-learning"])
-    logger.info("Mistake Learning router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Mistake Learning router not available: {e}")
-
-# Proactive Assistant - Anticipate needs and provide assistance
-try:
-    from .routers import proactive
-    app.include_router(proactive.router, tags=["proactive"])
-    logger.info("Proactive Assistant router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Proactive Assistant router not available: {e}")
-
-# Decision Reasoning - Track decisions, alternatives, and reasoning with confidence scores
-try:
-    from .routers import decision_reasoning
-    app.include_router(decision_reasoning.router, tags=["decision-reasoning"])
-    logger.info("Decision Reasoning router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Decision Reasoning router not available: {e}")
-
-# Code Evolution - Track code changes, refactoring patterns, and improvements over time
-try:
-    from .routers import code_evolution
-    app.include_router(code_evolution.router, tags=["code-evolution"])
-    logger.info("Code Evolution router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Code Evolution router not available: {e}")
-
-# Performance Metrics - Track command execution patterns, success rates, and optimize performance
-try:
-    from .routers import performance_metrics
-    app.include_router(performance_metrics.router, tags=["performance-metrics"])
-    logger.info("Performance Metrics router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Performance Metrics router not available: {e}")
-
-# Claude Workflow Integration - Automatic memory capture and context extraction
-try:
-    from .routers import claude_workflow
-    app.include_router(claude_workflow.router, tags=["claude-workflow"])
-    logger.info("Claude Workflow Integration router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Claude Workflow Integration router not available: {e}")
+    logger.info("Multi-agent router registered")
 
 # Real AI and WebSocket endpoints
 @app.get("/api/real-services/health")
@@ -632,209 +585,118 @@ async def performance_insights_endpoint(request: Request):
         logger.error(f"Performance insights failed: {e}")
         return {"error": str(e)}
 
-# Performance optimization router
-try:
-    from .routes import performance
-    app.include_router(performance.router, prefix="/api", tags=["performance"])
-    logger.info("Performance optimization router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Performance optimization router not available: {e}")
-
-# Real-time Learning Pipeline router
-try:
-    app.include_router(realtime_learning.router, tags=["realtime-learning"])
-    logger.info("Real-time Learning Pipeline router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Real-time Learning Pipeline router not available: {e}")
-
-# Pattern Recognition router
-try:
-    app.include_router(pattern_recognition.router, tags=["pattern-recognition"])
-    logger.info("Pattern Recognition router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Pattern Recognition router not available: {e}")
-
-# Background Jobs router
-try:
-    from .routers import background_jobs
-    app.include_router(background_jobs.router, tags=["background-jobs"])
-    logger.info("Background Jobs router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Background Jobs router not available: {e}")
-
-# Monitoring router
-try:
-    from .routers import monitoring
-    app.include_router(monitoring.router, tags=["monitoring"])
-    logger.info("Monitoring router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Monitoring router not available: {e}")
-
-# Claude Code Integration router
-try:
-    app.include_router(claude_integration.router, tags=["claude-integration"])
-    logger.info("Claude Code Integration router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Claude Code Integration router not available: {e}")
-
-# GitHub Copilot Enhancement router
-try:
-    from .routes import copilot_enhancement
-    app.include_router(copilot_enhancement.router, tags=["copilot-enhancement"])
-    logger.info("GitHub Copilot Enhancement router integrated successfully")
-except ImportError as e:
-    logger.warning(f"GitHub Copilot Enhancement router not available: {e}")
-
-# Code embeddings router
-if CODE_EMBEDDINGS_AVAILABLE:
-    app.include_router(code_embeddings.router, tags=["code-embeddings"])
-    logger.info("Code embeddings router added successfully")
-
-# Knowledge graph router
-if KNOWLEDGE_GRAPH_AVAILABLE:
-    app.include_router(knowledge_graph.router, tags=["knowledge-graph"])
-    logger.info("Knowledge graph router added successfully")
-
-# TimescaleDB analytics router
-if TIME_SERIES_AVAILABLE:
-    app.include_router(timescale_analytics.router, tags=["timescale-analytics"])
-    logger.info("TimescaleDB analytics router added successfully")
-
-# Object storage router
-if OBJECT_STORAGE_AVAILABLE:
-    app.include_router(object_storage.router, tags=["object-storage"])
-    logger.info("Object storage router added successfully")
-
-# Session management router
-if SESSION_MANAGEMENT_AVAILABLE:
-    app.include_router(session_management.router, tags=["session-management"])
-    logger.info("Session management router added successfully")
-
-# Error tracking router
-if ERROR_TRACKING_AVAILABLE:
-    app.include_router(error_tracking.router, tags=["error-tracking"])
-    logger.info("Error tracking router added successfully")
-
-# Enhanced decisions router
-if ENHANCED_DECISIONS_AVAILABLE:
-    app.include_router(enhanced_decisions.router, prefix="/api/enhanced", tags=["decision-recording"])
-    logger.info("Enhanced decisions router added successfully")
-
-# Health Monitoring - Production health checks and monitoring
-try:
-    from .routes import health_monitoring
-    app.include_router(health_monitoring.router, tags=["health-monitoring"])
-    logger.info("Health Monitoring router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Health Monitoring router not available: {e}")
-
-# Alert Management - Alert processing and notification system
-try:
-    from .routes import alert_management
-    app.include_router(alert_management.router, tags=["alert-management"])
-    logger.info("Alert Management router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Alert Management router not available: {e}")
-
-# Tracing Management - Distributed tracing and performance analysis
-try:
-    from .routes import tracing_management
-    app.include_router(tracing_management.router, tags=["tracing-management"])
-    logger.info("Tracing Management router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Tracing Management router not available: {e}")
-
-# Recovery Management - Service recovery and self-healing system
-try:
-    from .routes import recovery_management
-    app.include_router(recovery_management.router, tags=["recovery-management"])
-    logger.info("Recovery Management router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Recovery Management router not available: {e}")
-
-# Database Recovery - Database connection recovery and retry logic
-try:
-    from .routes import database_recovery
-    app.include_router(database_recovery.router, tags=["database-recovery"])
-    logger.info("Database Recovery router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Database Recovery router not available: {e}")
-
-# Circuit Breaker Management - Circuit breaker patterns for external services
-try:
-    from .routes import circuit_breaker_management
-    app.include_router(circuit_breaker_management.router, tags=["circuit-breaker"])
-    logger.info("Circuit Breaker Management router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Circuit Breaker Management router not available: {e}")
-
 # WebSocket router
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 
-# Unified search router
-try:
-    from .routers import unified_search
-    app.include_router(unified_search.router, prefix="/api/v1/search", tags=["unified-search"])
-    logger.info("Unified search router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Unified search router not available: {e}")
+# Routes-based routers (from .routes)
+def safe_import_route(module_name, description=None):
+    """Safely import route and return (router, availability_flag)"""
+    try:
+        route_module = __import__(f".routes.{module_name}", fromlist=[module_name], level=1)
+        if description:
+            logger.info(f"{description} route imported successfully")
+        return route_module, True
+    except ImportError as e:
+        if description:
+            logger.warning(f"{description} route not available: {e}")
+        return None, False
 
-# Public search router (no auth required)
-try:
-    from .routers import public_search
+# Performance and Monitoring Routes
+performance, PERFORMANCE_AVAILABLE = safe_import_route("performance", description="Performance optimization")
+if PERFORMANCE_AVAILABLE:
+    app.include_router(performance.router, prefix="/api", tags=["performance"])
+
+copilot_enhancement, COPILOT_AVAILABLE = safe_import_route("copilot_enhancement", description="GitHub Copilot Enhancement")
+if COPILOT_AVAILABLE:
+    app.include_router(copilot_enhancement.router, tags=["copilot-enhancement"])
+
+health_monitoring, HEALTH_MONITORING_AVAILABLE = safe_import_route("health_monitoring", description="Health Monitoring")
+if HEALTH_MONITORING_AVAILABLE:
+    app.include_router(health_monitoring.router, tags=["health-monitoring"])
+
+alert_management, ALERT_MANAGEMENT_AVAILABLE = safe_import_route("alert_management", description="Alert Management")
+if ALERT_MANAGEMENT_AVAILABLE:
+    app.include_router(alert_management.router, tags=["alert-management"])
+
+tracing_management, TRACING_MANAGEMENT_AVAILABLE = safe_import_route("tracing_management", description="Tracing Management")
+if TRACING_MANAGEMENT_AVAILABLE:
+    app.include_router(tracing_management.router, tags=["tracing-management"])
+
+recovery_management, RECOVERY_MANAGEMENT_AVAILABLE = safe_import_route("recovery_management", description="Recovery Management")
+if RECOVERY_MANAGEMENT_AVAILABLE:
+    app.include_router(recovery_management.router, tags=["recovery-management"])
+
+database_recovery, DATABASE_RECOVERY_AVAILABLE = safe_import_route("database_recovery", description="Database Recovery")
+if DATABASE_RECOVERY_AVAILABLE:
+    app.include_router(database_recovery.router, tags=["database-recovery"])
+
+circuit_breaker_management, CIRCUIT_BREAKER_AVAILABLE = safe_import_route("circuit_breaker_management", description="Circuit Breaker Management")
+if CIRCUIT_BREAKER_AVAILABLE:
+    app.include_router(circuit_breaker_management.router, tags=["circuit-breaker"])
+
+# Additional router imports
+background_jobs, BACKGROUND_JOBS_AVAILABLE = safe_import_router("background_jobs", description="Background Jobs")
+if BACKGROUND_JOBS_AVAILABLE:
+    app.include_router(background_jobs.router, tags=["background-jobs"])
+
+monitoring, MONITORING_AVAILABLE = safe_import_router("monitoring", description="Monitoring")
+if MONITORING_AVAILABLE:
+    app.include_router(monitoring.router, tags=["monitoring"])
+
+public_search, PUBLIC_SEARCH_AVAILABLE = safe_import_router("public_search", description="Public search")
+if PUBLIC_SEARCH_AVAILABLE:
     app.include_router(public_search.router, tags=["public"])
-    logger.info("Public search router integrated successfully")
-except ImportError as e:
-    logger.warning(f"Public search router not available: {e}")
 
-# Memory system routers
+# Memory system routers (complex import)
 try:
-    from .memory_system.api.routers import session as memory_session
-    from .memory_system.api.routers import memory as memory_router
-    from .memory_system.api.routers import vector_search
-    from .memory_system.api.routers import context as context_router
-    from .memory_system.api.routers import session_admin
-    from .memory_system.api.routers import session_linking
-    from .memory_system.api.routers import session_lifecycle
-    from .memory_system.api.routers import text_processing
-    from .memory_system.api.routers import entity_extraction
-    from .memory_system.api.routers import fact_extraction
-    from .memory_system.api.routers import importance_scoring
-    from .memory_system.api.routers import context_compression
-    from .memory_system.api.routers import persistent_context
-    app.include_router(memory_session.router, prefix="/api/memory/session", tags=["memory-session"])
-    app.include_router(memory_router.router, prefix="/api/memory/memories", tags=["memory"])
-    app.include_router(vector_search.router, prefix="/api/memory/vector", tags=["memory-vector"])
-    app.include_router(context_router.router, prefix="/api/memory/context", tags=["memory-context"])
-    app.include_router(session_admin.router, prefix="/api/memory/admin", tags=["memory-admin"])
-    app.include_router(session_linking.router, prefix="/api/memory/linking", tags=["memory-linking"])
-    app.include_router(session_lifecycle.router, prefix="/api/memory", tags=["memory-lifecycle"])
-    app.include_router(text_processing.router, prefix="/api/memory/text", tags=["memory-text"])
-    app.include_router(entity_extraction.router, prefix="/api/memory/entities", tags=["memory-entities"])
-    app.include_router(fact_extraction.router, prefix="/api/memory/facts", tags=["memory-facts"])
-    app.include_router(importance_scoring.router, prefix="/api/memory/importance", tags=["memory-importance"])
-    app.include_router(context_compression.router, prefix="/api/memory/compression", tags=["memory-compression"])
-    app.include_router(persistent_context.router, prefix="/api/memory/persistent", tags=["memory-persistent"])
-    logger.info("Memory system with context injection, text processing, entity extraction, fact extraction, importance scoring, context compression and persistent context integrated successfully")
+    from .memory_system.api.routers import (
+        session as memory_session,
+        memory as memory_router,
+        vector_search,
+        context as context_router,
+        session_admin,
+        session_linking,
+        session_lifecycle,
+        text_processing,
+        entity_extraction,
+        fact_extraction,
+        importance_scoring,
+        context_compression,
+        persistent_context
+    )
+    
+    # Register all memory system routers
+    memory_routers = [
+        (memory_session.router, "/api/memory/session", "memory-session"),
+        (memory_router.router, "/api/memory/memories", "memory"),
+        (vector_search.router, "/api/memory/vector", "memory-vector"),
+        (context_router.router, "/api/memory/context", "memory-context"),
+        (session_admin.router, "/api/memory/admin", "memory-admin"),
+        (session_linking.router, "/api/memory/linking", "memory-linking"),
+        (session_lifecycle.router, "/api/memory", "memory-lifecycle"),
+        (text_processing.router, "/api/memory/text", "memory-text"),
+        (entity_extraction.router, "/api/memory/entities", "memory-entities"),
+        (fact_extraction.router, "/api/memory/facts", "memory-facts"),
+        (importance_scoring.router, "/api/memory/importance", "memory-importance"),
+        (context_compression.router, "/api/memory/compression", "memory-compression"),
+        (persistent_context.router, "/api/memory/persistent", "memory-persistent"),
+    ]
+    
+    for router, prefix, tag in memory_routers:
+        app.include_router(router, prefix=prefix, tags=[tag])
+    
+    logger.info("Memory system routers registered successfully")
 except ImportError as e:
     logger.warning(f"Memory system not available: {e}")
 
-# Learning system router
-try:
-    # Using working learning router to avoid Pydantic SQLAlchemy issues
-    from .routers import learning_working
+# Learning system routers
+learning_working, LEARNING_AVAILABLE = safe_import_router("learning_working", description="Learning system")
+if LEARNING_AVAILABLE:
     app.include_router(learning_working.router, tags=["learning"])
-    logger.info("Learning system integrated successfully")
-except ImportError as e:
-    logger.warning(f"Learning system not available: {e}")
 
-# Cross-session learning router
-try:
-    from .routers import cross_session_learning
+cross_session_learning, CROSS_SESSION_LEARNING_AVAILABLE = safe_import_router("cross_session_learning", description="Cross-session learning")
+if CROSS_SESSION_LEARNING_AVAILABLE:
     app.include_router(cross_session_learning.router, prefix="/api", tags=["cross-session-learning"])
-    logger.info("Cross-session learning system integrated successfully")
-except ImportError as e:
-    logger.warning(f"Cross-session learning system not available: {e}")
 
 
 @app.get("/api", tags=["root"])
@@ -1109,3 +971,25 @@ async def global_exception_handler(request: Request, exc: Exception):
             "path": str(request.url.path)
         }
     )
+
+
+# =====================================================
+# SPECIALIZED FEATURE ROUTERS - End of File
+# =====================================================
+
+# FPGA Workflow Optimization System - Phase 2.3
+fpga_workflow, FPGA_WORKFLOW_AVAILABLE = safe_import_router("fpga_workflow", description="FPGA Workflow Optimization")
+if FPGA_WORKFLOW_AVAILABLE:
+    app.include_router(fpga_workflow.router, tags=["fpga-workflow"])
+
+# Cross-Domain Knowledge Synthesis System - Phase 2.4
+cross_domain_synthesis, CROSS_DOMAIN_AVAILABLE = safe_import_router("cross_domain_synthesis", description="Cross-Domain Knowledge Synthesis")
+if CROSS_DOMAIN_AVAILABLE:
+    app.include_router(cross_domain_synthesis.router, tags=["cross-domain-synthesis"])
+
+# Enterprise Features System - Multi-tenant, scaling, security
+enterprise, ENTERPRISE_AVAILABLE = safe_import_router("enterprise", description="Enterprise Features")
+if ENTERPRISE_AVAILABLE:
+    app.include_router(enterprise.router, tags=["enterprise"])
+
+
