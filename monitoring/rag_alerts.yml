@@ -1,0 +1,81 @@
+{
+  "groups": [
+    {
+      "name": "rag_system_alerts",
+      "rules": [
+        {
+          "alert": "RAGSystemDown",
+          "expr": "up{job='knowledgehub-api'} == 0",
+          "for": "1m",
+          "labels": {
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "KnowledgeHub API is down",
+            "description": "The KnowledgeHub API has been down for more than 1 minute"
+          }
+        },
+        {
+          "alert": "RAGHighLatency",
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job='knowledgehub-api'}[5m])) > 2",
+          "for": "3m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "High RAG query latency",
+            "description": "95th percentile latency is above 2 seconds"
+          }
+        },
+        {
+          "alert": "RAGHighErrorRate",
+          "expr": "rate(http_requests_total{job='knowledgehub-api',status=~'5..'}[5m]) / rate(http_requests_total{job='knowledgehub-api'}[5m]) > 0.1",
+          "for": "2m",
+          "labels": {
+            "severity": "critical"
+          },
+          "annotations": {
+            "summary": "High RAG error rate",
+            "description": "Error rate is above 10%"
+          }
+        },
+        {
+          "alert": "DatabaseConnectionHigh",
+          "expr": "pg_stat_activity_count > 80",
+          "for": "5m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "High database connection count",
+            "description": "PostgreSQL connection count is high"
+          }
+        },
+        {
+          "alert": "RedisMemoryHigh",
+          "expr": "redis_memory_used_bytes / redis_config_maxmemory_bytes > 0.9",
+          "for": "5m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "Redis memory usage high",
+            "description": "Redis memory usage is above 90%"
+          }
+        },
+        {
+          "alert": "VectorSearchLatency",
+          "expr": "histogram_quantile(0.95, rate(weaviate_query_duration_seconds_bucket[5m])) > 1",
+          "for": "3m",
+          "labels": {
+            "severity": "warning"
+          },
+          "annotations": {
+            "summary": "High vector search latency",
+            "description": "Weaviate query latency is above 1 second"
+          }
+        }
+      ]
+    }
+  ]
+}

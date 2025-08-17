@@ -373,7 +373,6 @@ export class WebSocketService {
         this.ws?.send(JSON.stringify(message));
         return true;
       } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
         return false;
       }
     } else {
@@ -460,7 +459,6 @@ export class WebSocketService {
   }
 
   private onConnected(): void {
-    console.log('WebSocket connected');
     
     this.connectionInfo = {
       id: this.generateConnectionId(),
@@ -484,7 +482,6 @@ export class WebSocketService {
   }
 
   private onDisconnected(event: CloseEvent): void {
-    console.log('WebSocket disconnected:', event.code, event.reason);
     
     this.setState('disconnected');
     
@@ -509,7 +506,6 @@ export class WebSocketService {
   }
 
   private onError(error: Error): void {
-    console.error('WebSocket error:', error);
     this.setState('error');
     this.onErrorHandlers.forEach(handler => handler(error));
   }
@@ -531,7 +527,6 @@ export class WebSocketService {
           break;
           
         case 'error':
-          console.error('WebSocket server error:', message.data);
           break;
           
         case 'data':
@@ -540,10 +535,8 @@ export class WebSocketService {
           break;
           
         default:
-          console.log('Unknown message type:', message.type);
       }
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
     }
   }
 
@@ -560,7 +553,6 @@ export class WebSocketService {
           subscription.callback(data);
         }
       } catch (error) {
-        console.error(`Error in subscription callback ${id}:`, error);
       }
     });
   }
@@ -621,7 +613,6 @@ export class WebSocketService {
 
     const attempt = this.connectionInfo.reconnectAttempts;
     if (attempt >= this.config.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
       return;
     }
 
@@ -631,7 +622,6 @@ export class WebSocketService {
       this.config.maxReconnectInterval
     );
 
-    console.log(`Reconnecting in ${delay}ms (attempt ${attempt + 1})`);
 
     this.reconnectTimer = window.setTimeout(async () => {
       if (this.connectionInfo) {
@@ -641,7 +631,6 @@ export class WebSocketService {
       try {
         await this.connect();
       } catch (error) {
-        console.error('Reconnection failed:', error);
         this.scheduleReconnect();
       }
     }, delay);
@@ -692,7 +681,6 @@ export class EnhancedRealTimeService {
       }
       return connected;
     } catch (error) {
-      console.error('Failed to connect to WebSocket:', error);
       this.fallbackPolling = true;
       this.startPolling();
       return false;
@@ -793,7 +781,6 @@ export class EnhancedRealTimeService {
 
   private async fetchPollingData(): Promise<void> {
     // This would use the existing API polling logic
-    // For now, just a placeholder
     try {
       const response = await fetch('/api/realtime/dashboard');
       if (response.ok) {
@@ -802,7 +789,6 @@ export class EnhancedRealTimeService {
         this.notifyCallbacks(this.lastData);
       }
     } catch (error) {
-      console.error('Polling failed:', error);
     }
   }
 
@@ -811,7 +797,6 @@ export class EnhancedRealTimeService {
       try {
         callback(data);
       } catch (error) {
-        console.error('Error in real-time callback:', error);
       }
     });
   }

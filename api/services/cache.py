@@ -104,3 +104,37 @@ async def get_cache_service() -> RedisCache:
     if not redis_client.client:
         await redis_client.initialize()
     return redis_client
+
+"""Fixed cache service module."""
+from typing import Any, Optional
+import json
+
+class CacheService:
+    """Simple cache service implementation."""
+    
+    def __init__(self):
+        self.cache = {}
+    
+    async def get(self, key: str) -> Optional[Any]:
+        """Get value from cache."""
+        return self.cache.get(key)
+    
+    async def set(self, key: str, value: Any, ttl: int = 3600) -> None:
+        """Set value in cache."""
+        self.cache[key] = value
+    
+    async def delete(self, key: str) -> None:
+        """Delete value from cache."""
+        if key in self.cache:
+            del self.cache[key]
+    
+    async def clear(self) -> None:
+        """Clear all cache."""
+        self.cache.clear()
+
+# Create global instance
+cache_service = CacheService()
+
+def get_cache_service():
+    """Get cache service instance."""
+    return cache_service

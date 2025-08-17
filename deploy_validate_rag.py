@@ -111,7 +111,7 @@ class RAGSystemValidator:
                 capture_output=True, text=True
             )
             
-            if result.returncode \!= 0:
+            if result.returncode != 0:
                 logger.error("Docker not available or not running")
                 return False
             
@@ -273,7 +273,7 @@ class RAGSystemValidator:
                 timeout=30
             )
             
-            if index_response.status_code \!= 200:
+            if index_response.status_code != 200:
                 logger.error(f"Document indexing failed: {index_response.status_code}")
                 return False
             
@@ -291,7 +291,7 @@ class RAGSystemValidator:
                 timeout=15
             )
             
-            if query_response.status_code \!= 200:
+            if query_response.status_code != 200:
                 logger.error(f"RAG query failed: {query_response.status_code}")
                 return False
             
@@ -319,7 +319,7 @@ class RAGSystemValidator:
             # Test GraphRAG health
             health_response = requests.get(f"{self.api_base}/api/graphrag/health", timeout=10)
             
-            if health_response.status_code \!= 200:
+            if health_response.status_code != 200:
                 logger.warning("GraphRAG health check failed, trying basic functionality")
             
             # Test basic GraphRAG query (if endpoint exists)
@@ -357,14 +357,14 @@ class RAGSystemValidator:
             # Test LlamaIndex health
             health_response = requests.get(f"{self.api_base}/api/llamaindex/health", timeout=10)
             
-            if health_response.status_code \!= 200:
+            if health_response.status_code != 200:
                 logger.error(f"LlamaIndex health check failed: {health_response.status_code}")
                 return False
             
             # Test strategies endpoint
             strategies_response = requests.get(f"{self.api_base}/api/llamaindex/strategies", timeout=10)
             
-            if strategies_response.status_code \!= 200:
+            if strategies_response.status_code != 200:
                 logger.error("LlamaIndex strategies endpoint failed")
                 return False
             
@@ -401,7 +401,7 @@ class RAGSystemValidator:
                 query_time = time.time() - start
                 query_times.append(query_time)
                 
-                if response.status_code \!= 200:
+                if response.status_code != 200:
                     logger.warning(f"Performance test query {i} failed")
             
             avg_query_time = sum(query_times) / len(query_times) if query_times else 999
@@ -702,4 +702,3 @@ async def main():
 if __name__ == "__main__":
     exit_code = asyncio.run(main())
     sys.exit(exit_code)
-EOF < /dev/null

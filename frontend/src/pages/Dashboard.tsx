@@ -10,6 +10,10 @@ import {
   AutoAwesome,
   Timeline,
   BubbleChart,
+  AutoFixHigh,
+  SmartToy,
+  Analytics,
+  CloudDownload,
 } from '@mui/icons-material'
 import { motion } from 'framer-motion'
 import PageWrapper from '../components/PageWrapper'
@@ -100,13 +104,11 @@ export default function Dashboard() {
         const chartResponse = await api.get('/api/performance/stats')
         setChartData(chartResponse.data.metrics || [])
       } catch (error) {
-        console.error('Failed to fetch chart data:', error)
         setChartData([])
       }
 
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching data:', error)
       setLoading(false)
     }
   }
@@ -316,6 +318,136 @@ export default function Dashboard() {
             </motion.div>
           </Grid>
         </Grid>
+
+        {/* Enhanced RAG Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.75 }}
+        >
+          <GlassCard sx={{ mb: 4 }}>
+            <Box sx={{ p: 3 }}>
+              <Box display="flex" alignItems="center" gap={2} mb={3}>
+                <AutoFixHigh sx={{ color: 'primary.main', fontSize: 32 }} />
+                <Typography variant="h5" fontWeight="bold" sx={{ 
+                  background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                  Enhanced RAG System
+                </Typography>
+                <Chip 
+                  label="NEW" 
+                  color="primary" 
+                  size="small" 
+                  sx={{ fontWeight: 'bold' }} 
+                />
+              </Box>
+              
+              <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                Experience next-generation retrieval with hybrid search, intelligent agents, and real-time analytics.
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      borderRadius: 2, 
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      transition: 'all 0.3s',
+                      '&:hover': { 
+                        transform: 'translateY(-5px)',
+                        boxShadow: `0 8px 25px ${alpha(theme.palette.primary.main, 0.3)}`
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <AutoFixHigh color="primary" />
+                      <Typography variant="h6" fontWeight="bold">Hybrid RAG</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Vector, sparse, and graph retrieval combined for superior accuracy
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      borderRadius: 2, 
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                      transition: 'all 0.3s',
+                      '&:hover': { 
+                        transform: 'translateY(-5px)',
+                        boxShadow: `0 8px 25px ${alpha(theme.palette.secondary.main, 0.3)}`
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <SmartToy color="secondary" />
+                      <Typography variant="h6" fontWeight="bold">Agent Workflows</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Multi-agent orchestration with LangGraph for complex reasoning
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      borderRadius: 2, 
+                      backgroundColor: alpha(theme.palette.success.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                      transition: 'all 0.3s',
+                      '&:hover': { 
+                        transform: 'translateY(-5px)',
+                        boxShadow: `0 8px 25px ${alpha(theme.palette.success.main, 0.3)}`
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <Analytics color="success" />
+                      <Typography variant="h6" fontWeight="bold">Analytics</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Deep insights into retrieval performance and quality metrics
+                    </Typography>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      borderRadius: 2, 
+                      backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                      transition: 'all 0.3s',
+                      '&:hover': { 
+                        transform: 'translateY(-5px)',
+                        boxShadow: `0 8px 25px ${alpha(theme.palette.warning.main, 0.3)}`
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <CloudDownload color="warning" />
+                      <Typography variant="h6" fontWeight="bold">Web Ingestion</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Real-time web content processing with Firecrawl integration
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          </GlassCard>
+        </motion.div>
 
         {/* Activity Feed */}
         <motion.div

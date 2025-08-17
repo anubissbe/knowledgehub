@@ -236,6 +236,65 @@ async def get_node_context(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/topology")
+async def get_graph_topology(
+    current_user: dict = Depends(get_current_user),
+    service: KnowledgeGraphService = Depends(get_knowledge_graph_service)
+):
+    """
+    Get the overall topology of the knowledge graph for visualization.
+    Returns nodes and edges in a format suitable for network visualization.
+    """
+    try:
+        # Generate mock topology data for now
+        # In production, this would query Neo4j for actual graph structure
+        import random
+        
+        # Create sample nodes
+        nodes = []
+        node_types = ["Decision", "Entity", "Concept", "Error", "Solution", "Pattern"]
+        for i in range(20):
+            nodes.append({
+                "id": f"node_{i}",
+                "label": f"Node {i}",
+                "type": random.choice(node_types),
+                "size": random.randint(10, 50),
+                "x": random.uniform(-100, 100),
+                "y": random.uniform(-100, 100),
+                "color": f"rgb({random.randint(0,255)}, {random.randint(0,255)}, {random.randint(0,255)})"
+            })
+        
+        # Create sample edges
+        edges = []
+        edge_types = ["DEPENDS_ON", "RELATES_TO", "CAUSES", "SOLVES", "IMPLEMENTS"]
+        for i in range(30):
+            source = random.randint(0, 19)
+            target = random.randint(0, 19)
+            if source != target:
+                edges.append({
+                    "id": f"edge_{i}",
+                    "source": f"node_{source}",
+                    "target": f"node_{target}",
+                    "type": random.choice(edge_types),
+                    "weight": random.uniform(0.1, 1.0)
+                })
+        
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "stats": {
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+                "node_types": {t: sum(1 for n in nodes if n["type"] == t) for t in node_types},
+                "edge_types": {t: sum(1 for e in edges if e["type"] == t) for t in edge_types}
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting graph topology: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/patterns/{pattern_type}", response_model=PatternSearchResponse)
 async def find_patterns(
     pattern_type: str,

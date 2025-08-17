@@ -81,7 +81,7 @@ const AI_FEATURES = [
     title: 'Code Evolution',
     description: 'Track code changes and refactoring patterns',
     color: '#00FFFF',
-    endpoint: '/api/code-evolution/history?file_path=test',
+    endpoint: '/api/code-evolution/history',
     statsEndpoint: '/api/code-evolution/patterns/analytics',
     stats: [
       { label: 'Changes', value: '0' },
@@ -141,7 +141,6 @@ export default function AiIntelligence() {
   }, [])
 
   const handleFeatureClick = async (feature: any) => {
-    console.log('Feature clicked:', feature.id)
     
     // Set loading state
     setFeatureDetails({
@@ -153,9 +152,7 @@ export default function AiIntelligence() {
     
     try {
       // Fetch detailed data for the specific feature
-      console.log('Fetching data from:', feature.endpoint)
       const response = await api.get(feature.endpoint)
-      console.log('API response:', response.data)
       
       const newFeatureDetails = {
         ...feature,
@@ -163,10 +160,8 @@ export default function AiIntelligence() {
         loading: false,
         timestamp: new Date().toISOString()
       }
-      console.log('Setting feature details:', newFeatureDetails)
       setFeatureDetails(newFeatureDetails)
     } catch (error) {
-      console.warn('Error fetching feature details:', error)
       setFeatureDetails({
         ...feature,
         data: null,
@@ -209,7 +204,6 @@ export default function AiIntelligence() {
                   ]
                 }
               } catch (e) {
-                console.warn(`Failed to fetch stats for ${feature.id}:`, e)
               }
             }
             
@@ -220,7 +214,6 @@ export default function AiIntelligence() {
               status: 'active'
             }
           } catch (error) {
-            console.warn(`Failed to fetch data for ${feature.id}:`, error)
             return {
               ...feature,
               progress: 0,
@@ -247,13 +240,10 @@ export default function AiIntelligence() {
 
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching AI data:', error)
       setLoading(false)
     }
   }
 
-  console.log('Current features:', features)
-  console.log('Features length:', features.length)
   
   const tabCategories = [
     { label: 'All Features', features: features },
@@ -338,7 +328,7 @@ export default function AiIntelligence() {
               ) : (
                 <Grid item xs={12}>
                   <Typography variant="h6" align="center" color="text.secondary">
-                    No features available. Check console for debugging info.
+                    No features available.
                   </Typography>
                 </Grid>
               )}
@@ -441,7 +431,6 @@ export default function AiIntelligence() {
         </Grid>
 
         {/* Feature Details Modal */}
-        {console.log('Current featureDetails state:', featureDetails)}
         {featureDetails && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

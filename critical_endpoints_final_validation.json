@@ -1,0 +1,56 @@
+{
+  "timestamp": "2025-08-17T10:58:42.228124",
+  "success_rate": 87.5,
+  "total_endpoints": 8,
+  "working_endpoints": 7,
+  "details": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/rag/enhanced/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/agents/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/zep/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/graphrag/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/rag/enhanced/retrieval-modes",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/agents/agents",
+      "method": "GET",
+      "status_code": 200,
+      "success": true
+    },
+    {
+      "endpoint": "/api/rag/test",
+      "method": "POST",
+      "status_code": 500,
+      "success": false
+    }
+  ]
+}

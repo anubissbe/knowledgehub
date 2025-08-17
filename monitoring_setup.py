@@ -468,4 +468,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF < /dev/null

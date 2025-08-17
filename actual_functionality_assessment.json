@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-08-08T08:54:29.409911",
+  "actual_functionality": 66.66666666666666,
+  "working_endpoints": 6,
+  "total_endpoints": 9,
+  "endpoint_results": {
+    "API Health": {
+      "success": true,
+      "code": 200
+    },
+    "API Docs": {
+      "success": true,
+      "code": 200
+    },
+    "Sources": {
+      "success": true,
+      "code": 200
+    },
+    "Search": {
+      "success": false,
+      "code": 405
+    },
+    "Memories": {
+      "success": false,
+      "code": 500
+    },
+    "Documents": {
+      "success": true,
+      "code": 200
+    },
+    "Claude Auto": {
+      "success": true,
+      "code": 200
+    }
+  },
+  "search_test": {
+    "success": true,
+    "code": 200
+  },
+  "memory_test": {
+    "success": false,
+    "code": 201
+  }
+}

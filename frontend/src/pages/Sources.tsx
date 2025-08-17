@@ -110,13 +110,11 @@ export default function Sources() {
     try {
       setLoading(true);
       const response = await api.get('/api/v1/sources/');
-      console.log('Sources API response:', response);
       const sourcesData = response.data.sources || response.data || [];
       // Ensure it's always an array
       const sourcesArray = Array.isArray(sourcesData) ? sourcesData : [];
       setSources(sourcesArray);
     } catch (err) {
-      console.error('Error fetching sources:', err);
       setError('Failed to fetch sources');
     } finally {
       setLoading(false);

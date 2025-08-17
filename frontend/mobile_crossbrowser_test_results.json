@@ -1,0 +1,64 @@
+{
+  "mobile": [
+    {
+      "device": "iPhone SE",
+      "viewport": "375x667",
+      "contentLength": 1642,
+      "hasContent": false,
+      "navigationVisible": true,
+      "mobileMenuElements": 0,
+      "overflowElements": 0,
+      "responsiveImages": 0,
+      "success": false
+    },
+    {
+      "device": "iPhone 12",
+      "viewport": "390x844",
+      "contentLength": 1642,
+      "hasContent": false,
+      "navigationVisible": true,
+      "mobileMenuElements": 0,
+      "overflowElements": 0,
+      "responsiveImages": 0,
+      "success": false
+    },
+    {
+      "device": "Android Small",
+      "viewport": "360x640",
+      "contentLength": 1642,
+      "hasContent": false,
+      "navigationVisible": true,
+      "mobileMenuElements": 0,
+      "overflowElements": 0,
+      "responsiveImages": 0,
+      "success": false
+    }
+  ],
+  "crossBrowser": [
+    {
+      "browser": "Chromium",
+      "loadTime": 3125,
+      "contentLength": 10979,
+      "hasContent": true,
+      "buttons": 1,
+      "links": 9,
+      "success": true
+    }
+  ],
+  "accessibility": [
+    {
+      "headings": 2,
+      "altTexts": 0,
+      "totalImages": 0,
+      "ariaLabels": 0,
+      "focusableElements": 10,
+      "skipLinks": 0,
+      "altTextCoverage": "N/A",
+      "hasSkipLinks": false,
+      "success": false
+    }
+  ],
+  "issues": [
+    "Firefox browser not available for cross-browser testing"
+  ]
+}

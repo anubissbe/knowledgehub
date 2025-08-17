@@ -1,0 +1,191 @@
+{
+  "test_suite": "Charlotte Cools Comprehensive E2E Integration",
+  "start_time": 1754679781.469073,
+  "test_session_id": "98bed5c8-dab4-40f3-93f7-77440f2c024c",
+  "results": {
+    "full_stack_integration": {
+      "test_name": "full_stack_integration",
+      "start_time": 1754679781.4692914,
+      "subtests": {
+        "api_health": {
+          "success": true,
+          "response_time": 0.018951892852783203,
+          "data": {
+            "status": "healthy",
+            "timestamp": 1754679781.4806523,
+            "services": {
+              "api": "operational",
+              "database": "operational",
+              "redis": "operational",
+              "weaviate": "operational"
+            }
+          }
+        },
+        "database_connectivity": {
+          "success": false,
+          "response_time": 0.014627456665039062,
+          "created_memory_id": null
+        },
+        "frontend_accessibility": {
+          "success": true,
+          "response_time": 0.0030045509338378906
+        },
+        "transaction_integrity": {
+          "success": false,
+          "response_time": 0.011335134506225586,
+          "batch_count": 0
+        }
+      },
+      "overall_success": false,
+      "end_time": 1754679781.5175881,
+      "total_duration": 0.04829668998718262
+    },
+    "ai_intelligence_pipeline": {
+      "test_name": "ai_intelligence_pipeline",
+      "start_time": 1754679782.5198572,
+      "subtests": {
+        "error_learning": {
+          "success": false,
+          "response_time": 0.018757343292236328,
+          "error_id": null
+        },
+        "decision_tracking": {
+          "success": false,
+          "response_time": 0.013384819030761719,
+          "decision_id": null
+        },
+        "proactive_assistance": {
+          "success": false,
+          "response_time": 0.011249065399169922,
+          "predictions_count": 0
+        },
+        "pattern_recognition": {
+          "success": false,
+          "response_time": 0.011852025985717773,
+          "patterns_count": 0
+        }
+      },
+      "overall_success": false,
+      "end_time": 1754679782.5753772,
+      "total_duration": 0.055520057678222656
+    },
+    "realtime_features": {
+      "test_name": "realtime_features",
+      "start_time": 1754679783.5777423,
+      "subtests": {
+        "websocket_connectivity": {
+          "success": false,
+          "error": "server rejected WebSocket connection: HTTP 403"
+        },
+        "live_updates": {
+          "success": false,
+          "response_time": 0.009767770767211914,
+          "data_fresh": false
+        },
+        "notifications": {
+          "success": false,
+          "response_time": 0.011548519134521484,
+          "notification_id": null
+        }
+      },
+      "overall_success": false,
+      "end_time": 1754679783.6214757,
+      "total_duration": 0.04373335838317871
+    },
+    "cross_system_integration": {
+      "test_name": "cross_system_integration",
+      "start_time": 1754679784.6238468,
+      "subtests": {
+        "memory_ai_integration": {
+          "success": false,
+          "error": "Memory creation failed"
+        },
+        "performance_analytics_integration": {
+          "success": false,
+          "error": "Performance recording failed"
+        },
+        "error_pattern_integration": {
+          "success": false,
+          "error": "Error recording failed"
+        }
+      },
+      "overall_success": false,
+      "end_time": 1754679784.6684234,
+      "total_duration": 0.04457664489746094
+    },
+    "data_flow_verification": {
+      "test_name": "data_flow_verification",
+      "start_time": 1754679785.670799,
+      "subtests": {},
+      "overall_success": true,
+      "error": "",
+      "end_time": 1754679816.6613526,
+      "total_duration": 30.990553617477417
+    },
+    "failure_scenarios": {
+      "test_name": "failure_scenarios",
+      "start_time": 1754679817.6636882,
+      "subtests": {
+        "database_error_handling": {
+          "success": false,
+          "response_time": 0.022204160690307617,
+          "proper_error_response": false
+        }
+      },
+      "overall_success": false,
+      "error": "catching classes that do not inherit from BaseException is not allowed",
+      "end_time": 1754679817.6880608,
+      "total_duration": 0.024372577667236328
+    },
+    "dynamic_parallelism_performance": {
+      "test_name": "dynamic_parallelism_performance",
+      "start_time": 1754679818.6904142,
+      "subtests": {
+        "concurrent_memory_operations": {
+          "success": false,
+          "response_time": 0.11431884765625,
+          "successful_operations": 0,
+          "total_operations": 10,
+          "throughput_ops_per_second": 0.0
+        },
+        "memory_bandwidth_optimization": {
+          "success": false,
+          "batch_time": 0.045847415924072266,
+          "individual_time": 0.6336538791656494,
+          "optimization_ratio": 13.820928974820331,
+          "batch_operations_processed": 0
+        }
+      },
+      "overall_success": false,
+      "end_time": 1754679819.484577,
+      "total_duration": 0.7941627502441406
+    }
+  },
+  "summary": {
+    "total_tests": 7,
+    "passed_tests": 1,
+    "failed_tests": 6,
+    "success_rate": 0.14285714285714285,
+    "overall_success": false
+  },
+  "performance_metrics": {
+    "total_test_time": 39.01814341545105,
+    "average_response_time": 0.020491749048233032,
+    "max_response_time": 0.11431884765625,
+    "min_response_time": 0.0030045509338378906,
+    "total_requests": 16,
+    "requests_per_second": 0.41006564124893896,
+    "avg_memory_usage": 5.571428571428571,
+    "avg_cpu_usage": 9.357142857142858,
+    "parallel_execution_times": {
+      "concurrent_memory_ops": 0.11431884765625,
+      "batch_vs_individual": {
+        "batch_time": 0.045847415924072266,
+        "individual_time": 0.6336538791656494,
+        "optimization_ratio": 13.820928974820331
+      }
+    }
+  },
+  "end_time": 1754679820.4866836,
+  "total_duration": 39.01761054992676
+}

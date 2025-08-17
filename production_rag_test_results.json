@@ -1,0 +1,65 @@
+{
+  "success": true,
+  "documents_ingested": 4,
+  "chunks_created": 4,
+  "query_accuracy": "2/5",
+  "query_accuracy_percent": 40.0,
+  "average_query_time": 0.012363910675048828,
+  "query_results": [
+    {
+      "question": "How does authentication work in KnowledgeHub?",
+      "expected_category": "authentication",
+      "success": true,
+      "results_count": 1,
+      "top_result": {
+        "title": "KnowledgeHub API Authentication",
+        "category": "authentication",
+        "relevance": "high"
+      }
+    },
+    {
+      "question": "What databases are used in the memory system?",
+      "expected_category": "memory",
+      "success": true,
+      "results_count": 1,
+      "top_result": {
+        "title": "Memory System Architecture",
+        "category": "memory",
+        "relevance": "high"
+      }
+    },
+    {
+      "question": "How are documents processed for RAG?",
+      "expected_category": "rag",
+      "success": false,
+      "results_count": 0,
+      "top_result": {
+        "title": null,
+        "category": null,
+        "relevance": "low"
+      }
+    },
+    {
+      "question": "How does search ranking work?",
+      "expected_category": "search",
+      "success": false,
+      "results_count": 0,
+      "top_result": {
+        "title": null,
+        "category": null,
+        "relevance": "low"
+      }
+    },
+    {
+      "question": "What is the token expiration time?",
+      "expected_category": "authentication",
+      "success": false,
+      "results_count": 0,
+      "top_result": {
+        "title": null,
+        "category": null,
+        "relevance": "low"
+      }
+    }
+  ]
+}

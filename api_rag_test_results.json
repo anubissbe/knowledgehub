@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-08-08T13:27:22.722164",
+  "tests": {
+    "api_health": {
+      "success": false,
+      "result": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
+    },
+    "weaviate_direct": {
+      "success": true,
+      "result": {
+        "version": "1.23.0",
+        "classes": [
+          "KnowledgeChunk",
+          "Knowledge_chunks",
+          "Memory",
+          "TestDocument",
+          "SimpleRAGTest"
+        ]
+      }
+    }
+  }
+}

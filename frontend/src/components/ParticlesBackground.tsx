@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, lazy, Suspense } from 'react'
 import Particles, { initParticlesEngine } from '@tsparticles/react'
 import { loadSlim } from '@tsparticles/slim'
 import { useTheme } from '@mui/material'
 import type { ISourceOptions } from '@tsparticles/engine'
 
-export default function ParticlesBackground() {
+const ParticlesBackground = React.memo(() => {
   const theme = useTheme()
   
   useEffect(() => {
@@ -87,4 +87,8 @@ export default function ParticlesBackground() {
       }), [theme.palette.primary.main])
 
   return <Particles id="tsparticles" options={options} />
-}
+})
+
+ParticlesBackground.displayName = 'ParticlesBackground'
+
+export default ParticlesBackground

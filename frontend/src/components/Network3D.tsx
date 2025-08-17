@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo } from 'react'
 import { Box, useTheme } from '@mui/material'
 
 interface Node {
@@ -20,7 +20,7 @@ interface Network3DProps {
 }
 
 // Simplified 3D visualization using CSS transforms
-export default function Network3D({ nodes, edges }: Network3DProps) {
+const Network3D = React.memo<Network3DProps>(({ nodes, edges }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const theme = useTheme()
   
@@ -136,4 +136,8 @@ export default function Network3D({ nodes, edges }: Network3DProps) {
       </div>
     </Box>
   )
-}
+})
+
+Network3D.displayName = 'Network3D'
+
+export default Network3D

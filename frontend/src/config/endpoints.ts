@@ -47,21 +47,3 @@ export const API_ENDPOINTS = {
   SETTINGS_UPDATE: '/api/settings',
 } as const
 
-// Mock data for missing endpoints
-export const MOCK_RESPONSES = {
-  AI_FEATURES_SUMMARY: {
-    total_features: 8,
-    active_features: 8,
-    performance: {
-      accuracy: 92,
-      speed: 95,
-      reliability: 98
-    }
-  },
-  ACTIVITY_RECENT: {
-    activities: [
-      { type: 'memory_created', timestamp: new Date().toISOString() },
-      { type: 'search_performed', timestamp: new Date().toISOString() }
-    ]
-  }
-}

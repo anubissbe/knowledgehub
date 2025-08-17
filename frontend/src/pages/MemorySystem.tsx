@@ -267,7 +267,6 @@ export default function MemorySystem() {
         lastSync: new Date(),
       })
     } catch (error) {
-      console.error('Error fetching memories:', error)
       setMemories([])
       setStats({
         totalMemories: 0,
@@ -295,7 +294,6 @@ export default function MemorySystem() {
       )
       setMemories(filtered)
     } catch (error) {
-      console.error('Error searching memories:', error)
       setMemories([])
     } finally {
       setLoading(false)
@@ -317,7 +315,6 @@ export default function MemorySystem() {
         total: prevStats.total - 1,
       }))
     } catch (error) {
-      console.error('Error deleting memory:', error)
     }
   }
 
@@ -340,7 +337,6 @@ export default function MemorySystem() {
       // Clear selection
       setSelectedRows([])
     } catch (error) {
-      console.error('Error deleting memories:', error)
     }
   }
 

@@ -1,0 +1,104 @@
+{
+  "navigation": [
+    {
+      "route": "/",
+      "success": true,
+      "loadTime": 107,
+      "contentLength": 544
+    },
+    {
+      "route": "/dashboard",
+      "success": true,
+      "loadTime": 27,
+      "contentLength": 544
+    },
+    {
+      "route": "/ai",
+      "success": true,
+      "loadTime": 35,
+      "contentLength": 544
+    },
+    {
+      "route": "/memory",
+      "success": true,
+      "loadTime": 30,
+      "contentLength": 544
+    },
+    {
+      "route": "/knowledge-graph",
+      "success": true,
+      "loadTime": 30,
+      "contentLength": 544
+    },
+    {
+      "route": "/search",
+      "success": true,
+      "loadTime": 27,
+      "contentLength": 544
+    },
+    {
+      "route": "/analytics",
+      "success": true,
+      "loadTime": 27,
+      "contentLength": 2621
+    },
+    {
+      "route": "/enterprise",
+      "success": true,
+      "loadTime": 35,
+      "contentLength": 2621
+    },
+    {
+      "route": "/sources",
+      "success": true,
+      "loadTime": 24,
+      "contentLength": 544
+    },
+    {
+      "route": "/api-docs",
+      "success": false,
+      "error": "page.goto: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3105/api-docs\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "route": "/settings",
+      "success": true,
+      "loadTime": 33,
+      "contentLength": 544
+    }
+  ],
+  "functionality": [
+    {
+      "type": "Interactive Elements",
+      "buttons": 0,
+      "links": 0,
+      "inputs": 0,
+      "success": false
+    }
+  ],
+  "responsive": [
+    {
+      "viewport": "Mobile",
+      "success": true,
+      "contentLength": 544
+    },
+    {
+      "viewport": "Tablet",
+      "success": true,
+      "contentLength": 544
+    },
+    {
+      "viewport": "Desktop",
+      "success": true,
+      "contentLength": 544
+    }
+  ],
+  "performance": [
+    {
+      "metric": "Full Load Time",
+      "success": false,
+      "error": "Timeout"
+    }
+  ],
+  "accessibility": [],
+  "errors": []
+}

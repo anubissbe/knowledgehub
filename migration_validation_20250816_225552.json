@@ -1,0 +1,227 @@
+{
+  "schema_validation": {
+    "tables_created": {
+      "memory_clusters": true,
+      "memory_associations": true,
+      "memory_access_logs": true,
+      "agent_definitions": false,
+      "workflow_definitions": false,
+      "workflow_executions": false,
+      "agent_tasks": false,
+      "rag_configurations": false,
+      "rag_query_logs": false,
+      "document_ingestion_logs": false,
+      "enhanced_chunks": false,
+      "search_result_cache": false,
+      "zep_session_mapping": false,
+      "firecrawl_jobs": false,
+      "service_health_logs": false,
+      "performance_monitoring": false,
+      "service_configurations": false,
+      "service_integration_logs": false,
+      "service_dependencies": true
+    },
+    "indexes_created": {
+      "idx_ai_memories_content_hash": false,
+      "idx_ai_memories_embeddings": false,
+      "idx_memory_clusters_type": true,
+      "idx_agent_definitions_role": false,
+      "idx_workflow_executions_status": false,
+      "idx_rag_query_logs_query_hash": false,
+      "idx_enhanced_chunks_document_id": false,
+      "idx_service_health_logs_service": false
+    },
+    "constraints_created": {
+      "ai_sessions_parent_session_id_fkey": "ai_sessions",
+      "memory_sessions_parent_session_id_fkey": "memory_sessions",
+      "enhanced_decisions_parent_decision_id_fkey": "enhanced_decisions",
+      "documents_source_id_fkey": "documents",
+      "scraping_jobs_source_id_fkey": "scraping_jobs",
+      "ai_memories_cluster_id_fkey": "ai_memories",
+      "ai_memories_parent_memory_id_fkey": "ai_memories",
+      "session_handoffs_source_session_id_fkey": "session_handoffs",
+      "session_handoffs_target_session_id_fkey": "session_handoffs",
+      "session_checkpoints_session_id_fkey": "session_checkpoints",
+      "session_metrics_session_id_fkey": "session_metrics",
+      "error_solutions_pattern_id_fkey": "error_solutions",
+      "project_milestones_timeline_id_fkey": "project_milestones",
+      "progress_snapshots_timeline_id_fkey": "progress_snapshots",
+      "memories_session_id_fkey": "memories",
+      "decision_alternatives_decision_id_fkey": "decision_alternatives",
+      "enhanced_decision_alternatives_decision_id_fkey": "enhanced_decision_alternatives",
+      "enhanced_decision_outcomes_decision_id_fkey": "enhanced_decision_outcomes",
+      "enhanced_decision_feedback_decision_id_fkey": "enhanced_decision_feedback",
+      "enhanced_decision_revisions_original_decision_id_fkey": "enhanced_decision_revisions",
+      "enhanced_decision_revisions_revised_decision_id_fkey": "enhanced_decision_revisions",
+      "document_chunks_document_id_fkey": "document_chunks",
+      "memory_associations_source_memory_id_fkey": "memory_associations",
+      "memory_associations_target_memory_id_fkey": "memory_associations",
+      "memory_access_logs_memory_id_fkey": "memory_access_logs",
+      "error_occurrences_pattern_id_fkey": "error_occurrences",
+      "error_occurrences_session_id_fkey": "error_occurrences",
+      "error_occurrences_applied_solution_id_fkey": "error_occurrences",
+      "user_feedback_memory_id_fkey": "user_feedback",
+      "error_feedback_pattern_id_fkey": "error_feedback",
+      "error_feedback_occurrence_id_fkey": "error_feedback",
+      "error_feedback_solution_id_fkey": "error_feedback",
+      "error_predictions_session_id_fkey": "error_predictions",
+      "error_predictions_predicted_pattern_id_fkey": "error_predictions",
+      "error_predictions_actual_error_id_fkey": "error_predictions",
+      "decision_outcomes_decision_id_fkey": "decision_outcomes",
+      "decision_outcomes_user_feedback_id_fkey": "decision_outcomes",
+      "index_chunks_index_id_fkey": "index_chunks"
+    },
+    "triggers_created": {},
+    "views_created": {
+      "enhanced_memory_view": false,
+      "workflow_performance_view": false,
+      "rag_performance_view": false,
+      "service_health_summary": false
+    }
+  },
+  "data_validation": {
+    "consistency": {
+      "referential_integrity": {
+        "orphaned_memories": 0
+      },
+      "data_quality": {
+        "memories_with_empty_content": 0,
+        "memories_missing_hash": 0
+      },
+      "constraint_violations": {}
+    }
+  },
+  "performance_validation": {},
+  "service_validation": {},
+  "overall_status": "failed",
+  "timestamp": "2025-08-16T22:55:51.970765",
+  "errors": [
+    {
+      "type": "schema",
+      "message": "Required table 'agent_definitions' does not exist",
+      "timestamp": "2025-08-16T22:55:52.023147"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'workflow_definitions' does not exist",
+      "timestamp": "2025-08-16T22:55:52.024171"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'workflow_executions' does not exist",
+      "timestamp": "2025-08-16T22:55:52.025199"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'agent_tasks' does not exist",
+      "timestamp": "2025-08-16T22:55:52.026214"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'rag_configurations' does not exist",
+      "timestamp": "2025-08-16T22:55:52.027313"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'rag_query_logs' does not exist",
+      "timestamp": "2025-08-16T22:55:52.028327"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'document_ingestion_logs' does not exist",
+      "timestamp": "2025-08-16T22:55:52.029326"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'enhanced_chunks' does not exist",
+      "timestamp": "2025-08-16T22:55:52.030241"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'search_result_cache' does not exist",
+      "timestamp": "2025-08-16T22:55:52.031152"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'zep_session_mapping' does not exist",
+      "timestamp": "2025-08-16T22:55:52.032062"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'firecrawl_jobs' does not exist",
+      "timestamp": "2025-08-16T22:55:52.033014"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'service_health_logs' does not exist",
+      "timestamp": "2025-08-16T22:55:52.033995"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'performance_monitoring' does not exist",
+      "timestamp": "2025-08-16T22:55:52.034984"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'service_configurations' does not exist",
+      "timestamp": "2025-08-16T22:55:52.036014"
+    },
+    {
+      "type": "schema",
+      "message": "Required table 'service_integration_logs' does not exist",
+      "timestamp": "2025-08-16T22:55:52.037016"
+    },
+    {
+      "type": "data",
+      "message": "Data validation error: (psycopg2.errors.UndefinedTable) relation \"rag_configurations\" does not exist\nLINE 1: SELECT COUNT(*) FROM rag_configurations WHERE is_default = t...\n                             ^\n\n[SQL: SELECT COUNT(*) FROM rag_configurations WHERE is_default = true]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "timestamp": "2025-08-16T22:55:52.068703"
+    },
+    {
+      "type": "performance",
+      "message": "Performance validation error: (psycopg2.errors.UndefinedColumn) column \"tablename\" does not exist\nLINE 3:                     schemaname, tablename, indexname, idx_sc...\n                                        ^\n\n[SQL: \n                SELECT \n                    schemaname, tablename, indexname, idx_scan, idx_tup_read, idx_tup_fetch\n                FROM pg_stat_user_indexes \n                WHERE schemaname = 'public'\n                ORDER BY tablename, indexname\n            ]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "timestamp": "2025-08-16T22:55:52.070921"
+    },
+    {
+      "type": "service",
+      "message": "Service validation error: (psycopg2.errors.UndefinedTable) relation \"service_configurations\" does not exist\nLINE 1: SELECT COUNT(*) FROM service_configurations WHERE service_ty...\n                             ^\n\n[SQL: SELECT COUNT(*) FROM service_configurations WHERE service_type = %(service_type)s]\n[parameters: {'service_type': 'postgresql'}]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "timestamp": "2025-08-16T22:55:52.075042"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_ai_memories_content_hash' is missing",
+      "timestamp": "2025-08-16T22:55:52.042219"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_ai_memories_embeddings' is missing",
+      "timestamp": "2025-08-16T22:55:52.043508"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_agent_definitions_role' is missing",
+      "timestamp": "2025-08-16T22:55:52.045847"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_workflow_executions_status' is missing",
+      "timestamp": "2025-08-16T22:55:52.047018"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_rag_query_logs_query_hash' is missing",
+      "timestamp": "2025-08-16T22:55:52.048186"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_enhanced_chunks_document_id' is missing",
+      "timestamp": "2025-08-16T22:55:52.049371"
+    },
+    {
+      "type": "performance",
+      "message": "Critical index 'idx_service_health_logs_service' is missing",
+      "timestamp": "2025-08-16T22:55:52.050504"
+    }
+  ]
+}

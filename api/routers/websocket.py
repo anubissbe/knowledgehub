@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.websocket("")
+@router.websocket("/")
+async def root_websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None)
+):
+    """Root WebSocket endpoint for backward compatibility"""
+    # Redirect to notifications endpoint
+    return await websocket_endpoint(websocket, token)
+
+
 @router.websocket("/notifications")
 async def websocket_endpoint(
     websocket: WebSocket,

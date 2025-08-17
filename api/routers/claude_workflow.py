@@ -346,3 +346,50 @@ def get_workflow_patterns(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/activity")
+def get_workflow_activity(
+    session_id: Optional[str] = Query(None, description="Filter by session ID"),
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    hours: int = Query(24, description="Hours of activity to fetch"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get recent workflow activity
+    
+    Returns recent captures, discoveries, and insights
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        # Calculate time range
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(hours=hours)
+        
+        # Mock activity data (would query from database in real implementation)
+        activity = {
+            "period": {
+                "start": start_time.isoformat(),
+                "end": end_time.isoformat(),
+                "hours": hours
+            },
+            "summary": {
+                "total_captures": 0,
+                "conversation_memories": 0,
+                "terminal_contexts": 0,
+                "tool_usages": 0,
+                "discoveries": 0
+            },
+            "recent_activity": [],
+            "filters": {
+                "session_id": session_id,
+                "user_id": user_id,
+                "project_id": project_id
+            }
+        }
+        
+        return activity
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -127,7 +127,6 @@ export default function KnowledgeGraph() {
       setGraphData(data)
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching graph data:', error)
       setGraphData({ nodes: [], edges: [] })
       setLoading(false)
     }
@@ -223,7 +222,7 @@ export default function KnowledgeGraph() {
         },
       },
       layout: {
-        improvedLayout: true,
+        improvedLayout: false, // Disabled to prevent warning
         hierarchical: layout === 'hierarchical' ? {
           enabled: true,
           direction: 'UD',
@@ -278,7 +277,6 @@ export default function KnowledgeGraph() {
             animation: false,
           })
         } catch (error) {
-          console.warn('Error in rotation animation:', error)
           if (animationRef.current) {
             cancelAnimationFrame(animationRef.current)
             animationRef.current = null
@@ -297,7 +295,6 @@ export default function KnowledgeGraph() {
       try {
         networkRef.current.moveTo({ scale: networkRef.current.getScale() * 1.2 })
       } catch (error) {
-        console.warn('Error in zoom in:', error)
       }
     }
   }
@@ -307,7 +304,6 @@ export default function KnowledgeGraph() {
       try {
         networkRef.current.moveTo({ scale: networkRef.current.getScale() * 0.8 })
       } catch (error) {
-        console.warn('Error in zoom out:', error)
       }
     }
   }
@@ -317,7 +313,6 @@ export default function KnowledgeGraph() {
       try {
         networkRef.current.fit()
       } catch (error) {
-        console.warn('Error in fit:', error)
       }
     }
   }

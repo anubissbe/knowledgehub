@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { api } from '../services/api'
 import {
@@ -59,15 +59,13 @@ const menuItems = [
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings', badge: null, color: '#FF3366' },
 ]
 
-// RESPONSIVE-TEST-MARKER-12345
-export default function Layout() {
+const Layout = React.memo(() => {
   const location = useLocation()
   const muiTheme = useMuiTheme()
   const { darkMode, toggleDarkMode } = useTheme()
   
   // Responsive breakpoints
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'))
-  console.log('RESPONSIVE-LAYOUT-LOADED', { isMobile })
   
   // Drawer state - default closed on mobile, open on desktop
   const [open, setOpen] = useState(!isMobile)
@@ -316,7 +314,6 @@ export default function Layout() {
           performance: response.data.performance || 95,
         })
       } catch (error) {
-        console.error('Failed to fetch AI status:', error)
       }
     }, 5000)
     return () => clearInterval(interval)
@@ -327,13 +324,13 @@ export default function Layout() {
     setOpen(!isMobile)
   }, [isMobile])
 
-  const handleDrawerToggle = () => {
+  const handleDrawerToggle = useCallback(() => {
     if (isMobile) {
       setMobileOpen(!mobileOpen)
     } else {
       setOpen(!open)
     }
-  }
+  }, [isMobile, mobileOpen, open])
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -515,4 +512,8 @@ export default function Layout() {
       </Box>
     </Box>
   )
-}
+})
+
+Layout.displayName = 'Layout'
+
+export default Layout

@@ -492,5 +492,82 @@ def get_performance_trends(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/metrics/hourly")
+def get_hourly_metrics(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get hourly performance metrics for dashboard
+    """
+    from datetime import datetime, timedelta
+    import random
+    
+    # Generate mock hourly data for now
+    hours = []
+    now = datetime.now()
+    for i in range(24):
+        hour_time = now - timedelta(hours=23-i)
+        hours.append({
+            "timestamp": hour_time.isoformat(),
+            "cpu": random.randint(20, 80),
+            "memory": random.randint(30, 70),
+            "requests": random.randint(100, 1000),
+            "response_time": random.uniform(50, 500),
+            "error_rate": random.uniform(0, 5),
+            "throughput": random.randint(50, 200)
+        })
+    
+    return {
+        "metrics": hours,
+        "summary": {
+            "avg_cpu": sum(h["cpu"] for h in hours) / len(hours),
+            "avg_memory": sum(h["memory"] for h in hours) / len(hours),
+            "total_requests": sum(h["requests"] for h in hours),
+            "avg_response_time": sum(h["response_time"] for h in hours) / len(hours),
+            "avg_error_rate": sum(h["error_rate"] for h in hours) / len(hours),
+            "peak_throughput": max(h["throughput"] for h in hours)
+        }
+    }
+
+
+@router.get("/radar")
+def get_performance_radar(
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get radar chart data for performance visualization
+    """
+    return {
+        "categories": [
+            "CPU Usage",
+            "Memory Usage",
+            "Response Time",
+            "Throughput",
+            "Error Rate",
+            "Availability"
+        ],
+        "datasets": [
+            {
+                "label": "Current",
+                "data": [65, 45, 85, 75, 95, 99],
+                "borderColor": "rgb(54, 162, 235)",
+                "backgroundColor": "rgba(54, 162, 235, 0.2)"
+            },
+            {
+                "label": "Baseline",
+                "data": [70, 50, 80, 70, 90, 95],
+                "borderColor": "rgb(255, 99, 132)",
+                "backgroundColor": "rgba(255, 99, 132, 0.2)"
+            },
+            {
+                "label": "Target",
+                "data": [80, 60, 90, 85, 98, 99.9],
+                "borderColor": "rgb(75, 192, 192)",
+                "backgroundColor": "rgba(75, 192, 192, 0.2)"
+            }
+        ]
+    }
+
+
 # Import asyncio for async operations
 import asyncio

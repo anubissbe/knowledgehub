@@ -1,0 +1,65 @@
+{
+  "fixes_applied": [
+    "Created RAG test endpoint fix"
+  ],
+  "services_initialized": [
+    "RAG service initialization helper"
+  ],
+  "validation_results": {
+    "status": "partial",
+    "results": [
+      {
+        "endpoint": "/health",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/rag/enhanced/health",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/agents/health",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/zep/health",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/graphrag/health",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/rag/enhanced/retrieval-modes",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/agents/agents",
+        "status_code": 0,
+        "success": false,
+        "error": "Server disconnected without sending a response."
+      },
+      {
+        "endpoint": "/api/rag/test",
+        "status_code": 0,
+        "success": false,
+        "error": ""
+      }
+    ],
+    "success_rate": 0.0,
+    "success_count": 0,
+    "total": 8
+  },
+  "final_success_rate": 0.0
+}

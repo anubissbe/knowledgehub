@@ -1,0 +1,194 @@
+{
+  "performance": [
+    {
+      "route": "/",
+      "name": "Home/Root",
+      "domLoadTime": 130,
+      "fullRenderTime": 2132,
+      "interactiveTime": 52,
+      "contentSize": 10979,
+      "buttons": 1,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/dashboard",
+      "name": "Dashboard",
+      "domLoadTime": 113,
+      "fullRenderTime": 2114,
+      "interactiveTime": 44,
+      "contentSize": 10979,
+      "buttons": 1,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/ai",
+      "name": "AI Intelligence",
+      "domLoadTime": 172,
+      "fullRenderTime": 2172,
+      "interactiveTime": 33,
+      "contentSize": 37270,
+      "buttons": 13,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/memory",
+      "name": "Memory System",
+      "domLoadTime": 106,
+      "fullRenderTime": 2106,
+      "interactiveTime": 38,
+      "contentSize": 24325,
+      "buttons": 7,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/knowledge-graph",
+      "name": "Knowledge Graph",
+      "domLoadTime": 124,
+      "fullRenderTime": 2125,
+      "interactiveTime": 44,
+      "contentSize": 20934,
+      "buttons": 10,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/search",
+      "name": "Search",
+      "domLoadTime": 114,
+      "fullRenderTime": 2115,
+      "interactiveTime": 42,
+      "contentSize": 16491,
+      "buttons": 5,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/sources",
+      "name": "Sources",
+      "domLoadTime": 111,
+      "fullRenderTime": 2112,
+      "interactiveTime": 42,
+      "contentSize": 10790,
+      "buttons": 1,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    },
+    {
+      "route": "/settings",
+      "name": "Settings",
+      "domLoadTime": 114,
+      "fullRenderTime": 2115,
+      "interactiveTime": 36,
+      "contentSize": 37106,
+      "buttons": 6,
+      "links": 9,
+      "isGoodPerformance": true,
+      "hasGoodContent": true,
+      "isInteractive": true,
+      "overallSuccess": true
+    }
+  ],
+  "userJourneys": [
+    {
+      "name": "Basic Navigation Journey",
+      "totalTime": 4324,
+      "steps": [
+        {
+          "step": "Load dashboard",
+          "url": "/dashboard",
+          "loadTime": 1099,
+          "hasContent": true,
+          "success": true
+        },
+        {
+          "step": "Navigate to AI Intelligence",
+          "url": "/ai",
+          "loadTime": 1029,
+          "hasContent": true,
+          "success": true
+        },
+        {
+          "step": "Navigate to Memory System",
+          "url": "/memory",
+          "loadTime": 1050,
+          "hasContent": true,
+          "success": true
+        },
+        {
+          "step": "Navigate to Settings",
+          "url": "/settings",
+          "loadTime": 1025,
+          "hasContent": true,
+          "success": true
+        }
+      ],
+      "successfulSteps": 4,
+      "totalSteps": 4,
+      "success": true
+    },
+    {
+      "name": "Content Exploration Journey",
+      "totalTime": 3272,
+      "steps": [
+        {
+          "step": "Load search page",
+          "url": "/search",
+          "loadTime": 1103,
+          "hasContent": true,
+          "success": true
+        },
+        {
+          "step": "Load knowledge graph",
+          "url": "/knowledge-graph",
+          "loadTime": 1035,
+          "hasContent": true,
+          "success": true
+        },
+        {
+          "step": "Load sources page",
+          "url": "/sources",
+          "loadTime": 1027,
+          "hasContent": true,
+          "success": true
+        }
+      ],
+      "successfulSteps": 3,
+      "totalSteps": 3,
+      "success": true
+    }
+  ],
+  "realWorldScenarios": [
+    {
+      "totalSessionTime": 8461,
+      "pagesVisited": 5,
+      "averagePageContent": 24138,
+      "allPagesLoaded": true,
+      "sessionSuccess": true
+    }
+  ]
+}

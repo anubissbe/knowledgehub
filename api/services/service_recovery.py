@@ -670,7 +670,7 @@ async def check_weaviate_health() -> bool:
     """Health check for Weaviate"""
     try:
         import weaviate
-        client = weaviate.Client("http://localhost:8090")
+        client = weaviate.Client("http://192.168.1.25:8090")
         client.cluster.get_nodes_status()
         return True
     except Exception:

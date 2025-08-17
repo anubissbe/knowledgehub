@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "knowledgehub-code-intelligence": {
+      "command": "python3",
+      "args": [
+        "/opt/projects/knowledgehub/api/services/code_intelligence_mcp.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/opt/projects/knowledgehub"
+      }
+    }
+  }
+}

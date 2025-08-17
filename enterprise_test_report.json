@@ -1,0 +1,303 @@
+{
+  "timestamp": 1754647652.4260838,
+  "summary": {
+    "total_tests": 15,
+    "passed_tests": 15,
+    "failed_tests": 0,
+    "functionality_percentage": 100.0
+  },
+  "enterprise_features": {
+    "Multi-Tenant Management": true,
+    "Cluster Management": true,
+    "GPU Resource Management": true,
+    "Security & Compliance": true,
+    "GDPR Compliance": true,
+    "Authentication System": true,
+    "Health Monitoring": true
+  },
+  "endpoints": {
+    "working": [
+      "GET /health"
+    ],
+    "auth_required": [
+      "POST /tenants",
+      "GET /tenants/demo-corp",
+      "GET /cluster/status",
+      "GET /cluster/scaling/check",
+      "POST /cluster/nodes/register",
+      "GET /cluster/services/api_server/endpoint",
+      "GET /gpu/status",
+      "POST /gpu/allocate",
+      "GET /security/audit",
+      "POST /security/encrypt",
+      "POST /security/decrypt",
+      "POST /security/roles",
+      "POST /gdpr/data-export/12345678-1234-1234-1234-123456789abc",
+      "DELETE /gdpr/user-data/12345678-1234-1234-1234-123456789abc"
+    ],
+    "broken": []
+  },
+  "detailed_results": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "url": "http://localhost:3001/api/v1/enterprise/health",
+      "status_code": 200,
+      "success": true,
+      "expected_status": [
+        200
+      ],
+      "response": {
+        "status": "healthy",
+        "timestamp": "2025-08-08T10:07:32.307933",
+        "services": {
+          "multi_tenant": "healthy",
+          "scaling_manager": "healthy",
+          "security_compliance": "healthy"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/tenants",
+      "url": "http://localhost:3001/api/v1/enterprise/tenants",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "System admin role required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/tenants"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/tenants/demo-corp",
+      "url": "http://localhost:3001/api/v1/enterprise/tenants/demo-corp",
+      "status_code": 401,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403,
+        404
+      ],
+      "response": {
+        "error": "Authentication required",
+        "status_code": 401,
+        "path": "/api/v1/enterprise/tenants/demo-corp"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/cluster/status",
+      "url": "http://localhost:3001/api/v1/enterprise/cluster/status",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "Analytics read permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/cluster/status"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/cluster/scaling/check",
+      "url": "http://localhost:3001/api/v1/enterprise/cluster/scaling/check",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "Analytics read permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/cluster/scaling/check"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/cluster/nodes/register",
+      "url": "http://localhost:3001/api/v1/enterprise/cluster/nodes/register",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "System admin role required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/cluster/nodes/register"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/cluster/services/api_server/endpoint",
+      "url": "http://localhost:3001/api/v1/enterprise/cluster/services/api_server/endpoint",
+      "status_code": 401,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403,
+        503
+      ],
+      "response": {
+        "error": "Authentication required",
+        "status_code": 401,
+        "path": "/api/v1/enterprise/cluster/services/api_server/endpoint"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/gpu/status",
+      "url": "http://localhost:3001/api/v1/enterprise/gpu/status",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "GPU access permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/gpu/status"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/gpu/allocate",
+      "url": "http://localhost:3001/api/v1/enterprise/gpu/allocate",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403,
+        503
+      ],
+      "response": {
+        "error": "GPU access permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/gpu/allocate"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/security/audit",
+      "url": "http://localhost:3001/api/v1/enterprise/security/audit",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "User admin permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/security/audit"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/security/encrypt",
+      "url": "http://localhost:3001/api/v1/enterprise/security/encrypt",
+      "status_code": 401,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "Authentication required",
+        "status_code": 401,
+        "path": "/api/v1/enterprise/security/encrypt"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/security/decrypt",
+      "url": "http://localhost:3001/api/v1/enterprise/security/decrypt",
+      "status_code": 401,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403,
+        500
+      ],
+      "response": {
+        "error": "Authentication required",
+        "status_code": 401,
+        "path": "/api/v1/enterprise/security/decrypt"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/security/roles",
+      "url": "http://localhost:3001/api/v1/enterprise/security/roles",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "User admin permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/security/roles"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/gdpr/data-export/12345678-1234-1234-1234-123456789abc",
+      "url": "http://localhost:3001/api/v1/enterprise/gdpr/data-export/12345678-1234-1234-1234-123456789abc",
+      "status_code": 401,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "Authentication required",
+        "status_code": 401,
+        "path": "/api/v1/enterprise/gdpr/data-export/12345678-1234-1234-1234-123456789abc"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/gdpr/user-data/12345678-1234-1234-1234-123456789abc",
+      "url": "http://localhost:3001/api/v1/enterprise/gdpr/user-data/12345678-1234-1234-1234-123456789abc",
+      "status_code": 403,
+      "success": true,
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "response": {
+        "error": "User admin permission required",
+        "status_code": 403,
+        "path": "/api/v1/enterprise/gdpr/user-data/12345678-1234-1234-1234-123456789abc"
+      }
+    }
+  ]
+}

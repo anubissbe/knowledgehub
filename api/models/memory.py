@@ -31,6 +31,27 @@ class MemoryType(str, Enum):
     FACT = "fact"
     PROCEDURE = "procedure"
     ASSOCIATION = "association"
+    DOCUMENTATION = "documentation"  # Add support for documentation memories
+    CODE = "code"  # Add support for code memories
+    # Additional types found in ai_memories table
+    PROJECT_ARLA = "project_arla"
+    SESSION_EVENT = "session_event"
+    TEST = "test"
+    ACHIEVEMENT = "achievement"
+    SESSION_INIT = "session-init"
+    SESSION = "session"
+    API_CONFIG = "api-config"
+    INFRASTRUCTURE = "infrastructure"
+    SYSTEM_UPDATE = "system-update"
+    SYSTEM_FIX = "system-fix"
+    PROJECT_STATUS = "project_status"
+    AGENT_SELECTION = "agent_selection"
+    TECHNICAL_ANALYSIS = "technical-analysis"
+    MODEL_TRAINING = "model_training"
+    PERFORMANCE_ANALYSIS = "performance-analysis"
+    PROJECT = "project"
+    TASK = "task"
+    SYSTEM_NOTE = "system-note"
 
 
 class MemoryImportance(str, Enum):

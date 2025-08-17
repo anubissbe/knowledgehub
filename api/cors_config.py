@@ -88,10 +88,11 @@ class CORSSecurityConfig(BaseModel):
     
     # Local network origins (for internal deployments)
     local_network_origins: List[str] = [
-        "http://192.168.1.25:3000",
-        "http://192.168.1.25:3100", 
-        "http://192.168.1.25:3101",
+        "http://192.168.1.25:3000",  # Backend API
+        "http://192.168.1.25:3100",  # Main frontend
+        "http://192.168.1.25:3101",  # Frontend (port auto-selected)
         "http://192.168.1.25:3102",  # Frontend dev server
+        "http://192.168.1.25:5173",  # Vite dev server
         "http://192.168.1.24:3000",  # Synology NAS
         "http://192.168.1.24:5174",  # ProjectHub UI
         "http://192.168.1.24:8090"   # ProjectHub frontend

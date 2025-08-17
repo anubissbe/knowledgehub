@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Box, useTheme, alpha } from '@mui/material'
 import { motion } from 'framer-motion'
 import {
@@ -38,14 +38,14 @@ const defaultColors = [
   '#8B5CF6', // Violet
 ]
 
-export default function AnimatedChart({
+const AnimatedChart = React.memo<AnimatedChartProps>(({
   data,
   type,
   dataKeys,
   colors = defaultColors,
   height = 300,
   animated = true,
-}: AnimatedChartProps) {
+}) => {
   const theme = useTheme()
   const [animatedData, setAnimatedData] = useState(animated ? [] : data)
 
@@ -214,4 +214,8 @@ export default function AnimatedChart({
       </Box>
     </motion.div>
   )
-}
+})
+
+AnimatedChart.displayName = 'AnimatedChart'
+
+export default AnimatedChart

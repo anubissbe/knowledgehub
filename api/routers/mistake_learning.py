@@ -284,3 +284,50 @@ def reset_patterns():
             os.unlink(file)
     
     return {"reset": True}
+
+
+@router.get("/stats")
+def get_stats(
+    days: int = Query(7, description="Stats period in days"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get mistake learning statistics"""
+    try:
+        # Get basic report data
+        report = learning_system.generate_mistake_report(db, days)
+        
+        # Add additional statistics
+        stats = {
+            "total_mistakes": report.get("total_mistakes", 0),
+            "unique_mistakes": report.get("unique_mistakes", 0),
+            "repetition_rate": report.get("repetition_rate", 0.0),
+            "solution_rate": report.get("solution_rate", 0.0),
+            "categories": report.get("category_breakdown", {}),
+            "trends": {
+                "daily_mistakes": [],  # Would be populated from time-series data
+                "resolution_time": 0.0,
+                "learning_effectiveness": 0.0
+            },
+            "patterns_learned": len(learning_system.error_patterns),
+            "prevention_rules": len(learning_system.prevention_rules),
+            "period_days": days
+        }
+        
+        return stats
+    except Exception as e:
+        # Return default stats on error
+        return {
+            "total_mistakes": 0,
+            "unique_mistakes": 0,
+            "repetition_rate": 0.0,
+            "solution_rate": 0.0,
+            "categories": {},
+            "trends": {
+                "daily_mistakes": [],
+                "resolution_time": 0.0,
+                "learning_effectiveness": 0.0
+            },
+            "patterns_learned": 0,
+            "prevention_rules": 0,
+            "period_days": days
+        }

@@ -1,0 +1,163 @@
+{
+  "navigation": [
+    {
+      "path": "/",
+      "name": "Root",
+      "success": true,
+      "loadTime": 3145,
+      "contentLength": 10979,
+      "hasNavigation": true
+    },
+    {
+      "path": "/dashboard",
+      "name": "Dashboard",
+      "success": true,
+      "loadTime": 3027,
+      "contentLength": 10979,
+      "hasNavigation": true
+    },
+    {
+      "path": "/ai",
+      "name": "AI Intelligence",
+      "success": true,
+      "loadTime": 3028,
+      "contentLength": 37270,
+      "hasNavigation": true
+    },
+    {
+      "path": "/memory",
+      "name": "Memory System",
+      "success": true,
+      "loadTime": 3056,
+      "contentLength": 24325,
+      "hasNavigation": true
+    },
+    {
+      "path": "/knowledge-graph",
+      "name": "Knowledge Graph",
+      "success": true,
+      "loadTime": 3029,
+      "contentLength": 20934,
+      "hasNavigation": true
+    },
+    {
+      "path": "/search",
+      "name": "Search",
+      "success": true,
+      "loadTime": 3028,
+      "contentLength": 16491,
+      "hasNavigation": true
+    },
+    {
+      "path": "/analytics",
+      "name": "Analytics",
+      "success": false,
+      "loadTime": 3027,
+      "contentLength": 2621,
+      "hasNavigation": false
+    },
+    {
+      "path": "/enterprise",
+      "name": "Enterprise",
+      "success": false,
+      "loadTime": 3024,
+      "contentLength": 2621,
+      "hasNavigation": false
+    },
+    {
+      "path": "/sources",
+      "name": "Sources",
+      "success": true,
+      "loadTime": 3033,
+      "contentLength": 10790,
+      "hasNavigation": true
+    },
+    {
+      "path": "/settings",
+      "name": "Settings",
+      "success": true,
+      "loadTime": 3027,
+      "contentLength": 37106,
+      "hasNavigation": true
+    }
+  ],
+  "functionality": [
+    {
+      "type": "Interactive Elements",
+      "buttons": 1,
+      "links": 9,
+      "inputs": 0,
+      "menuItems": 0,
+      "totalInteractive": 10,
+      "success": true
+    },
+    {
+      "type": "User Journey",
+      "navigationLinks": 9,
+      "settingsElements": 0,
+      "success": true
+    }
+  ],
+  "responsive": [
+    {
+      "viewport": "Mobile Portrait",
+      "dimensions": "375x667",
+      "success": false,
+      "contentLength": 1642,
+      "hasResponsiveElements": false
+    },
+    {
+      "viewport": "Mobile Landscape",
+      "dimensions": "667x375",
+      "success": false,
+      "contentLength": 1642,
+      "hasResponsiveElements": false
+    },
+    {
+      "viewport": "Tablet Portrait",
+      "dimensions": "768x1024",
+      "success": true,
+      "contentLength": 10979,
+      "hasResponsiveElements": false
+    },
+    {
+      "viewport": "Tablet Landscape",
+      "dimensions": "1024x768",
+      "success": true,
+      "contentLength": 10979,
+      "hasResponsiveElements": false
+    },
+    {
+      "viewport": "Desktop",
+      "dimensions": "1920x1080",
+      "success": true,
+      "contentLength": 10979,
+      "hasResponsiveElements": false
+    }
+  ],
+  "performance": [
+    {
+      "route": "/dashboard",
+      "name": "Dashboard",
+      "loadTime": 2045,
+      "success": true
+    },
+    {
+      "route": "/ai",
+      "name": "AI Intelligence",
+      "loadTime": 2037,
+      "success": true
+    },
+    {
+      "route": "/memory",
+      "name": "Memory System",
+      "loadTime": 2059,
+      "success": true
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "You're running a development build.",
+    "You're running a development build."
+  ]
+}

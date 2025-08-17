@@ -3,7 +3,7 @@ Pattern Recognition API Router
 Exposes endpoints for code pattern analysis and learning
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Body, Query
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
@@ -266,6 +266,14 @@ async def get_statistics(
     return stats
 
 
+@router.get("/stats")
+async def get_stats(
+    engine: PatternRecognitionEngine = Depends(get_pattern_engine)
+) -> Dict[str, Any]:
+    """Get pattern recognition statistics (alias for /statistics)"""
+    return await get_statistics(engine)
+
+
 @router.post("/batch-analyze")
 async def batch_analyze(
     files: List[UploadFile] = File(...),
@@ -332,5 +340,70 @@ async def get_recent_patterns(
         # In a real implementation, this would query recent patterns from database
         # For now, return empty list as the feature is not fully implemented
         return []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/recognize")
+async def recognize_pattern(
+    data: Dict[str, Any] = Body(..., description="Pattern recognition request"),
+    engine: PatternRecognitionEngine = Depends(get_pattern_engine)
+) -> Dict[str, Any]:
+    """Recognize patterns in provided data"""
+    try:
+        # Extract code or content from the request body
+        code = data.get("code", "")
+        language = data.get("language", "python")
+        context = data.get("context", {})
+        
+        if not code:
+            # Return empty patterns if no code provided
+            return {
+                "patterns": [],
+                "suggestions": [],
+                "confidence": 0.0,
+                "message": "No code provided for analysis"
+            }
+        
+        # Analyze the code for patterns
+        patterns = await engine.analyze_code(code, language)
+        suggestions = await engine.suggest_improvements(patterns)
+        
+        return {
+            "patterns": [p.dict() for p in patterns],
+            "suggestions": suggestions,
+            "confidence": sum(p.confidence for p in patterns) / len(patterns) if patterns else 0.0,
+            "context": context
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/recognize")
+async def recognize_pattern_get(
+    code: Optional[str] = Query(None, description="Code to analyze"),
+    language: str = Query("python", description="Programming language"),
+    engine: PatternRecognitionEngine = Depends(get_pattern_engine)
+) -> Dict[str, Any]:
+    """Recognize patterns in provided data (GET version)"""
+    try:
+        if not code:
+            # Return empty patterns if no code provided
+            return {
+                "patterns": [],
+                "suggestions": [],
+                "confidence": 0.0,
+                "message": "No code provided for analysis"
+            }
+        
+        # Analyze the code for patterns
+        patterns = await engine.analyze_code(code, language)
+        suggestions = await engine.suggest_improvements(patterns)
+        
+        return {
+            "patterns": [p.dict() for p in patterns],
+            "suggestions": suggestions,
+            "confidence": sum(p.confidence for p in patterns) / len(patterns) if patterns else 0.0
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

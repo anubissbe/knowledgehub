@@ -107,7 +107,6 @@ export default function SearchKnowledge() {
       })
       
       // Log response for debugging
-      console.log('Search response:', response.data)
       
       // Extract results from the response
       const searchResults = response.data.documents || response.data.results || []
@@ -139,7 +138,6 @@ export default function SearchKnowledge() {
         relevanceScore: avgScore * 100,
       })
     } catch (error) {
-      console.error('Error searching:', error)
       setResults([])
       setSearchStats({
         totalResults: 0,

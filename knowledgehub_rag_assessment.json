@@ -1,0 +1,188 @@
+{
+  "generated_at": "2025-08-08T13:28:25.929329",
+  "summary": {
+    "total_implementations": 4,
+    "ready_implementations": 0,
+    "infrastructure_operational": true
+  },
+  "files": {
+    "routers": [
+      {
+        "file": "api/routers/rag.py",
+        "exists": true,
+        "size": 13750,
+        "size_mb": 0.01
+      },
+      {
+        "file": "api/routers/rag_simple.py",
+        "exists": true,
+        "size": 6841,
+        "size_mb": 0.01
+      },
+      {
+        "file": "api/routers/rag_advanced.py",
+        "exists": true,
+        "size": 15880,
+        "size_mb": 0.02
+      },
+      {
+        "file": "api/routers/graphrag.py",
+        "exists": true,
+        "size": 19827,
+        "size_mb": 0.02
+      },
+      {
+        "file": "api/routers/llamaindex_rag.py",
+        "exists": true,
+        "size": 15482,
+        "size_mb": 0.01
+      }
+    ],
+    "services": [
+      {
+        "file": "api/services/rag/simple_rag_service.py",
+        "exists": true,
+        "size": 13507,
+        "size_mb": 0.01
+      },
+      {
+        "file": "api/services/rag_pipeline.py",
+        "exists": true,
+        "size": 32756,
+        "size_mb": 0.03
+      },
+      {
+        "file": "api/services/graphrag_service.py",
+        "exists": true,
+        "size": 33952,
+        "size_mb": 0.03
+      },
+      {
+        "file": "api/services/llamaindex_rag_service.py",
+        "exists": true,
+        "size": 9450,
+        "size_mb": 0.01
+      }
+    ]
+  },
+  "dependencies": {
+    "core": {
+      "weaviate-client": {
+        "available": false,
+        "description": "Vector database client"
+      },
+      "sentence-transformers": {
+        "available": true,
+        "description": "Embedding generation"
+      },
+      "transformers": {
+        "available": true,
+        "description": "Transformer models"
+      },
+      "torch": {
+        "available": true,
+        "description": "PyTorch for ML models"
+      }
+    },
+    "optional": {
+      "llama-index-core": {
+        "available": false,
+        "description": "LlamaIndex RAG framework"
+      },
+      "llama-index-vector-stores-weaviate": {
+        "available": false,
+        "description": "Weaviate integration"
+      },
+      "llama-index-embeddings-huggingface": {
+        "available": false,
+        "description": "HuggingFace embeddings"
+      }
+    }
+  },
+  "infrastructure": {
+    "weaviate": {
+      "status": "operational",
+      "version": "1.23.0",
+      "classes": [
+        "KnowledgeChunk",
+        "Knowledge_chunks",
+        "Memory"
+      ]
+    },
+    "embeddings": {
+      "status": "operational",
+      "model": "all-MiniLM-L6-v2",
+      "dimension": 384
+    },
+    "basic_pipeline": {
+      "status": "operational",
+      "test_queries": 3
+    }
+  },
+  "implementations": {
+    "simple_rag": {
+      "description": "Basic RAG using existing infrastructure",
+      "files_required": [
+        "api/routers/rag_simple.py",
+        "api/services/rag/simple_rag_service.py"
+      ],
+      "dependencies": [
+        "weaviate-client",
+        "sentence-transformers"
+      ],
+      "status": "files_present_deps_missing"
+    },
+    "advanced_rag": {
+      "description": "Advanced RAG with enhanced features",
+      "files_required": [
+        "api/routers/rag_advanced.py",
+        "api/services/rag_pipeline.py"
+      ],
+      "dependencies": [
+        "weaviate-client",
+        "sentence-transformers"
+      ],
+      "status": "files_present_deps_missing"
+    },
+    "graphrag": {
+      "description": "Graph-based RAG implementation",
+      "files_required": [
+        "api/routers/graphrag.py",
+        "api/services/graphrag_service.py"
+      ],
+      "dependencies": [
+        "neo4j",
+        "networkx"
+      ],
+      "status": "files_present_deps_missing"
+    },
+    "llamaindex_rag": {
+      "description": "LlamaIndex-based RAG implementation",
+      "files_required": [
+        "api/routers/llamaindex_rag.py",
+        "api/services/llamaindex_rag_service.py"
+      ],
+      "dependencies": [
+        "llama-index-core"
+      ],
+      "status": "files_present_deps_missing"
+    }
+  },
+  "recommendations": [
+    {
+      "category": "infrastructure",
+      "priority": "low",
+      "action": "Weaviate is operational and ready for RAG workloads"
+    },
+    {
+      "category": "api",
+      "priority": "high",
+      "action": "Fix API startup issues to expose RAG endpoints (API currently not responding)"
+    },
+    {
+      "category": "enhancement",
+      "priority": "low",
+      "action": "Consider installing LlamaIndex for advanced RAG features (optional)"
+    }
+  ]
+}

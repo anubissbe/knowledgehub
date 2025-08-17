@@ -1,0 +1,116 @@
+{
+  "timestamp": "2025-08-08T08:53:30.047237",
+  "overall_score": 31.666666666666664,
+  "phases": {
+    "infrastructure": {
+      "score": 25.0,
+      "tests": {
+        "API Health": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        },
+        "UI Access": {
+          "success": true,
+          "code": 200,
+          "response": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" con"
+        },
+        "Memory API": {
+          "success": false,
+          "code": 404,
+          "response": "{\"detail\":\"Not Found\"}"
+        },
+        "Docs": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        }
+      }
+    },
+    "rag": {
+      "score": 0.0,
+      "tests": {
+        "Search Health": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        },
+        "Search Endpoint": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        },
+        "Document Count": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        },
+        "Actual Search": {
+          "success": false,
+          "code": 403,
+          "response": "Search failed"
+        }
+      }
+    },
+    "ai": {
+      "score": 33.33333333333333,
+      "tests": {
+        "AI Health": {
+          "success": true,
+          "code": 200,
+          "response": "{\"status\":\"healthy\",\"service\":\"claude-auto\",\"description\":\"Automatic session management\"}"
+        },
+        "Session Init": {
+          "success": false,
+          "code": 404,
+          "response": "{\"detail\":\"Not Found\"}"
+        },
+        "Memory Create": {
+          "success": false,
+          "code": 404,
+          "response": "{\"detail\":\"Not Found\"}"
+        }
+      }
+    },
+    "analytics": {
+      "score": 0.0,
+      "tests": {
+        "Analytics Health": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        },
+        "Performance Stats": {
+          "success": false,
+          "code": 403,
+          "response": "{\"error\":\"Request blocked\",\"message\":\"Malicious user agent detected\",\"code\":\"SECURITY_VIOLATION\"}"
+        }
+      }
+    },
+    "ui": {
+      "score": 100.0,
+      "tests": {
+        "Main UI": {
+          "success": true,
+          "code": 200,
+          "response": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" con"
+        },
+        "AI Dashboard": {
+          "success": true,
+          "code": 200,
+          "response": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" con"
+        },
+        "Search Page": {
+          "success": true,
+          "code": 200,
+          "response": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" con"
+        },
+        "Analytics Page": {
+          "success": true,
+          "code": 200,
+          "response": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" con"
+        }
+      }
+    }
+  }
+}

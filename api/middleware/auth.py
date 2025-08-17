@@ -174,7 +174,17 @@ class SecureAuthMiddleware(BaseHTTPMiddleware):
         "/api/claude/project/detect",
         "/api/claude/error/record",
         "/api/claude/error/similar",
-        "/api/claude/task/predict"
+        "/api/claude/task/predict",
+        # Code intelligence endpoints (Serena-inspired)
+        "/api/code-intelligence/health",
+        "/api/code-intelligence/activate-project",
+        "/api/code-intelligence/symbols/overview",
+        "/api/code-intelligence/symbols/find",
+        "/api/code-intelligence/symbols/replace",
+        "/api/code-intelligence/search/pattern",
+        "/api/code-intelligence/memory/save",
+        "/api/code-intelligence/memory/load",
+        "/api/code-intelligence/memory/list"
     ]
     
     # Development paths (only exempt in development mode)

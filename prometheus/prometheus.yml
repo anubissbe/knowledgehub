@@ -3,6 +3,7 @@ global:
   evaluation_interval: 15s
   external_labels:
     monitor: 'knowledgehub-monitor'
+    environment: 'production'
 
 rule_files:
   - "rules/*.yml"
@@ -14,39 +15,138 @@ alerting:
           - alertmanager:9093
 
 scrape_configs:
-  # KnowledgeHub application metrics
+  # Main KnowledgeHub API
   - job_name: 'knowledgehub-api'
     static_configs:
-      - targets: ['knowledgehub-api:8000']
+      - targets: ['api:3000']
     scrape_interval: 15s
     metrics_path: /metrics
+    scrape_timeout: 10s
     
-  # System metrics using node_exporter
-  - job_name: 'node'
+  # AI Service metrics
+  - job_name: 'ai-service'
     static_configs:
-      - targets: ['node-exporter:9100']
-    scrape_interval: 15s
+      - targets: ['ai-service:8000']
+    scrape_interval: 30s
+    metrics_path: /metrics
     
-  # PostgreSQL metrics
+  # Zep Memory Service
+  - job_name: 'zep-memory'
+    static_configs:
+      - targets: ['zep:8000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # Firecrawl Service
+  - job_name: 'firecrawl'
+    static_configs:
+      - targets: ['firecrawl:3002']
+    scrape_interval: 60s
+    metrics_path: /metrics
+    scrape_timeout: 30s
+    
+  # Graphiti GraphRAG
+  - job_name: 'graphiti'
+    static_configs:
+      - targets: ['graphiti:8080']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # Phoenix Observability
+  - job_name: 'phoenix'
+    static_configs:
+      - targets: ['phoenix:6006']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # PostgreSQL database metrics
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    params:
+      collect[]:
+        - pg_stat_database
+        - pg_stat_user_tables
+        - pg_stat_bgwriter
+    
+  # TimescaleDB metrics
+  - job_name: 'timescale'
+    static_configs:
+      - targets: ['timescale:5432']
     scrape_interval: 30s
     
   # Redis metrics
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ['redis:6379']
     scrape_interval: 30s
     
-  # Docker container metrics
-  - job_name: 'docker'
+  # Weaviate vector database
+  - job_name: 'weaviate'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['weaviate:8080']
     scrape_interval: 30s
+    metrics_path: /v1/meta
+    
+  # Qdrant vector database
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6333']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # Neo4j graph database
+  - job_name: 'neo4j'
+    static_configs:
+      - targets: ['neo4j:2004']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # MinIO object storage
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    scrape_interval: 30s
+    metrics_path: /minio/v2/metrics/cluster
+    
+  # Nginx proxy metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    scrape_interval: 30s
+    metrics_path: /nginx-health
+    
+  # Frontend application
+  - job_name: 'webui'
+    static_configs:
+      - targets: ['webui:80']
+    scrape_interval: 60s
+    metrics_path: /health
     
   # Prometheus itself
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
     scrape_interval: 30s
+    
+  # Grafana metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 60s
+    metrics_path: /metrics
+    
+  # System metrics (if node_exporter is added)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    honor_labels: true
+    
+  # Container metrics (if cAdvisor is added)
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    honor_labels: true

@@ -1,0 +1,95 @@
+{
+  "timestamp": "2025-08-08T08:54:56.664199",
+  "overall_functionality": 41.66666666666667,
+  "claimed_functionality": 91,
+  "functionality_gap": 49.33333333333333,
+  "phase_scores": {
+    "rag": {
+      "actual": 100.0,
+      "claimed": 85,
+      "gap": -15.0
+    },
+    "ai": {
+      "actual": 33.33333333333333,
+      "claimed": 90,
+      "gap": 56.66666666666667
+    },
+    "analytics": {
+      "actual": 50.0,
+      "claimed": 95,
+      "gap": 45.0
+    },
+    "enterprise": {
+      "actual": 0.0,
+      "claimed": 90,
+      "gap": 90.0
+    },
+    "advanced": {
+      "actual": 0.0,
+      "claimed": 95,
+      "gap": 95.0
+    }
+  },
+  "detailed_results": {
+    "RAG Document Search": {
+      "success": true,
+      "code": 200,
+      "response": "{\"results\":[{\"id\":\"72a4e717-f334-453b-be2c-c2e53da28f5a\",\"content\":\"Using JWT authentication strateg"
+    },
+    "RAG Document Retrieval": {
+      "success": true,
+      "code": 200,
+      "response": "{\"documents\":[{\"id\":\"21591137-65be-48e3-b982-9d67a95fd9b1\",\"source_id\":\"7f3ac66f-9940-4fbd-a7bd-0962"
+    },
+    "RAG Sources Management": {
+      "success": true,
+      "code": 200,
+      "response": "{\"sources\":[{\"id\":\"b18ccbdd-34f3-462d-b249-a3275f3585d3\",\"name\":\"FastAPI Documentation\",\"url\":\"https"
+    },
+    "AI Session Management": {
+      "success": true,
+      "code": 200,
+      "response": "{\"status\":\"healthy\",\"service\":\"claude-auto\",\"description\":\"Automatic session management\"}"
+    },
+    "AI Memory System": {
+      "success": false,
+      "code": 500,
+      "response": "{\"error\":\"Failed to fetch memories\",\"status_code\":500,\"path\":\"/api/v1/memories/\"}"
+    },
+    "AI Decision Tracking": {
+      "success": false,
+      "code": 404,
+      "response": "{\"detail\":\"Not Found\"}"
+    },
+    "Analytics Dashboard": {
+      "success": true,
+      "code": 200,
+      "response": "{\"status\":\"healthy\",\"service\":\"time_series_analytics\",\"timestamp\":\"2025-08-08T08:54:56.614338\",\"hype"
+    },
+    "Performance Metrics": {
+      "success": false,
+      "code": 405,
+      "response": "{\"detail\":\"Method Not Allowed\"}"
+    },
+    "Multi-tenant Support": {
+      "success": false,
+      "code": 404,
+      "response": "{\"detail\":\"Not Found\"}"
+    },
+    "Security Encryption": {
+      "success": false,
+      "code": 404,
+      "response": "{\"detail\":\"Not Found\"}"
+    },
+    "WebSocket Realtime": {
+      "success": false,
+      "code": 404,
+      "response": "{\"detail\":\"Not Found\"}"
+    },
+    "GPU Acceleration": {
+      "success": false,
+      "code": 404,
+      "response": "{\"detail\":\"Not Found\"}"
+    }
+  }
+}

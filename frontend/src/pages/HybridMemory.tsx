@@ -98,7 +98,6 @@ const HybridMemory: React.FC = () => {
       setCacheStats(cache.data);
       setSyncStatus(sync.data);
     } catch (err) {
-      console.error('Failed to fetch stats:', err);
     }
   };
 

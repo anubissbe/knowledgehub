@@ -1,0 +1,160 @@
+{
+  "timestamp": "2025-08-17T10:50:58.946618",
+  "duration_seconds": 2.330749,
+  "configuration_score": 100,
+  "production_readiness": 95.83333333333333,
+  "validation_results": {
+    "databases": 100.0,
+    "api_endpoints": 87.5,
+    "performance": 100.0
+  },
+  "phases": {
+    "phase1": {
+      "phase": "Configuration Setup",
+      "results": [
+        {
+          "status": "success",
+          "env_file": "/opt/projects/knowledgehub/.env"
+        },
+        {
+          "status": "success",
+          "services": [
+            "hybrid_rag",
+            "agent_orchestrator",
+            "zep_memory"
+          ]
+        },
+        {
+          "status": "success",
+          "script": "/opt/projects/knowledgehub/scripts/health_check.sh"
+        }
+      ],
+      "success": true
+    },
+    "phase2": {
+      "phase": "Database Initialization",
+      "results": [
+        {
+          "status": "error",
+          "message": "Command '['docker', 'exec', 'knowledgehub-postgres-1', 'psql', '-U', 'postgres', '-d', 'knowledgehub', '-c', '\\n-- KnowledgeHub Production Database Schema\\n-- Ensure all required tables and indexes exist\\n\\n-- Enable required extensions\\nCREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";\\nCREATE EXTENSION IF NOT EXISTS \"vector\";\\nCREATE EXTENSION IF NOT EXISTS \"pg_trgm\";\\n\\n-- Create performance indexes\\nCREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);\\nCREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);\\nCREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id);\\nCREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);\\n\\n-- Create text search indexes\\nCREATE INDEX IF NOT EXISTS idx_documents_content_trgm ON documents USING gin(content gin_trgm_ops);\\nCREATE INDEX IF NOT EXISTS idx_chunks_content_trgm ON chunks USING gin(content gin_trgm_ops);\\n\\n-- Optimize query performance\\nALTER TABLE documents SET (autovacuum_vacuum_scale_factor = 0.1);\\nALTER TABLE chunks SET (autovacuum_vacuum_scale_factor = 0.1);\\nANALYZE;\\n']' returned non-zero exit status 2."
+        },
+        {
+          "status": "success",
+          "indexes_created": 5,
+          "constraints_created": 2
+        },
+        null
+      ],
+      "success": false
+    },
+    "phase3": {
+      "phase": "Monitoring & Observability",
+      "results": [
+        {
+          "status": "success",
+          "panels": 6
+        }
+      ],
+      "success": true
+    },
+    "phase4": {
+      "phase": "Production Validation",
+      "results": [
+        {
+          "status": "success",
+          "results": [
+            {
+              "endpoint": "/health",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/rag/enhanced/health",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/agents/health",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/zep/health",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/graphrag/health",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/rag/enhanced/retrieval-modes",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/agents/agents",
+              "status_code": 200,
+              "success": true
+            },
+            {
+              "endpoint": "/api/rag/test",
+              "status_code": 500,
+              "success": false
+            }
+          ],
+          "success_rate": 87.5
+        },
+        {
+          "status": "success",
+          "results": {
+            "PostgreSQL": true,
+            "Redis": true,
+            "Neo4j": true,
+            "Weaviate": true,
+            "Qdrant": true
+          },
+          "success_rate": 100.0
+        },
+        {
+          "status": "success",
+          "benchmarks": [
+            {
+              "metric": "API Response Time",
+              "value": "27.66ms",
+              "target": "<100ms",
+              "pass": true
+            },
+            {
+              "metric": "Memory Usage",
+              "value": "0.52%",
+              "target": "<80%",
+              "pass": true
+            }
+          ],
+          "success_rate": 100.0
+        }
+      ],
+      "success": true
+    }
+  },
+  "tasks_completed": {
+    "configuration": [
+      "Environment variables configured",
+      "Service connections initialized"
+    ],
+    "database": [
+      "Neo4j initialized"
+    ],
+    "monitoring": [
+      "Health checks configured",
+      "Monitoring dashboards configured"
+    ],
+    "validation": [
+      "Database validation: 100.0% connected",
+      "API validation: 87.5% success",
+      "Performance validation: 100.0% passing"
+    ]
+  }
+}

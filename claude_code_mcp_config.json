@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "knowledgehub-api": {
+      "command": "python3",
+      "args": ["-c", "import json, sys, httpx, asyncio; exec('''async def main(): import os; api_url = os.getenv(\\\"KNOWLEDGEHUB_API_URL\\\", \\\"http://192.168.1.25:3000\\\"); project_path = os.getenv(\\\"KNOWLEDGEHUB_PROJECT_PATH\\\", \\\"/opt/projects/knowledgehub\\\"); tools = [{\\\"name\\\": \\\"activate_project\\\", \\\"description\\\": \\\"Activate project for analysis\\\", \\\"inputSchema\\\": {\\\"type\\\": \\\"object\\\", \\\"properties\\\": {\\\"project_path\\\": {\\\"type\\\": \\\"string\\\"}}, \\\"required\\\": [\\\"project_path\\\"]}}, {\\\"name\\\": \\\"get_symbols\\\", \\\"description\\\": \\\"Get project symbols\\\", \\\"inputSchema\\\": {\\\"type\\\": \\\"object\\\", \\\"properties\\\": {\\\"project_path\\\": {\\\"type\\\": \\\"string\\\"}}, \\\"required\\\": [\\\"project_path\\\"]}}, {\\\"name\\\": \\\"find_symbol\\\", \\\"description\\\": \\\"Find specific symbol\\\", \\\"inputSchema\\\": {\\\"type\\\": \\\"object\\\", \\\"properties\\\": {\\\"project_path\\\": {\\\"type\\\": \\\"string\\\"}, \\\"name_path\\\": {\\\"type\\\": \\\"string\\\"}}, \\\"required\\\": [\\\"project_path\\\", \\\"name_path\\\"]}}]; print(json.dumps({\\\"tools\\\": tools})); asyncio.run(main())''')"],
+      "env": {
+        "KNOWLEDGEHUB_API_URL": "http://192.168.1.25:3000",
+        "KNOWLEDGEHUB_PROJECT_PATH": "/opt/projects/knowledgehub"
+      }
+    }
+  }
+}

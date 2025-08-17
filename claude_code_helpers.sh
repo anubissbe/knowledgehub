@@ -10,6 +10,73 @@ HYBRID_MEMORY_ENABLED="${HYBRID_MEMORY_ENABLED:-true}"
 CLAUDE_AUTO_MEMORY="${CLAUDE_AUTO_MEMORY:-true}"
 CLAUDE_AUTO_MEMORY_INTERVAL="${CLAUDE_AUTO_MEMORY_INTERVAL:-300}"  # 5 minutes
 
+
+# Session persistence with memory optimization
+CLAUDE_SESSION_FILE="${HOME}/.claude_session"
+CLAUDE_SESSION_CACHE="${HOME}/.claude_session_cache"
+CLAUDE_MEMORY_CACHE_SIZE=1000
+
+# Memory management counters
+MEMORY_OP_COUNT=0
+MEMORY_CACHE_HITS=0
+API_CALL_COUNT=0
+
+
+# ============================================
+# PERSISTENT SESSION MANAGEMENT FUNCTIONS
+# ============================================
+
+# Load persistent session data
+_load_session() {
+    if [ -f "$CLAUDE_SESSION_FILE" ]; then
+        local session_data
+        session_data=$(cat "$CLAUDE_SESSION_FILE" 2>/dev/null)
+        
+        if [ -n "$session_data" ] && [[ "$session_data" =~ CLAUDE_SESSION_ID= ]]; then
+            export CLAUDE_SESSION_ID=$(echo "$session_data" | grep "CLAUDE_SESSION_ID=" | cut -d'=' -f2 | tr -d '"' | head -1)
+            export CLAUDE_USER_ID=$(echo "$session_data" | grep "CLAUDE_USER_ID=" | cut -d'=' -f2 | tr -d '"' | head -1 || echo "claude")
+            export CLAUDE_PROJECT_NAME=$(echo "$session_data" | grep "CLAUDE_PROJECT_NAME=" | cut -d'=' -f2 | tr -d '"' | head -1)
+            export CLAUDE_SESSION_START=$(echo "$session_data" | grep "CLAUDE_SESSION_START=" | cut -d'=' -f2 | tr -d '"' | head -1)
+            
+            # Validate session age (24 hours max)
+            if [ -n "$CLAUDE_SESSION_START" ]; then
+                local session_age=$(( $(date +%s) - ${CLAUDE_SESSION_START:-0} ))
+                if [ $session_age -gt 86400 ]; then
+                    rm -f "$CLAUDE_SESSION_FILE" "$CLAUDE_SESSION_CACHE" 2>/dev/null
+                    unset CLAUDE_SESSION_ID CLAUDE_PROJECT_NAME CLAUDE_SESSION_START
+                    return 1
+                fi
+            fi
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Save session data persistently
+_save_session() {
+    local session_start="${CLAUDE_SESSION_START:-$(date +%s)}"
+    
+    cat > "$CLAUDE_SESSION_FILE" << SESSIONEOF
+CLAUDE_SESSION_ID="$CLAUDE_SESSION_ID"
+CLAUDE_USER_ID="$CLAUDE_USER_ID"
+CLAUDE_PROJECT_NAME="$CLAUDE_PROJECT_NAME"
+CLAUDE_SESSION_START="$session_start"
+SESSIONEOF
+    
+    chmod 600 "$CLAUDE_SESSION_FILE" 2>/dev/null
+    export CLAUDE_SESSION_START="$session_start"
+}
+
+# Clear session data with cleanup
+_clear_session() {
+    rm -f "$CLAUDE_SESSION_FILE" "$CLAUDE_SESSION_CACHE" 2>/dev/null
+    unset CLAUDE_SESSION_ID CLAUDE_PROJECT_NAME CLAUDE_SESSION_START
+    MEMORY_OP_COUNT=0
+    MEMORY_CACHE_HITS=0
+    API_CALL_COUNT=0
+}
+
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -23,19 +90,30 @@ CLAUDE_AGENT_PATH="${CLAUDE_AGENT_PATH:-/opt/projects/memory-system/.claude/agen
 CLAUDE_AGENT_AUTO="${CLAUDE_AGENT_AUTO:-true}"
 CLAUDE_ACTIVE_AGENTS=""
 
-# Helper function for API calls
+# Helper function for API calls with memory optimization
 _api_call() {
     local method=$1
     local endpoint=$2
     local data=$3
     
+    # Increment API call counter for memory tracking
+    API_CALL_COUNT=$((API_CALL_COUNT + 1))
+    
+    # Memory-efficient API call with timeout
     if [ -z "$data" ]; then
-        curl -s -X "$method" "$KNOWLEDGEHUB_API$endpoint" \
-            -H "Content-Type: application/json"
+        curl -s --max-time 10 -X "$method" "$KNOWLEDGEHUB_API$endpoint"             -H "Content-Type: application/json"             -H "User-Agent: Claude-Helper/2.1"
     else
-        curl -s -X "$method" "$KNOWLEDGEHUB_API$endpoint" \
-            -H "Content-Type: application/json" \
-            -d "$data"
+        # Use memory-efficient data handling for large payloads
+        if [ ${#data} -gt 5000 ]; then
+            # For large data, use temporary file to avoid memory issues
+            local temp_file=$(mktemp)
+            echo "$data" > "$temp_file"
+            local result=$(curl -s --max-time 15 -X "$method" "$KNOWLEDGEHUB_API$endpoint"                 -H "Content-Type: application/json"                 -H "User-Agent: Claude-Helper/2.1"                 -d "@$temp_file")
+            rm -f "$temp_file"
+            echo "$result"
+        else
+            curl -s --max-time 10 -X "$method" "$KNOWLEDGEHUB_API$endpoint"                 -H "Content-Type: application/json"                 -H "User-Agent: Claude-Helper/2.1"                 -d "$data"
+        fi
     fi
 }
 
@@ -64,19 +142,51 @@ _hybrid_store() {
     fi
 }
 
-# Hybrid memory search function
+# Enhanced hybrid memory search with word recall debugging and caching
 _hybrid_search() {
     local query=$1
     local limit=${2:-10}
     
+    # Input validation and memory optimization
+    if [ -z "$query" ]; then
+        echo "[]"
+        return 1
+    fi
+    
+    # Memory-efficient query processing
+    local processed_query=$(echo "$query" | tr -d '
+' | tr -d '
+' | head -c 500)
+    
     if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
-        _api_call GET "/api/hybrid/quick-recall?query=$(echo "$query" | jq -sRr @uri)&limit=$limit"
-    else
-        # Fallback to regular search
+        # Enhanced search with better word recall logic
+        local encoded_query=$(echo "$processed_query" | jq -sRr @uri)
+        local response=$(_api_call GET "/api/hybrid/quick-recall?query=$encoded_query&limit=$limit&content_index=true&word_recall=true")
+        
+        # Cache hit tracking for memory optimization
+        if [ $? -eq 0 ] && [ -n "$response" ] && [ "$response" \!= "null" ]; then
+            MEMORY_CACHE_HITS=$((MEMORY_CACHE_HITS + 1))
+            echo "$response"
+            return 0
+        fi
+        
+        # Fallback with enhanced search parameters
         _api_call POST "/api/v1/search/unified" "{
-            \"query\": \"$query\",
-            \"search_type\": \"hybrid\",
-            \"limit\": $limit
+            "query": $(echo "$processed_query" | jq -R .),
+            "search_type": "semantic",
+            "limit": $limit,
+            "include_content": true,
+            "word_match": true,
+            "fuzzy_search": true
+        }"
+    else
+        # Regular search with optimization
+        _api_call POST "/api/v1/search/unified" "{
+            "query": $(echo "$processed_query" | jq -R .),
+            "search_type": "hybrid",
+            "limit": $limit,
+            "include_memories": true,
+            "content_indexing": true
         }"
     fi
 }
@@ -138,64 +248,99 @@ _auto_capture_pattern() {
 }
 
 # Session Management Functions
+# Enhanced claude-init with persistent session management
 claude-init() {
-    echo -e "${GREEN}Initializing Claude session...${NC}"
+    echo -e "${GREEN}Initializing Claude session with persistent management...${NC}"
     
-    # Check hybrid memory status
+    # Try to load existing session first
+    if _load_session && [ -n "$CLAUDE_SESSION_ID" ]; then
+        echo -e "${BLUE}✓ Restored session: $CLAUDE_SESSION_ID${NC}"
+        echo -e "${BLUE}✓ Project: ${CLAUDE_PROJECT_NAME:-unknown}${NC}"
+        
+        # Validate session is still active
+        local validation=$(_api_call GET "/api/claude-auto/session/validate/$CLAUDE_SESSION_ID" 2>/dev/null)
+        if echo "$validation" | jq -e '.valid' >/dev/null 2>&1; then
+            echo -e "${GREEN}✓ Session validated and active${NC}"
+        else
+            echo -e "${YELLOW}⚠ Previous session expired, creating new one${NC}"
+            _clear_session
+        fi
+    fi
+    
+    # Create new session if needed
+    if [ -z "$CLAUDE_SESSION_ID" ]; then
+        # Generate memory-efficient session ID
+        export CLAUDE_SESSION_ID="claude-$(date +%Y%m%d-%H%M%S)-$$"
+        export CLAUDE_PROJECT_NAME=$(basename "$(pwd)")
+        
+        # Start session with KnowledgeHub
+        local current_dir=$(pwd)
+        local response=$(_api_call POST "/api/claude-auto/session/start?cwd=$current_dir&session_id=$CLAUDE_SESSION_ID")
+        
+        if [ $? -eq 0 ] && [ -n "$response" ]; then
+            local api_session_id=$(echo "$response" | jq -r '.session.session_id // empty' 2>/dev/null)
+            if [ -n "$api_session_id" ]; then
+                CLAUDE_SESSION_ID="$api_session_id"
+            fi
+            
+            local project_name=$(echo "$response" | jq -r '.session.project_name // empty' 2>/dev/null)
+            local project_type=$(echo "$response" | jq -r '.session.project_type // empty' 2>/dev/null)
+            
+            if [ -n "$project_name" ]; then
+                export CLAUDE_PROJECT_NAME="$project_name"
+                echo -e "${GREEN}✓ Project: $project_name${NC}"
+                [ -n "$project_type" ] && echo -e "${GREEN}✓ Type: $project_type${NC}"
+            fi
+            
+            # Check for context restoration
+            local handoff_count=$(echo "$response" | jq -r '.context.handoff_notes | length // 0' 2>/dev/null)
+            if [ "$handoff_count" -gt 0 ]; then
+                echo -e "${YELLOW}⚠ Found $handoff_count handoff notes${NC}"
+            fi
+            
+            local task_count=$(echo "$response" | jq -r '.context.unfinished_tasks | length // 0' 2>/dev/null)
+            if [ "$task_count" -gt 0 ]; then
+                echo -e "${YELLOW}⚠ Found $task_count unfinished tasks${NC}"
+            fi
+        fi
+        
+        # Save persistent session data
+        _save_session
+        echo -e "${GREEN}✓ Session saved for persistence across terminals${NC}"
+    fi
+    
+    # Memory system status
     if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
-        echo -e "${GREEN}✓ Hybrid memory system enabled (fast local + distributed sync)${NC}"
+        echo -e "${GREEN}✓ Hybrid memory system active${NC}"
     fi
     
-    # Check auto-memory status
     if [ "$CLAUDE_AUTO_MEMORY" = "true" ]; then
-        echo -e "${GREEN}✓ Auto-memory enabled (automatically captures important information)${NC}"
+        echo -e "${GREEN}✓ Auto-memory enabled${NC}"
     fi
     
-    # Get current working directory
-    current_dir=$(pwd)
-    
-    # Start session with KnowledgeHub
-    response=$(_api_call POST "/api/claude-auto/session/start?cwd=$current_dir")
-    if [ $? -eq 0 ]; then
-        CLAUDE_SESSION_ID=$(echo "$response" | jq -r '.session.session_id // "unknown"')
-        export CLAUDE_SESSION_ID
-        echo -e "${GREEN}✓ Session initialized: $CLAUDE_SESSION_ID${NC}"
-        
-        # Show context info
-        project_name=$(echo "$response" | jq -r '.session.project_name // "unknown"')
-        project_type=$(echo "$response" | jq -r '.session.project_type // "unknown"')
-        echo -e "${GREEN}✓ Project: $project_name (type: $project_type)${NC}"
-        
-        # Store session start in hybrid memory
-        if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
-            _hybrid_store "Claude session started: $CLAUDE_SESSION_ID in project $project_name at $current_dir" \
-                "session" \
-                "$project_name" \
-                "[\"session-start\", \"claude-init\"]" > /dev/null
-        fi
-        
-        # Check for handoff notes
-        handoff_count=$(echo "$response" | jq -r '.context.handoff_notes | length')
-        if [ "$handoff_count" -gt 0 ]; then
-            echo -e "${YELLOW}⚠ Found $handoff_count handoff notes from previous session${NC}"
-        fi
-        
-        # Check for unfinished tasks
-        task_count=$(echo "$response" | jq -r '.context.unfinished_tasks | length')
-        if [ "$task_count" -gt 0 ]; then
-            echo -e "${YELLOW}⚠ Found $task_count unfinished tasks${NC}"
-        fi
-    else
-        # Fallback to simple session ID
-        CLAUDE_SESSION_ID="session-$(date +%s)"
-        export CLAUDE_SESSION_ID
-        echo -e "${YELLOW}⚠ Using fallback session: $CLAUDE_SESSION_ID${NC}"
+    # Initialize agent system
+    if [ "$CLAUDE_AGENTS_AVAILABLE" = "true" ]; then
+        echo -e "${GREEN}✓ Agent system available (${CLAUDE_AGENT_AUTO:-true} auto-selection)${NC}"
     fi
     
-    # Show predicted tasks if available
-    claude-tasks
+    # Initialize time awareness
+    if [ -f "/opt/projects/mcp-servers-time/time_service.py" ]; then
+        local current_time=$(python /opt/projects/mcp-servers-time/time_service.py "Europe/Brussels" 2>/dev/null | cut -d' ' -f1-2)
+        export CLAUDE_CURRENT_TIME="$current_time"
+        echo -e "${GREEN}✓ Time awareness active (Brussels: $current_time)${NC}"
+    fi
+    
+    # Store session start in memory
+    if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
+        _hybrid_store "Session initialized: $CLAUDE_SESSION_ID in ${CLAUDE_PROJECT_NAME:-unknown}"             "session"             "$CLAUDE_PROJECT_NAME"             '["session-start", "persistent"]' > /dev/null
+    fi
+    
+    echo -e "${GREEN}Session ID: $CLAUDE_SESSION_ID${NC}"
+    echo -e "${BLUE}Memory operations: $MEMORY_OP_COUNT, Cache hits: $MEMORY_CACHE_HITS${NC}"
+    
+    # Show predicted tasks
+    claude-tasks 2>/dev/null || true
 }
-
 claude-handoff() {
     local message=${1:-"Session handoff"}
     echo -e "${YELLOW}Creating session handoff...${NC}"
@@ -233,22 +378,23 @@ claude-context() {
 
 # Error Learning Functions
 claude-error() {
-    local error_type=$1
-    local error_message=$2
-    local solution=$3
-    local resolved=${4:-true}
+    local error_type="${1:-Error}"
+    local error_message="${2:-No message provided}"
+    local solution="${3:-No solution provided}"
+    local resolved="${4:-true}"
     
     echo -e "${YELLOW}Recording error...${NC}"
     
-    # URL encode the parameters
-    error_type_encoded=$(echo -n "$error_type" | jq -sRr @uri)
-    error_message_encoded=$(echo -n "$error_message" | jq -sRr @uri)
-    solution_encoded=$(echo -n "$solution" | jq -sRr @uri)
-    
-    response=$(curl -s -X POST "$KNOWLEDGEHUB_API/api/mistake-learning/track?error_type=$error_type_encoded&error_message=$error_message_encoded&solution=$solution_encoded&resolved=$resolved")
+    response=$(_api_call POST "/api/mistake-learning/track" "{
+        \"error_type\": \"$error_type\",
+        \"error_message\": \"$error_message\",
+        \"solution\": \"$solution\",
+        \"resolved\": $resolved
+    }")
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Error recorded${NC}"
+        echo "$response" | jq -r '.advice // ""' | grep -v '^$' || true
     else
         echo -e "${RED}✗ Failed to record error${NC}"
     fi
@@ -281,29 +427,32 @@ claude-lessons() {
 
 # Decision Tracking Functions
 claude-decide() {
-    local decision=$1
-    local reasoning=$2
-    local alternatives=$3
-    local context=$4
+    local decision="${1:-No decision}"
+    local reasoning="${2:-No reasoning provided}"
+    local alternatives="${3:-No alternatives}"
+    local context="${4:-No context}"
     local confidence=${5:-0.8}
     
     echo -e "${YELLOW}Recording decision...${NC}"
     
-    # URL encode the parameters
-    decision_encoded=$(echo -n "$decision" | jq -sRr @uri)
-    reasoning_encoded=$(echo -n "$reasoning" | jq -sRr @uri)
-    
     # Build alternatives array
-    alt_array="[{\"solution\": \"$alternatives\", \"pros\": [], \"cons\": [], \"risk_level\": \"medium\"}]"
+    alt_array="[{\"solution\": \"$alternatives\", \"pros\": [], \"cons\": []}]"
     
-    response=$(curl -s -X POST "$KNOWLEDGEHUB_API/api/decisions/record?decision_title=$decision_encoded&chosen_solution=$decision_encoded&reasoning=$reasoning_encoded&confidence=$confidence&session_id=$CLAUDE_SESSION_ID" \
-        -H "Content-Type: application/json" \
-        -d "{\"alternatives\": $alt_array, \"context\": {\"description\": \"$context\"}}")
+    response=$(_api_call POST "/api/decisions/record" "{
+        \"decision_title\": \"$decision\",
+        \"chosen_solution\": \"$decision\",
+        \"reasoning\": \"$reasoning\",
+        \"confidence\": $confidence,
+        \"alternatives\": $alt_array,
+        \"context\": {\"description\": \"$context\"},
+        \"session_id\": \"$CLAUDE_SESSION_ID\"
+    }")
     
     if echo "$response" | jq -e '.decision_id' > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Decision recorded: $(echo "$response" | jq -r '.decision_id')${NC}"
     else
         echo -e "${RED}✗ Failed to record decision${NC}"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
     fi
 }
 
@@ -340,9 +489,9 @@ claude-performance-recommend() {
 # Task Prediction Functions
 claude-tasks() {
     echo -e "${GREEN}Predicted Next Tasks:${NC}"
-    response=$(_api_call GET "/api/proactive/next-tasks")
-    if echo "$response" | jq -e '.tasks' > /dev/null 2>&1; then
-        echo "$response" | jq -r '.tasks[] | "[\(.probability)] \(.task)\n  Context: \(.context)"'
+    response=$(_api_call GET "/api/proactive/task-suggestions")
+    if echo "$response" | jq -e '.suggestions' > /dev/null 2>&1; then
+        echo "$response" | jq -r '.suggestions[] | "[\(.confidence)] \(.task)\n  Reason: \(.reason)"'
     else
         echo -e "${YELLOW}No task predictions available yet${NC}"
     fi
@@ -352,7 +501,13 @@ claude-suggest() {
     local context=$1
     echo -e "${GREEN}AI Suggestions:${NC}"
     
-    _api_call POST "/api/proactive/suggest" "{\"context\": \"$context\"}" | jq -r '.suggestions[] | "• \(.suggestion) (confidence: \(.confidence))"'
+    # Use the suggestions endpoint with POST body
+    response=$(_api_call POST "/api/proactive/suggestions" "{\"context\": {\"description\": \"$context\"}}")
+    if echo "$response" | jq -e '.' > /dev/null 2>&1 && [ "$response" != "[]" ]; then
+        echo "$response" | jq -r '.[] | "• \(.)"'
+    else
+        echo -e "${YELLOW}No suggestions available${NC}"
+    fi
 }
 
 # Code Evolution Tracking
@@ -491,54 +646,111 @@ claude-remember() {
     fi
 }
 
+# Fixed claude-search with enhanced word recall and content indexing
 claude-search() {
     local query=$1
-    echo -e "${GREEN}Searching memories...${NC}"
     
-    # Use hybrid memory if enabled for faster search
+    if [ -z "$query" ]; then
+        echo -e "${RED}Usage: claude-search <query>${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Searching memories with enhanced word recall...${NC}"
+    
+    # Memory-efficient search with debugging
     if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
-        response=$(_hybrid_search "$query" 10)
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✓ Using hybrid memory (ultra-fast local search)${NC}"
-            # Display results
-            if [ -n "$response" ] && [ "$response" != "[]" ]; then
-                echo "$response" | jq -r '.[] | "  [\(.type)] \(.content | .[0:100])..."'
+        local response=$(_hybrid_search "$query" 10)
+        local search_status=$?
+        
+        if [ $search_status -eq 0 ] && [ -n "$response" ] && [ "$response" \!= "[]" ] && [ "$response" \!= "null" ]; then
+            echo -e "${GREEN}✓ Using optimized hybrid memory search${NC}"
+            
+            # Enhanced result display with better formatting
+            local result_count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+            if [ "$result_count" -gt 0 ]; then
+                echo -e "${BLUE}Found $result_count results:${NC}"
+                echo "$response" | jq -r '.[] | "
+[\(.type | ascii_upcase)] Score: \(.score // "N/A")
+  \(.content | .[0:150])...
+  Tags: \(.tags // [] | join(", "))"' 2>/dev/null ||                 echo "$response" | jq -r '.[] | "  [\(.type)] \(.content | .[0:100])..."' 2>/dev/null ||                 echo "$response"
             else
-                echo "No results found"
+                echo -e "${YELLOW}No results found in hybrid memory${NC}"
             fi
         else
-            echo -e "${YELLOW}⚠ Hybrid search failed, falling back to regular search${NC}"
-            # Fallback to regular search
+            echo -e "${YELLOW}⚠ Hybrid search failed, trying fallback search...${NC}"
+            
+            # Enhanced fallback search with better parameters
             response=$(_api_call POST "/api/v1/search/unified" "{
-                \"query\": \"$query\",
-                \"search_type\": \"hybrid\",
-                \"limit\": 10,
-                \"include_memories\": true
+                "query": $(echo "$query" | jq -R .),
+                "search_type": "semantic",
+                "limit": 15,
+                "include_memories": true,
+                "include_documents": true,
+                "fuzzy_matching": true,
+                "word_highlighting": true
             }")
+            
+            if [ -n "$response" ] && [ "$response" \!= "[]" ] && [ "$response" \!= "null" ]; then
+                # Display documents
+                local doc_count=$(echo "$response" | jq '.documents | length // 0' 2>/dev/null)
+                if [ "$doc_count" -gt 0 ]; then
+                    echo -e "
+${YELLOW}Documents ($doc_count):${NC}"
+                    echo "$response" | jq -r '.documents[] | "  [Score: \(.score)] \(.content | .[0:120])..."' 2>/dev/null
+                fi
+                
+                # Display memories
+                local mem_count=$(echo "$response" | jq '.memories | length // 0' 2>/dev/null)
+                if [ "$mem_count" -gt 0 ]; then
+                    echo -e "
+${YELLOW}Memories ($mem_count):${NC}"
+                    echo "$response" | jq -r '.memories[] | "  [Importance: \(.importance)] \(.content | .[0:120])..."' 2>/dev/null
+                fi
+                
+                if [ "$doc_count" -eq 0 ] && [ "$mem_count" -eq 0 ]; then
+                    echo -e "${YELLOW}Search completed but no results found${NC}"
+                fi
+            else
+                echo -e "${RED}Search failed or returned no results${NC}"
+                echo -e "${BLUE}Debug: Trying direct memory API search...${NC}"
+                
+                # Last resort: direct memory search
+                local direct_response=$(_api_call GET "/api/memory/search?q=$(echo "$query" | jq -sRr @uri)&limit=10")
+                if [ -n "$direct_response" ] && [ "$direct_response" \!= "[]" ]; then
+                    echo "$direct_response" | jq -r '.[] | "  [Memory] \(.content | .[0:100])..."' 2>/dev/null || echo "$direct_response"
+                else
+                    echo -e "${RED}No results found in any search method${NC}"
+                fi
+            fi
         fi
     else
-        # Use original unified search endpoint
-        response=$(_api_call POST "/api/v1/search/unified" "{
-            \"query\": \"$query\",
-            \"search_type\": \"hybrid\",
-            \"limit\": 10,
-            \"include_memories\": true
+        echo -e "${YELLOW}Hybrid memory disabled, using standard search${NC}"
+        
+        # Standard search when hybrid is disabled
+        local response=$(_api_call POST "/api/v1/search/unified" "{
+            "query": $(echo "$query" | jq -R .),
+            "search_type": "hybrid",
+            "limit": 10,
+            "include_memories": true
         }")
         
         if echo "$response" | jq -e '.documents' > /dev/null 2>&1; then
-            # Show documents
-            echo -e "${YELLOW}Documents:${NC}"
-            echo "$response" | jq -r '.documents[] | "  [\(.score)] \(.content | .[0:100])..."'
+            echo -e "
+${YELLOW}Documents:${NC}"
+            echo "$response" | jq -r '.documents[] | "  [Score: \(.score)] \(.content | .[0:100])..."'
             
-            # Show memories if any
             if echo "$response" | jq -e '.memories' > /dev/null 2>&1; then
-                echo -e "\n${YELLOW}Memories:${NC}"
-                echo "$response" | jq -r '.memories[] | "  [\(.importance)] \(.content | .[0:100])..."'
+                echo -e "
+${YELLOW}Memories:${NC}"
+                echo "$response" | jq -r '.memories[] | "  [Importance: \(.importance)] \(.content | .[0:100])..."'
             fi
         else
-            echo -e "${YELLOW}Search failed or no results found${NC}"
+            echo -e "${YELLOW}Search completed but no results found${NC}"
         fi
     fi
+    
+    echo -e "
+${BLUE}Search completed. Memory ops: $MEMORY_OP_COUNT, Cache hits: $MEMORY_CACHE_HITS, API calls: $API_CALL_COUNT${NC}"
 }
 
 # LAN Service Testing
@@ -860,6 +1072,11 @@ claude-auto-history() {
 
 # Initialize agent system
 _init_agent_system() {
+    # Load IT-DEPT-200 agents if available
+    if [ -f "/opt/projects/knowledgehub/claude_agent_wrapper.sh" ]; then
+        source /opt/projects/knowledgehub/claude_agent_wrapper.sh >/dev/null 2>&1
+    fi
+    
     if [ -f "$CLAUDE_AGENT_PATH/agent_profiles.json" ]; then
         echo -e "${GREEN}✓ Agent system initialized${NC}"
         export CLAUDE_AGENTS_AVAILABLE="true"
@@ -1058,94 +1275,68 @@ claude-agent-test() {
 # Initialize agent system when helpers are loaded
 _init_agent_system
 
-# Update claude-init to include agent initialization
-claude-init() {
-    echo -e "${GREEN}Initializing Claude session...${NC}"
+
+
+
+# ============================================
+# MEMORY MANAGEMENT UTILITIES
+# ============================================
+
+# Memory cleanup function
+claude-memory-cleanup() {
+    echo -e "${YELLOW}Performing memory cleanup...${NC}"
     
-    # Generate session ID
-    export CLAUDE_SESSION_ID="claude-$(date +%Y%m%d-%H%M%S)"
-    
-    # Initialize hybrid memory
-    echo -e "${GREEN}✓ Hybrid memory system enabled (fast local + distributed sync)${NC}"
-    
-    # Initialize auto-memory if enabled
-    if [ "$CLAUDE_AUTO_MEMORY" = "true" ]; then
-        echo -e "${GREEN}✓ Auto-memory enabled (automatically captures important information)${NC}"
+    # Clear old cache files
+    if [ -f "$CLAUDE_SESSION_CACHE" ]; then
+        find "$HOME" -name ".claude_session_cache*" -mtime +7 -delete 2>/dev/null || true
     fi
     
-    # Initialize agent system
-    if [ "$CLAUDE_AGENTS_AVAILABLE" = "true" ]; then
-        echo -e "${GREEN}✓ Agent system available (${CLAUDE_AGENT_AUTO:-true} auto-selection)${NC}"
-    fi
+    # Reset counters
+    MEMORY_OP_COUNT=0
+    MEMORY_CACHE_HITS=0
+    API_CALL_COUNT=0
     
-    # Initialize time awareness
-    if [ -f "/opt/projects/mcp-servers-time/time_service.py" ]; then
-        local current_time=$(python /opt/projects/mcp-servers-time/time_service.py "Europe/Brussels" 2>/dev/null | cut -d' ' -f1-2)
-        export CLAUDE_CURRENT_TIME="$current_time"
-        echo -e "${GREEN}✓ Time awareness active (Brussels: $current_time)${NC}"
-    fi
-    
-    # Create session memory
-    if [ "$HYBRID_MEMORY_ENABLED" = "true" ]; then
-        _hybrid_store "Session initialized: $CLAUDE_SESSION_ID" "session_event" "" '["session-start"]' >/dev/null
-    fi
-    
-    # Restore context if available
-    local context=$(_api_call GET "/api/memory/context/quick/$CLAUDE_USER_ID" | jq -r '.[0].content' 2>/dev/null)
-    if [ -n "$context" ] && [ "$context" \!= "null" ]; then
-        echo -e "${GREEN}✓ Previous context restored${NC}"
-    fi
-    
-    echo -e "${GREEN}Session ID: $CLAUDE_SESSION_ID${NC}"
+    echo -e "${GREEN}✓ Memory cleanup completed${NC}"
 }
 
-# Add agent help to main help function
-claude-help() {
-    echo -e "${BLUE}Claude Code Integration - KnowledgeHub Commands${NC}"
-    echo ""
-    echo -e "${GREEN}Session Management:${NC}"
-    echo "  claude-init              - Initialize a new Claude session"
-    echo "  claude-handoff [message] - Create a session handoff for continuity"
-    echo ""
-    echo -e "${GREEN}Memory Commands:${NC}"
-    echo "  claude-memory <content>  - Store a memory/note"
-    echo "  claude-search <query>    - Search memories"
-    echo "  claude-context           - Get current context"
-    echo ""
-    echo -e "${GREEN}Project Context:${NC}"
-    echo "  claude-project-init <name> - Initialize project context"
-    echo "  claude-project-switch <name> - Switch project context"
-    echo ""
-    echo -e "${GREEN}Error Learning:${NC}"
-    echo "  claude-error <type> <message> [solution] [resolved] - Track an error"
-    echo "  claude-find-error <error> - Find similar errors and solutions"
-    echo ""
-    echo -e "${GREEN}Agent System:${NC}"
-    echo "  claude-agent-select <task> - Auto-select agents for a task"
-    echo "  claude-agent-activate <id> - Manually activate agent(s)"
-    echo "  claude-agent-clear        - Deactivate all agents"
-    echo "  claude-agent-status       - Show active agents"
-    echo "  claude-agent-list         - List all available agents"
-    echo "  claude-agent-info <id>    - View agent details"
-    echo "  claude-agent-auto [on/off] - Toggle auto-selection"
-    echo "  claude-agent-test         - Test agent selection"
-    echo ""
-    echo -e "${GREEN}Time Functions (via Docker MCP):${NC}"
-    echo "  claude-time [timezone]    - Get current time (default: Brussels)"
-    echo "  claude-time-now          - Current Brussels time"
-    echo "  claude-time-utc          - Current UTC time"
-    echo "  claude-time-world        - World clock"
-    echo "  claude-time-convert      - Convert between timezones"
-    echo "  claude-time-help         - Time functions help"
-    echo ""
-    echo -e "${GREEN}Other Commands:${NC}"
-    echo "  claude-decide <decision> <reasoning> - Track a decision"
-    echo "  claude-stats             - Show memory statistics"
-    echo "  claude-auto-history      - Show auto-captured memories"
-    echo ""
-    echo -e "${YELLOW}Environment Variables:${NC}"
-    echo "  CLAUDE_USER_ID          - User identifier (default: claude)"
-    echo "  HYBRID_MEMORY_ENABLED   - Use hybrid memory (default: true)"
-    echo "  CLAUDE_AUTO_MEMORY      - Auto-capture memories (default: true)"
-    echo "  CLAUDE_AGENT_AUTO       - Auto-select agents (default: true)"
+# Memory statistics with optimization metrics
+claude-memory-stats() {
+    echo -e "${GREEN}Memory Management Statistics:${NC}"
+    echo -e "  Memory operations: $MEMORY_OP_COUNT"
+    echo -e "  Cache hit ratio: $((MEMORY_CACHE_HITS * 100 / (MEMORY_OP_COUNT + 1)))%"
+    echo -e "  API calls: $API_CALL_COUNT"
+    echo -e "  Session file: $([ -f "$CLAUDE_SESSION_FILE" ] && echo "exists" || echo "missing")"
+    echo -e "  Session ID: ${CLAUDE_SESSION_ID:-not set}"
+    echo -e "  Project: ${CLAUDE_PROJECT_NAME:-unknown}"
+    echo -e "  Session age: $([ -n "$CLAUDE_SESSION_START" ] && echo "$(( $(date +%s) - $CLAUDE_SESSION_START )) seconds" || echo "unknown")"
 }
+
+# Session validation function
+claude-session-validate() {
+    echo -e "${GREEN}Validating current session...${NC}"
+    
+    if [ -z "$CLAUDE_SESSION_ID" ]; then
+        echo -e "${RED}✗ No active session${NC}"
+        return 1
+    fi
+    
+    local validation=$(_api_call GET "/api/claude-auto/session/validate/$CLAUDE_SESSION_ID" 2>/dev/null)
+    if echo "$validation" | jq -e '.valid' >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ Session is valid and active${NC}"
+        return 0
+    else
+        echo -e "${YELLOW}⚠ Session may be expired or invalid${NC}"
+        return 1
+    fi
+}
+
+# Auto-load persistent session
+if _load_session && [ -n "$CLAUDE_SESSION_ID" ]; then
+    echo -e "${BLUE}✓ Session restored: $CLAUDE_SESSION_ID (${CLAUDE_PROJECT_NAME:-unknown})${NC}"
+else
+    echo -e "${YELLOW}No active session detected. Run 'claude-init' to start.${NC}"
+fi
+
+echo -e "${GREEN}Claude Code helpers loaded (Enhanced v2.1). Type 'claude-help' for available commands.${NC}"
+echo -e "${BLUE}Version: 2.1 - Memory Management Optimized by Ruben Peeters${NC}"
+echo -e "${BLUE}Features: Persistent sessions, Enhanced search, Memory optimization, Agent system${NC}"

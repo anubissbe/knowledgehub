@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -14,6 +14,8 @@ import {
   ListItemText,
   useTheme,
   useMediaQuery,
+  Badge,
+  Chip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -26,6 +28,12 @@ import {
   Source as SourceIcon,
   Api as ApiIcon,
   Settings as SettingsIcon,
+  AutoFixHigh as HybridRAGIcon,
+  SmartToy as AgentIcon,
+  Analytics as AnalyticsIcon,
+  CloudDownload as WebIngestionIcon,
+  AccountTree as ClusterIcon,
+  Visibility as ObservabilityIcon,
 } from '@mui/icons-material'
 
 const menuItems = [
@@ -36,21 +44,57 @@ const menuItems = [
   { text: 'Knowledge Graph', icon: <HubIcon />, path: '/knowledge-graph' },
   { text: 'Search', icon: <SearchIcon />, path: '/search' },
   { text: 'Sources', icon: <SourceIcon />, path: '/sources' },
+  { 
+    text: 'Enhanced RAG', 
+    icon: <HybridRAGIcon />, 
+    path: '/hybrid-rag',
+    isNew: true 
+  },
+  { 
+    text: 'Agent Workflows', 
+    icon: <AgentIcon />, 
+    path: '/agent-workflows',
+    isNew: true 
+  },
+  { 
+    text: 'Retrieval Analytics', 
+    icon: <AnalyticsIcon />, 
+    path: '/retrieval-analytics',
+    isNew: true 
+  },
+  { 
+    text: 'Web Ingestion', 
+    icon: <WebIngestionIcon />, 
+    path: '/web-ingestion',
+    isNew: true 
+  },
+  { 
+    text: 'Memory Clusters', 
+    icon: <ClusterIcon />, 
+    path: '/memory-clusters',
+    isNew: true 
+  },
+  { 
+    text: 'Observability', 
+    icon: <ObservabilityIcon />, 
+    path: '/observability',
+    isNew: true 
+  },
   { text: 'API Docs', icon: <ApiIcon />, path: '/api-docs' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ]
 
 const drawerWidth = 280
 
-export default function SimpleLayout() {
+const SimpleLayout = React.memo(() => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
 
-  const handleDrawerToggle = () => {
+  const handleDrawerToggle = useCallback(() => {
     setMobileOpen(!mobileOpen)
-  }
+  }, [mobileOpen])
 
   const drawerContent = (
     <List>
@@ -62,8 +106,34 @@ export default function SimpleLayout() {
             selected={location.pathname === item.path}
             onClick={() => isMobile && setMobileOpen(false)}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
+            <ListItemIcon>
+              {item.isNew ? (
+                <Badge color="error" variant="dot">
+                  {item.icon}
+                </Badge>
+              ) : (
+                item.icon
+              )}
+            </ListItemIcon>
+            <ListItemText 
+              primary={
+                <Box display="flex" alignItems="center" gap={1}>
+                  {item.text}
+                  {item.isNew && (
+                    <Chip 
+                      label="NEW" 
+                      color="primary" 
+                      size="small" 
+                      sx={{ 
+                        height: 16, 
+                        fontSize: '0.6rem',
+                        fontWeight: 'bold'
+                      }} 
+                    />
+                  )}
+                </Box>
+              }
+            />
           </ListItemButton>
         </ListItem>
       ))}
@@ -128,4 +198,8 @@ export default function SimpleLayout() {
       </Box>
     </Box>
   )
-}
+})
+
+SimpleLayout.displayName = 'SimpleLayout'
+
+export default SimpleLayout

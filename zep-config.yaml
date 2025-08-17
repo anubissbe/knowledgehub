@@ -1,23 +1,47 @@
-# Zep Configuration
-api_secret: "your-secret-key-change-this"
+# Zep Configuration for KnowledgeHub Integration
+api_secret: "zep-knowledgehub-secret-change-in-production"
 
 store:
   type: postgres
   postgres:
     dsn: postgresql://zep:zep123@zep-postgres:5432/zep
 
-nlp:
-  spacy_model: en_core_web_sm
+server:
+  port: 8000
+  host: 0.0.0.0
+
+log:
+  level: info
+  format: json
+
+auth:
+  required: false
+
+llm:
+  anthropic_api_key: "${ANTHROPIC_API_KEY:-dummy-key-for-development}"
+  openai_api_key: "${OPENAI_API_KEY:-dummy-key-for-development}"
 
 memory:
-  message_window: 12
+  message_window: 20
+  max_memory_length: 10000
+
+nlp:
+  spacy_model: en_core_web_sm
+  server_url: "http://localhost:5557"
 
 extractors:
   messages:
-    entities:
-      enabled: true
     summarizer:
       enabled: true
+      model: "gpt-3.5-turbo"
+      max_length: 300
+    entities:
+      enabled: true
+      model: "gpt-3.5-turbo"
+    intent:
+      enabled: true
+      model: "gpt-3.5-turbo"
 
-server:
-  port: 8000
+data:
+  purge_every: 60  # minutes
+  message_window: 20

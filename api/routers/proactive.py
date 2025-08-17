@@ -111,7 +111,7 @@ def get_incomplete_tasks(
 
 @router.get("/predictions")
 def get_predictions(
-    session_id: str = Query(...),
+    session_id: Optional[str] = Query(None),
     project_id: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ) -> List[Dict[str, Any]]:
@@ -121,6 +121,28 @@ def get_predictions(
     Returns actions with confidence scores
     """
     try:
+        # Use default session if not provided
+        if not session_id:
+            session_id = "default"
+        analysis = assistant.analyze_session_state(db, session_id, project_id)
+        return analysis.get("predictions", [])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/predictions")
+def get_predictions_post(
+    body: Dict[str, Any] = Body({}),
+    db: Session = Depends(get_db)
+) -> List[Dict[str, Any]]:
+    """
+    Get predicted next actions based on current context (POST version)
+    
+    Returns actions with confidence scores
+    """
+    try:
+        session_id = body.get("session_id", "default")
+        project_id = body.get("project_id")
         analysis = assistant.analyze_session_state(db, session_id, project_id)
         return analysis.get("predictions", [])
     except Exception as e:
@@ -217,6 +239,54 @@ def get_suggestions(
         analysis = assistant.analyze_session_state(db, session_id, project_id)
         suggestions = analysis.get("proactive_suggestions", [])
         return suggestions[:limit]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/task-suggestions")
+def get_task_suggestions(
+    session_id: Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None),
+    limit: int = Query(5, le=10),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get task suggestions based on current context
+    """
+    try:
+        # Use default session if not provided
+        if not session_id:
+            session_id = "default"
+        
+        analysis = assistant.analyze_session_state(db, session_id, project_id)
+        
+        # Extract tasks from predictions and incomplete tasks
+        task_suggestions = []
+        
+        # Add predicted tasks
+        for prediction in analysis.get("predictions", [])[:3]:
+            task_suggestions.append({
+                "task": prediction.get("action", ""),
+                "reason": prediction.get("reason", ""),
+                "priority": "predicted",
+                "confidence": prediction.get("confidence", 0.5)
+            })
+        
+        # Add incomplete tasks
+        for task in analysis.get("incomplete_tasks", [])[:2]:
+            task_suggestions.append({
+                "task": task.get("task", ""),
+                "reason": f"Incomplete from {task.get('created_at', 'previous session')}",
+                "priority": task.get("priority", "medium"),
+                "confidence": 0.8
+            })
+        
+        return {
+            "suggestions": task_suggestions[:limit],
+            "total": len(task_suggestions),
+            "session_id": session_id,
+            "project_id": project_id
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

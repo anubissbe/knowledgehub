@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     REDIS_MAX_CONNECTIONS: int = 50
     
     # Weaviate settings
-    WEAVIATE_URL: str = "http://localhost:8090"
+    WEAVIATE_URL: str = "http://192.168.1.25:8090"
     WEAVIATE_HOST: Optional[str] = None
     WEAVIATE_PORT: Optional[int] = None
     WEAVIATE_API_KEY: Optional[str] = None
@@ -176,6 +176,19 @@ class Settings(BaseSettings):
     # Zep Memory System
     ZEP_API_URL: Optional[str] = "http://localhost:8100"
     ZEP_API_KEY: Optional[str] = None
+    
+    # Firecrawl Web Ingestion
+    FIRECRAWL_API_URL: Optional[str] = "https://api.firecrawl.dev"
+    FIRECRAWL_API_KEY: Optional[str] = None
+    
+    # LangGraph Configuration
+    LANGGRAPH_MEMORY_STORE: Optional[str] = "redis"
+    LANGGRAPH_CHECKPOINT_STORE: Optional[str] = "postgres"
+    
+    # Cross-encoder Reranking
+    RERANK_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    RERANK_TOP_K: int = 20
+    RERANK_BATCH_SIZE: int = 8
     
     # JWT settings
     JWT_SECRET: Optional[str] = None

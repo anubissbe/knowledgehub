@@ -1,0 +1,50 @@
+{
+  "timestamp": "2025-08-17T11:00:46.224440",
+  "user_requirement": "Critical Endpoints Working: 87.5% \u2705 this should be 100%",
+  "success_rate": 87.5,
+  "status": "INCOMPLETE",
+  "total_endpoints": 8,
+  "working_endpoints": 7,
+  "endpoint_details": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/rag/enhanced/health",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/agents/health",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/zep/health",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/graphrag/health",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/rag/enhanced/retrieval-modes",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/agents/agents",
+      "method": "GET",
+      "working": true
+    },
+    {
+      "endpoint": "/api/rag/test",
+      "method": "POST",
+      "working": false
+    }
+  ]
+}

@@ -121,14 +121,12 @@ class RealTimeService {
         const activitiesResponse = await api.get('/api/activity/recent')
         data.activities = activitiesResponse.data.activities || []
       } catch (error) {
-        console.log('Failed to fetch activities:', error)
         data.activities = []
       }
 
       this.lastData = data
       this.notifyCallbacks(data)
     } catch (error) {
-      console.error('Error fetching real-time data:', error)
     }
   }
 
@@ -137,7 +135,6 @@ class RealTimeService {
       try {
         callback(data)
       } catch (error) {
-        console.error('Error in real-time data callback:', error)
       }
     })
   }

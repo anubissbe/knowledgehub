@@ -37,17 +37,33 @@ async def public_search(
     Returns simplified results for public consumption
     """
     try:
+        # For vector search, fallback to keyword if embeddings fail
+        actual_search_type = search_type
+        
         # Create search query
         search_query = SearchQuery(
             query=q,
-            search_type=search_type,
+            search_type=actual_search_type,
             limit=limit,
             offset=offset
         )
         
-        # Execute document search
-        doc_results = await search_service.search(db, search_query)
+        # Execute document search with fallback
+        try:
+            doc_results = await search_service.search(db, search_query)
+        except Exception as search_error:
+            logger.warning(f"Search failed with {actual_search_type}, falling back to keyword: {search_error}")
+            # Fallback to keyword search if vector search fails
+            if search_type in [SearchType.VECTOR, SearchType.HYBRID]:
+                search_query.search_type = SearchType.KEYWORD
+                doc_results = await search_service.search(db, search_query)
+            else:
+                raise
         
+        # Handle None or empty results gracefully
+        if not doc_results:
+            doc_results = {"results": [], "total": 0}
+            
         logger.info(f"Search results structure: {doc_results}")
         logger.info(f"Number of results: {len(doc_results.get('results', []))}")
         if doc_results.get('results'):

@@ -1,0 +1,298 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: knowledgehub
+      POSTGRES_USER: knowledgehub
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-knowledgehub123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledgehub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Weaviate Vector Database
+  weaviate:
+    image: semitechnologies/weaviate:1.23.0
+    restart: unless-stopped
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    ports:
+      - "8090:8080"
+      - "50051:50051"
+
+  # Neo4j Graph Database
+  neo4j:
+    image: neo4j:5.14.0
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-knowledgehub123}
+      NEO4J_dbms_memory_pagecache_size: 1G
+      NEO4J_dbms_memory_heap_max__size: 1G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # TimescaleDB for Analytics
+  timescale:
+    image: timescale/timescaledb:latest-pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: knowledgehub_analytics
+      POSTGRES_USER: knowledgehub
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-knowledgehub123}
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledgehub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9010:9000"  # API
+      - "9011:9001"  # Console
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Qdrant Vector Database (High-performance alternative to Weaviate)
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 10s bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zep Memory System (Conversational Memory)
+  zep:
+    image: ghcr.io/getzep/zep:latest
+    restart: unless-stopped
+    ports:
+      - "8100:8000"
+    volumes:
+      - ./zep-config-simple.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml"]
+    depends_on:
+      zep-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 10s bash -c 'echo > /dev/tcp/localhost/8000' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Zep PostgreSQL Database
+  zep-postgres:
+    image: ankane/pgvector:v0.5.1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zep
+      POSTGRES_PASSWORD: zep123
+      POSTGRES_DB: zep
+    volumes:
+      - zep_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "zep"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AI Service (Embeddings & Analysis)
+  ai-service:
+    build: ./ai-service
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=knowledgehub
+      - DB_USER=knowledgehub
+      - DB_PASSWORD=${DATABASE_PASSWORD:-knowledgehub123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./ai-service:/app
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Main API Service
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://knowledgehub:${DATABASE_PASSWORD:-knowledgehub123}@postgres:5432/knowledgehub
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=knowledgehub
+      - DATABASE_USER=knowledgehub
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-knowledgehub123}
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WEAVIATE_URL=http://weaviate:8080
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-knowledgehub123}
+      - TIMESCALE_HOST=timescale
+      - TIMESCALE_PORT=5432
+      - TIMESCALE_DATABASE=knowledgehub_analytics
+      - TIMESCALE_USER=knowledgehub
+      - TIMESCALE_PASSWORD=${TIMESCALE_PASSWORD:-knowledgehub123}
+      - TIMESCALE_URL=postgresql://knowledgehub:${TIMESCALE_PASSWORD:-knowledgehub123}@timescale:5432/knowledgehub_analytics
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY_ID=${MINIO_ACCESS_KEY:-minioadmin}
+      - S3_SECRET_ACCESS_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - AI_SERVICE_URL=http://ai-service:8002
+      - ZEP_API_URL=http://zep:8000
+      - DISABLE_AUTH=true
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api:/app/api
+      - ./shared:/app/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      neo4j:
+        condition: service_started
+      timescale:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ai-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Web UI (Frontend)
+  webui:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:3000
+      - VITE_WS_URL=ws://localhost:3000
+    ports:
+      - "3100:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      webui:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t && ps aux | grep '[n]ginx: master process' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  weaviate_data:
+  neo4j_data:
+  neo4j_logs:
+  timescale_data:
+  minio_data:
+  qdrant_data:
+  zep_postgres_data:
+EOF < /dev/null

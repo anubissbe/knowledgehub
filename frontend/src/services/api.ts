@@ -1,122 +1,131 @@
-import axios, { AxiosError } from 'axios'
-import { getBaseUrlForPath, MOCK_RESPONSES } from './apiConfig'
 
-// Create axios instance without a fixed base URL
-export const api = axios.create({
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
-  },
-})
+import axios from 'axios';
+import { API_CONFIG } from './apiConfig';
 
-// Request interceptor to add the correct base URL based on the endpoint
-api.interceptors.request.use((config) => {
-  const hostname = window.location.hostname
-  const path = config.url || ''
-  
-  // If the URL is already absolute, don't modify it
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return config
+// Enhanced API service with caching and performance optimization
+class APIService {
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cacheTimeout = 5 * 60 * 1000; // 5 minutes
+
+  constructor() {
+    this.setupAxiosConfig();
   }
-  
-  // Get the appropriate base URL for this endpoint
-  const baseUrl = getBaseUrlForPath(path, hostname)
-  if (baseUrl) {
-    config.url = `${baseUrl}${path}`
-  }
-  
-  return config
-})
 
-// Add auth token if available
-api.interceptors.request.use((config) => {
-  const settings = localStorage.getItem('knowledgehub_settings')
-  if (settings) {
-    const { apiKey } = JSON.parse(settings)
-    if (apiKey) {
-      // Use X-API-Key header as expected by the backend
-      config.headers['X-API-Key'] = apiKey
-    }
-  }
-  return config
-})
-
-// Handle errors and provide mock responses for unavailable endpoints
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const requestPath = error.config?.url || ''
+  private setupAxiosConfig() {
+    axios.defaults.baseURL = API_CONFIG.BASE_URL;
+    axios.defaults.timeout = API_CONFIG.TIMEOUT;
     
-    // Only log detailed error info in development
-    if (import.meta.env.DEV) {
-      console.log(`[API] Error intercepted for ${requestPath}:`, error.code, error.response?.status)
-    }
+    // Add performance monitoring
+    axios.interceptors.request.use((config) => {
+      config.metadata = { startTime: new Date() };
+      return config;
+    });
+
+    axios.interceptors.response.use(
+      (response) => {
+        const endTime = new Date();
+        const duration = endTime.getTime() - response.config.metadata.startTime.getTime();
+        console.log(`API Call: ${response.config.url} took ${duration}ms`);
+        return response;
+      },
+      (error) => {
+        console.error('API Error:', error);
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  private getCacheKey(url: string, params?: any): string {
+    return `${url}_${JSON.stringify(params || {})}`;
+  }
+
+  private isValidCache(timestamp: number): boolean {
+    return Date.now() - timestamp < this.cacheTimeout;
+  }
+
+  async get<T>(url: string, params?: any, useCache = true): Promise<{ data: T }> {
+    const cacheKey = this.getCacheKey(url, params);
     
-    // Check if this is a connection refused error (no response) or network error
-    if (!error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED')) {
-      console.warn(`[API] Connection refused for endpoint: ${requestPath}`)
+    if (useCache && this.cache.has(cacheKey)) {
+      const cached = this.cache.get(cacheKey)!;
+      if (this.isValidCache(cached.timestamp)) {
+        return { data: cached.data };
+      }
+    }
+
+    try {
+      const response = await axios.get(url, { params });
       
-      // Check if we have a mock response for this path
-      for (const [mockPath, mockData] of Object.entries(MOCK_RESPONSES)) {
-        if (requestPath.includes(mockPath)) {
-          console.warn(`[API] Using mock data for unavailable service: ${requestPath}`)
-          
-          // Return a successful response with mock data
-          return {
-            data: mockData,
-            status: 200,
-            statusText: 'OK (Mocked - Service Unavailable)',
-            headers: {},
-            config: error.config,
-          }
-        }
+      if (useCache) {
+        this.cache.set(cacheKey, {
+          data: response.data,
+          timestamp: Date.now()
+        });
       }
       
-      // If no mock found, return a generic error response to prevent breaking the UI
-      console.warn(`[API] No mock data found for ${requestPath}, returning empty response`)
-      return {
-        data: {},
-        status: 200,
-        statusText: 'OK (Empty Mock)',
-        headers: {},
-        config: error.config,
-      }
+      return { data: response.data };
+    } catch (error) {
+      throw this.handleError(error);
     }
-    
-    // Check if this is a 404 or 500 error
-    if (error.response?.status === 404 || error.response?.status === 500) {
-      // Check if we have a mock response for this path
-      for (const [mockPath, mockData] of Object.entries(MOCK_RESPONSES)) {
-        if (requestPath.includes(mockPath)) {
-          console.warn(`[API] Using mock data for ${error.response.status} endpoint: ${requestPath}`)
-          
-          // Return a successful response with mock data
-          return {
-            data: mockData,
-            status: 200,
-            statusText: 'OK (Mocked)',
-            headers: error.response.headers,
-            config: error.config,
-          }
-        }
-      }
-      
-      // If no mock found, return empty response
-      console.warn(`[API] No mock data found for ${error.response.status} endpoint ${requestPath}, returning empty response`)
-      return {
-        data: {},
-        status: 200,
-        statusText: `OK (Empty Mock for ${error.response.status})`,
-        headers: error.response.headers,
-        config: error.config,
-      }
-    }
-    
-    if (error.response?.status === 401) {
-      console.error('Authentication error')
-      // Could redirect to login or show notification
-    }
-    
-    return Promise.reject(error)
   }
-)
+
+  async post<T>(url: string, data?: any): Promise<{ data: T }> {
+    try {
+      const response = await axios.post(url, data);
+      return { data: response.data };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async put<T>(url: string, data?: any): Promise<{ data: T }> {
+    try {
+      const response = await axios.put(url, data);
+      return { data: response.data };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async delete<T>(url: string): Promise<{ data: T }> {
+    try {
+      const response = await axios.delete(url);
+      return { data: response.data };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  private handleError(error: any): Error {
+    if (error.response) {
+      // Server responded with error status
+      const message = error.response.data?.message || error.response.statusText;
+      return new Error(`API Error (${error.response.status}): ${message}`);
+    } else if (error.request) {
+      // Request was made but no response received
+      return new Error('Network Error: No response from server');
+    } else {
+      // Something else happened
+      return new Error(`Request Error: ${error.message}`);
+    }
+  }
+
+  // Health check method
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.get('/health', {}, false);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Clear cache method
+  clearCache() {
+    this.cache.clear();
+  }
+}
+
+export const apiService = new APIService();
+export const api = apiService; // Alias for backward compatibility
+export default apiService;
