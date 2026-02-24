@@ -2,7 +2,7 @@
 # These are kept separate to avoid conflicts with existing packages
 
 # Core LlamaIndex (minimal version that works with existing packages)
-llama-index-core==0.10.0
+llama-index-core==0.13.0
 llama-index-vector-stores-weaviate==0.1.0
 llama-index-embeddings-huggingface==0.1.0
 
